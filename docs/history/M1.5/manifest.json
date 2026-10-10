@@ -1,0 +1,214 @@
+[
+  {
+    "path": "scripts\\toolchain-environment.ps1",
+    "sha256": "11C826E8E87FB19AE6359BD5961FD3E552B644097ABC8559032E8F8CEE494180"
+  },
+  {
+    "path": "scripts\\test-native.ps1",
+    "sha256": "4BE5C50C5561BA3526CC5C6094C016E8E9E08DFD9654E2EB6BB2C9FB98B722EF"
+  },
+  {
+    "path": "scripts\\test-m15-native.ps1",
+    "sha256": "84CD1985F161A6227A2C281E9779CF6F2346D4777A6D96E0F70696C426657A40"
+  },
+  {
+    "path": "scripts\\run.ps1",
+    "sha256": "AF64BFAFCEC17743A64F3AB2F93CC1B51D58007A522F87F4A9915D95BFD314F7"
+  },
+  {
+    "path": "scripts\\publish.ps1",
+    "sha256": "C344A9A37D1A9375C69420692238C2796C14EB6A509D5EE83709F12C4CD7101D"
+  },
+  {
+    "path": "scripts\\measure-resources.ps1",
+    "sha256": "1980E3D6B6B15AF2B92899CA2CBD2DCF466EABF22F84B2D26149B4381E3F451E"
+  },
+  {
+    "path": "scripts\\build.ps1",
+    "sha256": "1B943117F209F7F4F36D948B2FBC3CC14CA9E7309E12DCA1E86779CF08E32A7E"
+  },
+  {
+    "path": "scripts\\bootstrap.ps1",
+    "sha256": "47D05974C2AF36A73E6AC594D91D70676DC901BB0E6703284FBFA61F5FF46890"
+  },
+  {
+    "path": "prototype\\resources.js",
+    "sha256": "2A44D00F88DC52B662AFE57FEF0929C85D5889936A5AD33B70D929E183467175"
+  },
+  {
+    "path": "prototype\\index.html",
+    "sha256": "FC97396B7ACC5F1ABEF78985D0FFA24A3598FEF3B8DE4DE7A897E09C0CE92839"
+  },
+  {
+    "path": "tests\\DesktopHub.LaunchFixture\\Program.cs",
+    "sha256": "A82CE13D8520E343F99A0BEE8537E1F3DA271D59EED88E4CD681856E3B23ECF1"
+  },
+  {
+    "path": "desktop\\tests\\native-bridge.test.mjs",
+    "sha256": "1DF2B9FE4EACD3F46AEEF7B270947CB1074FC120C738D4831CE2C88C2B517629"
+  },
+  {
+    "path": "desktop\\tests\\desktop-adapter.test.mjs",
+    "sha256": "C5C5E901C919F3EAB720E8BDE4704A0866AF23E76077D8D8534A1389BE66516B"
+  },
+  {
+    "path": "desktop\\native.js",
+    "sha256": "E4CD921E7CA8CE769712B0B80E721494CAFFBBE44A2E4F357AAC3960C5B2A314"
+  },
+  {
+    "path": "desktop\\index.html",
+    "sha256": "CBC41EAF6AF21A66E132A55116448F0F89B4CB1DEA124045ECF7542FFAD832B6"
+  },
+  {
+    "path": "desktop\\desktop.js",
+    "sha256": "3E17B516D915B715D7A3F9A74B8E5FB125EFDFAC71FC3A46CDD563B0F70D8972"
+  },
+  {
+    "path": "desktop\\desktop.css",
+    "sha256": "34C6B4395AA4F45299A243A1FCDF442F6F60DDE59BBDCF1A1CE205599EA08D08"
+  },
+  {
+    "path": "prototype\\tests\\state.test.mjs",
+    "sha256": "B59E22B701C20A811EA435FCD0B5FF3952CE13ED97026239BE6A9C5D5005414D"
+  },
+  {
+    "path": "prototype\\styles.css",
+    "sha256": "8850C5AB3BB52D40FA38BBC9670DA29D673CA0BF6CB07A7762C47CEA0EEAA31F"
+  },
+  {
+    "path": "prototype\\settings.js",
+    "sha256": "AA959259009E31F8BB825C0C4A6B9498B5385BF8BA3292D13BE5D6C29D743BFA"
+  },
+  {
+    "path": "prototype\\serve.mjs",
+    "sha256": "D455EDDDFC63336A3DACAA356A1F011584706A903D252A0299A3F7DB221DDE18"
+  },
+  {
+    "path": "prototype\\assets\\hub.svg",
+    "sha256": "7FCBCEE8D6C36B87992A9B20ECAB6B284042C03FEA1336BDAE39FD784EF2EBEF"
+  },
+  {
+    "path": "prototype\\app.js",
+    "sha256": "1C93D09C19DED602E08AA5D490EB708FF4857613625DD0A2BD58DEE543C4C216"
+  },
+  {
+    "path": "prototype\\ACCEPTANCE.md",
+    "sha256": "1E89BA0F3860C5307F9DF2D8F259670FAE438F3F109806C97919CC1FACC8A299"
+  },
+  {
+    "path": "prototype\\scenes.js",
+    "sha256": "5F256A911BE364DF85429D267032687359E4AD257F2BDF5192DFDAFA44E00C35"
+  },
+  {
+    "path": "tests\\DesktopHub.LaunchFixture\\DesktopHub.LaunchFixture.csproj",
+    "sha256": "FF96AF4E7AF767EC17147AD0299AD49FCCE0619D356624635050677217CFA262"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\AppLibraryService.cs",
+    "sha256": "F42EAF539C82FF5C1FFA0B48AFD0A200B24DB25717C42218EA4711D0CC862CAE"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\NativeLaunchService.cs",
+    "sha256": "6A9AA2A38C92966BE7764C93232EAAEFB2411ADECF316E12CBCAFD9AD05E3A09"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\DesktopHub.Core.csproj",
+    "sha256": "12985A174DC55D6F519F2205BF7B35D0123D6D7DFA7FE3FE34F2F3028BA30604"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\SettingsValidator.cs",
+    "sha256": "45A73AD6934133155DCA670959A0CF10C4C49410EAC5E33805B799445A97DB16"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\SettingsStore.cs",
+    "sha256": "66FA4A321263C505D7EFF0AF375F86A56550ED831815BA87FF36D928BB5E65A0"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\AppSettings.cs",
+    "sha256": "B90715632C1E97A56B5DA1550334867BF3E1B7B9B4438322F8FA1486E3748B4A"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\WindowsShortcutResolver.cs",
+    "sha256": "39F8B2FC2300C05ADCB8FEB9BA48436A08CBF17B9361D947090B827AEB9AE507"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\SmokeTests.cs",
+    "sha256": "255D3D5085FC810E58C7C74A35A758A62C6981F1414A3E4ED56DD04E339D7410"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\ResourceUsageProbe.cs",
+    "sha256": "D4A54A72D938109028F063B5961D9FBAD6C02B87F0842DEE13440A243EA29FF3"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\Program.cs",
+    "sha256": "E06690BB999E91D05AEDBE1EDA0C4122DF22D7B6DDD271F98C8F0F692FED6167"
+  },
+  {
+    "path": "prototype\\screenshots\\workspace-light.jpg",
+    "sha256": "F168DC748BB24FAC1BE905838775162FA6D4F2C0D87930A0049C5A154DDD1D88"
+  },
+  {
+    "path": "prototype\\screenshots\\workspace-dark.jpg",
+    "sha256": "04E153F2A31EE49608C65A2059757F6FC08A2A58BB0878A6FBFB5A81D24DA9DC"
+  },
+  {
+    "path": "prototype\\screenshots\\mini-dark.jpg",
+    "sha256": "0275D960B5CADECF8F077FC79A7C7CA43B5C7299ED4197D24ADE683EAB03A0B0"
+  },
+  {
+    "path": "prototype\\screenshots\\library-dark.jpg",
+    "sha256": "EA1AA211076C83D6E7DEF0512073BEBD907F6FFF877C9F21E02BEEFB6B36B2A5"
+  },
+  {
+    "path": "prototype\\screenshots\\editor-light.jpg",
+    "sha256": "B5DBA6D9CDBC49F16F0DA8376D77533494E759ACDCAF0E268FD1CD2F970A642F"
+  },
+  {
+    "path": "prototype\\screenshots\\dock-dark.jpg",
+    "sha256": "0D6D927B9C1BDFFDA4BB1279354595B900EAD87EFB0CFFED026CDB74C9DED70B"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\DesktopHub.Windows.csproj",
+    "sha256": "1DB5C216EC94449E0352DDFA463E8D3F4147B42D7F7D349ACDE3CD86078D8EE8"
+  },
+  {
+    "path": "tests\\DesktopHub.Core.Tests\\README.md",
+    "sha256": "208846E38500A344E85C0B6D8031CED748A58A1E5CFED7B474CDC92463F0E744"
+  },
+  {
+    "path": "tests\\DesktopHub.Core.Tests\\Program.cs",
+    "sha256": "FB9828D2BA0DEB6AF57D68CA6F7AE6247C75601BE11F1E494C06412E2A6A9B91"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\app.manifest",
+    "sha256": "4FECAD1498504B3048E383E8EF200B6C4A2AD9FB625A2F3E22546BCA22AB0649"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\ApplicationIconCache.cs",
+    "sha256": "0BA442CBA05C3D06A20AC9C8D628DEF484CA245EB7E288D74B8ABCC8192B4CAA"
+  },
+  {
+    "path": "tests\\DesktopHub.Core.Tests\\DesktopHub.Core.Tests.csproj",
+    "sha256": "41DE47B983ED4CBC4D12D1369448DFBF63470C624D221E557FE4A03C503923E4"
+  },
+  {
+    "path": "tests\\DesktopHub.Core.Tests\\NuGet.Config",
+    "sha256": "3F62B3EDD6BB279697A5A53ADA9A5DFC590B51708A5C5630F07B62D9FEA7F683"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\HubWindow.cs",
+    "sha256": "783D7EDCE8BCCDF2BF3802DBA79EBAF078FED56DB73443E3CA4EE0CFAE4F31DD"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\HubApplication.cs",
+    "sha256": "B835C8CD1F792017D4C46CDA1BF988EE111D33D1CD4B672847BD206CAB92C932"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\NativeBridge.cs",
+    "sha256": "EAEFDE9A7DD0476E21C95086D33DB776F9AF0E9433299FDE3F19D5F428D84EAF"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\NativeMethods.cs",
+    "sha256": "6A0AD88CAEA06644D5781BE9A68F6D9B1EE69918747B9B8721FA907B4C21F3FA"
+  }
+]

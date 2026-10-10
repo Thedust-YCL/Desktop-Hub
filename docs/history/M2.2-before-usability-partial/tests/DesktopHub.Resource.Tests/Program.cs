@@ -1,0 +1,156 @@
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text.Json;
+using DesktopHub.Core;
+
+var root = Path.Combine(AppContext.BaseDirectory, "m22-owned-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(root);
+var results = new List<object>(); var passed = 0; var failed = 0;
+await Test("Known-folder desktop discovery creates no index or watcher", async () =>
+{
+    using var service = Service(); await service.StartAsync();
+    var desktop = ResourceScanner.DesktopPath(); True(Path.IsPathFullyQualified(desktop)); Equal(ResourceScanner.Canonical(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)), desktop);
+    Equal(0, service.WatcherCount); Equal(0, service.Query(new()).Total); True(!File.Exists(service.Store.FilePath));
+});
+await Test("Preview is read-only, cancellation does not authorize, unconfirmed custom/public sources remain unwatched", async () =>
+{
+    using var service = Service(); var folder = Fixture(3);
+    var preview = await service.PreviewAsync(folder, "custom", false, Id()); Equal(3, preview.Files); Equal(0, service.WatcherCount); True(!File.Exists(service.Store.FilePath));
+    service.Cancel(preview.Token); await ThrowsAsync(() => service.ConfirmAsync(preview.Token)); Equal(0, service.Query(new()).Total);
+    var publicFolder = Fixture(1); await service.PreviewAsync(publicFolder, "publicDesktop", false, Id()); Equal(0, service.WatcherCount);
+});
+await Test("Confirmation indexes only direct children, subfolders are one resource and original bytes stay identical", async () =>
+{
+    using var service = Service(); var folder = Fixture(2); var sub = Path.Combine(folder, "sub"); Directory.CreateDirectory(sub); File.WriteAllText(Path.Combine(sub,"deep.txt"),"safe");
+    var hash = Hash(Path.Combine(folder,"0.txt")); await Import(service,folder);
+    Equal(3,service.Query(new()).Total); True(!service.Store.Snapshot().Resources.Any(r=>r.DisplayName=="deep.txt")); Equal(hash,Hash(Path.Combine(folder,"0.txt"))); Equal(1,service.WatcherCount);
+});
+await Test("Independent recursive authorization, nested and duplicate sources deduplicate by path", async () =>
+{
+    using var service = Service(); var folder=Fixture(1);var sub=Path.Combine(folder,"sub");Directory.CreateDirectory(sub);File.WriteAllText(Path.Combine(sub,"inner.txt"),"x");
+    await Import(service,folder,true);await Import(service,sub);await Import(service,folder,true);
+    var data=service.Store.Snapshot();Equal(2,data.Sources.Count);Equal(3,data.Resources.Count);var inner=data.Resources.Single(r=>r.DisplayName=="inner.txt");Equal(2,data.ResourceSources.Count(x=>x.ResourceId==inner.Id));
+    await service.RemoveSourceAsync(data.Sources.Single(x=>x.Path==sub).Id,true);Equal(inner.Id,service.Store.Snapshot().Resources.Single(r=>r.DisplayName=="inner.txt").Id);
+});
+await Test("Temporary folder browse has pagination and does not persist; explicit single item is indexed and watched", async () =>
+{
+    using var service=Service();var folder=Fixture(1);var sub=Path.Combine(folder,"sub");Directory.CreateDirectory(sub);File.WriteAllText(Path.Combine(sub,"inside.txt"),"x");await Import(service,folder);
+    var id=service.Store.Snapshot().Resources.Single(r=>r.ResourceType=="folder").Id;var before=File.ReadAllText(service.Store.FilePath);
+    var browsing=await service.BrowseAsync(id,null,null,0);Equal(1,browsing.Total);Equal(before,File.ReadAllText(service.Store.FilePath));
+    await ThrowsAsync(()=>service.AddBrowsedAsync(browsing.Token,"..\\elsewhere"));await service.AddBrowsedAsync(browsing.Token,"inside.txt");Equal(3,service.Query(new()).Total);
+    File.Delete(Path.Combine(sub,"inside.txt"));await Until(()=>service.Store.Snapshot().Resources.Single(r=>r.DisplayName=="inside.txt").Status=="Missing");
+});
+await Test("Folder-specific recursive preview can use native browse scope and still requires confirmation", async () =>
+{
+    using var service=Service();var folder=Fixture(1);var sub=Path.Combine(folder,"sub");Directory.CreateDirectory(sub);File.WriteAllText(Path.Combine(sub,"inside.txt"),"x");await Import(service,folder);
+    var item=service.Store.Snapshot().Resources.Single(r=>r.ResourceType=="folder");var browse=await service.BrowseAsync(item.Id,null,null,0);
+    var preview=await service.PreviewBrowseAsync(browse.Token,Id());Equal(2,service.Query(new()).Total);True(preview.Recursive);await service.ConfirmAsync(preview.Token);Equal(3,service.Query(new()).Total);
+});
+await Test("Actual FileSystemWatcher create and rename preserve stable id, favorite and tags", async () =>
+{
+    using var service=Service();var folder=Fixture(1);await Import(service,folder);var path=Path.Combine(folder,"watch.txt");File.WriteAllText(path,"watch");await Until(()=>service.Store.Snapshot().Resources.Any(r=>r.CanonicalPath==path));
+    var item=service.Store.Snapshot().Resources.Single(r=>r.CanonicalPath==path);await service.FavoriteAsync(item.Id,true);await service.SaveTagAsync(null,"主题 A","theme");var tag=service.Store.Snapshot().Tags.Single();await service.BindTagAsync(item.Id,tag.Id,true);
+    var renamed=Path.Combine(folder,"renamed.txt");File.Move(path,renamed);await Until(()=>service.Store.Snapshot().Resources.Any(r=>r.Id==item.Id&&r.CanonicalPath==renamed));var data=service.Store.Snapshot();True(data.Resources.Single(r=>r.Id==item.Id).Favorite);True(data.ResourceTags.Contains(new(item.Id,tag.Id)));
+});
+await Test("Offline same-directory rename and renamed folder descendants survive startup reconciliation", async () =>
+{
+    var directory=NewDirectory("data");var folder=Fixture(1);var sub=Path.Combine(folder,"sub");Directory.CreateDirectory(sub);File.WriteAllText(Path.Combine(sub,"inner.txt"),"x");
+    string fileId,childId; using(var first=new ResourceLibraryService(directory)){await Import(first,folder,true);fileId=first.Store.Snapshot().Resources.Single(x=>x.DisplayName=="0.txt").Id;childId=first.Store.Snapshot().Resources.Single(x=>x.DisplayName=="inner.txt").Id;await first.FavoriteAsync(childId,true);}
+    File.Move(Path.Combine(folder,"0.txt"),Path.Combine(folder,"offline.txt"));Directory.Move(sub,Path.Combine(folder,"renamed-sub"));
+    using var second=new ResourceLibraryService(directory);await second.StartAsync();var data=second.Store.Snapshot();Equal(fileId,data.Resources.Single(x=>x.DisplayName=="offline.txt").Id);var child=data.Resources.Single(x=>x.DisplayName=="inner.txt");Equal(childId,child.Id);True(child.Favorite);True(child.CanonicalPath.Contains("renamed-sub"));
+});
+await Test("Deleted original leaves Missing metadata and confirmed cleanup changes no remaining file", async () =>
+{
+    using var service=Service();var folder=Fixture(2);await Import(service,folder);var item=service.Store.Snapshot().Resources.Single(r=>r.DisplayName=="0.txt");await service.FavoriteAsync(item.Id,true);File.Delete(item.CanonicalPath);await Until(()=>service.Store.Snapshot().Resources.Single(r=>r.Id==item.Id).Status=="Missing");
+    var other=Path.Combine(folder,"1.txt");var hash=Hash(other);await ThrowsAsync(()=>service.CleanAsync([item.Id],false));await service.CleanAsync([item.Id],true);True(!service.Store.Snapshot().Resources.Any(x=>x.Id==item.Id));Equal(hash,Hash(other));
+});
+await Test("Unavailable source is distinct from Missing and restores on refresh without losing favorites", async () =>
+{
+    using var service=Service();var folder=Fixture(1);await Import(service,folder);var item=service.Store.Snapshot().Resources.Single();await service.FavoriteAsync(item.Id,true);var away=folder+"-offline";Directory.Move(folder,away);await service.RefreshAsync();
+    Equal("SourceUnavailable",service.Store.Snapshot().Resources.Single().Status);await ThrowsAsync(()=>service.CleanAsync([item.Id],true));Directory.Move(away,folder);await service.RefreshAsync();Equal("Active",service.Store.Snapshot().Resources.Single().Status);True(service.Store.Snapshot().Resources.Single().Favorite);
+});
+await Test("Healthy overlapping source wins when another source becomes unavailable", async () =>
+{
+    using var service=Service();var folder=Fixture(0);var sub=Path.Combine(folder,"sub");Directory.CreateDirectory(sub);File.WriteAllText(Path.Combine(sub,"x.txt"),"x");await Import(service,folder,true);await Import(service,sub);
+    // An individually disabled/unavailable source must not erase shared valid metadata.
+    service.Store.Update(data=>data.Sources.Single(x=>x.Path==sub).AvailabilityStatus="SourceUnavailable");await service.RefreshAsync();Equal("Active",service.Store.Snapshot().Resources.Single(x=>x.DisplayName=="x.txt").Status);
+});
+await Test("Manual repair merges existing duplicate into original id and retains both tag/favorite relations", async () =>
+{
+    using var service=Service();var folder=Fixture(2);await Import(service,folder);var data=service.Store.Snapshot();var a=data.Resources.Single(x=>x.DisplayName=="0.txt");var b=data.Resources.Single(x=>x.DisplayName=="1.txt");await service.FavoriteAsync(a.Id,true);await service.SaveTagAsync(null,"修复标签","custom");var tag=service.Store.Snapshot().Tags.Single();await service.BindTagAsync(a.Id,tag.Id,true);
+    File.Delete(a.CanonicalPath);await service.RefreshAsync();await service.BeginRepairAsync(a.Id);Equal("PendingRepair",service.Store.Snapshot().Resources.Single(x=>x.Id==a.Id).Status);await service.RepairAsync(a.Id,b.CanonicalPath);data=service.Store.Snapshot();Equal(1,data.Resources.Count);Equal(a.Id,data.Resources.Single().Id);True(data.Resources.Single().Favorite);True(data.ResourceTags.Contains(new(a.Id,tag.Id)));True(File.Exists(b.CanonicalPath));
+});
+await Test("Repair outside source authorizes only a single target, survives refresh, never scans its siblings", async () =>
+{
+    using var service=Service();var folder=Fixture(1);var outside=Fixture(2);await Import(service,folder);var item=service.Store.Snapshot().Resources.Single();File.Delete(item.CanonicalPath);await service.RefreshAsync();await service.RepairAsync(item.Id,Path.Combine(outside,"0.txt"));await service.RefreshAsync();Equal(1,service.Query(new()).Total);Equal("Active",service.Store.Snapshot().Resources.Single().Status);True(service.Store.Snapshot().Resources.Single().ManualTarget);
+});
+await Test("Theme/period/custom tags bind multiple per resource; combined filename/tag/favorite filters work", async () =>
+{
+    using var service=Service();await Import(service,Fixture(2));var a=service.Store.Snapshot().Resources[0];foreach(var kind in new[]{"theme","period","custom"})await service.SaveTagAsync(null,kind,kind);var tags=service.Store.Snapshot().Tags;foreach(var tag in tags)await service.BindTagAsync(a.Id,tag.Id,true);await service.FavoriteAsync(a.Id,true);
+    Equal(1,service.Query(new("theme",tags.Select(x=>x.Id).ToList(),true)).Total);await service.SaveTagAsync(tags[0].Id,"更名","theme");Equal(1,service.Query(new("更名")).Total);await service.DeleteTagAsync(tags[0].Id,true);Equal(2,service.Store.Snapshot().ResourceTags.Count);Equal(2,service.Query(new()).Total);
+});
+await Test("Suggestions have metadata explanations; accepted/edited only become tags, rejections persist", async () =>
+{
+    var directory=NewDirectory("data");using var service=new ResourceLibraryService(directory);var folder=Fixture(0);File.WriteAllText(Path.Combine(folder,"课程设计.txt"),"x");await Import(service,folder);var data=service.Store.Snapshot();Equal(0,data.ResourceTags.Count);True(data.Suggestions.Any(s=>s.TagType=="period"&&s.SuggestionBasis.Contains("创建时间")));
+    await service.SuggestionAsync(data.Suggestions[0].Id,false);await service.SuggestionAsync(data.Suggestions[1].Id,true,"用户编辑");await service.RefreshAsync();data=service.Store.Snapshot();Equal("Rejected",data.Suggestions[0].Status);Equal(1,data.ResourceTags.Count);True(data.Tags.Any(t=>t.Name=="用户编辑"));var restart=new ResourceStore(directory);Equal("Rejected",restart.Snapshot().Suggestions[0].Status);
+});
+await Test("Restart restores authorized sources, stable resources, favorites, tags and source relationships", async () =>
+{
+    var directory=NewDirectory("data");var folder=Fixture(2);using(var first=new ResourceLibraryService(directory)){await Import(first,folder);var item=first.Store.Snapshot().Resources[0];await first.FavoriteAsync(item.Id,true);await first.SaveTagAsync(null,"保存","custom");await first.BindTagAsync(item.Id,first.Store.Snapshot().Tags[0].Id,true);}
+    var before=new ResourceStore(directory).Snapshot();using var restart=new ResourceLibraryService(directory);await restart.StartAsync();var after=restart.Store.Snapshot();Equal(before.Resources.Select(x=>x.Id).Order().ToArray(),after.Resources.Select(x=>x.Id).Order().ToArray());Equal(before.ResourceTags,after.ResourceTags);True(after.Resources.Any(r=>r.Favorite));Equal(1,restart.WatcherCount);
+});
+await Test("Atomic replacement failure leaves previous metadata and apps/scenes configuration bytes intact", async () =>
+{
+    var directory=NewDirectory("data");new SettingsStore(directory).Save(new AppSettings());using var service=new ResourceLibraryService(directory);await Import(service,Fixture(1));var settings=File.ReadAllText(Path.Combine(directory,"settings.json"));var original=File.ReadAllText(service.Store.FilePath);var item=service.Store.Snapshot().Resources[0];
+    using(var locked=new FileStream(service.Store.FilePath,FileMode.Open,FileAccess.Read,FileShare.Read)){await ThrowsAsync(()=>service.FavoriteAsync(item.Id,true));}Equal(original,File.ReadAllText(service.Store.FilePath));True(!service.Store.Snapshot().Resources[0].Favorite);Equal(settings,File.ReadAllText(Path.Combine(directory,"settings.json")));Equal(0,Directory.GetFiles(directory,"resources.*.tmp").Length);
+});
+await Test("Corrupted/unknown-version resource metadata is preserved and cannot overwrite app/scene data", async () =>
+{
+    foreach(var damaged in new[]{"{\"schemaVersion\":999}","{\"resources\":[null]}","{\"sources\":[{\"path\":\"bad relative path\"}]}"})
+    { var directory=NewDirectory("data");var file=Path.Combine(directory,"resources.json");File.WriteAllText(file,damaged);var store=new ResourceStore(directory);True(store.RecoveryWarning is not null);await ThrowsAsync(()=>Task.Run(()=>store.Update(_=>{})));Equal(damaged,File.ReadAllText(file)); }
+});
+await Test("Large scan reports progress, paginates 60 items, can cancel and stays asynchronous", async () =>
+{
+    using var service=Service();var folder=Fixture(1800);var id=Id();var progress=0;var responsiveness=0;
+    service.Progress+=p=>{if(p.OperationId==id)progress++;};var watch=Stopwatch.StartNew();var task=service.PreviewAsync(folder,"custom",false,id);while(!task.IsCompleted){responsiveness++;await Task.Delay(5);}var preview=await task;True(progress>0);True(responsiveness>0);await service.ConfirmAsync(preview.Token);Equal(1800,service.Query(new()).Total);Equal(60,service.Query(new()).Items.Count);Equal(60,service.Query(new(Page:1)).Items.Count);Console.WriteLine($"PERF 1800 items: preview/confirm {watch.ElapsedMilliseconds}ms, UI-like ticks={responsiveness}");
+    var cancelId=Id();service.Progress+=p=>{if(p.OperationId==cancelId)service.Cancel(cancelId);};await ThrowsAsync(()=>service.PreviewAsync(folder,"custom",true,cancelId));Equal(1800,service.Query(new()).Total);
+});
+await Test("Short burst of real events and explicit recovery converge without duplicate resources", async () =>
+{
+    using var service=Service();var folder=Fixture(0);await Import(service,folder);for(var i=0;i<350;i++)File.WriteAllText(Path.Combine(folder,i+".txt"),"x");await Until(()=>service.Query(new()).Total==350,20000);
+    for(var i=0;i<120;i++)File.Delete(Path.Combine(folder,i+".txt"));await service.RefreshAsync();var data=service.Store.Snapshot();Equal(350,data.Resources.Count);Equal(120,data.Resources.Count(x=>x.Status=="Missing"));Equal(350,data.Resources.Select(x=>x.CanonicalPath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+});
+await Test("Recursive scanning rejects junction escape/cycles and never indexes external contents", async () =>
+{
+    using var service=Service();var folder=Fixture(0);var external=Fixture(1);var link=Path.Combine(folder,"junction");
+    var start=new ProcessStartInfo("cmd.exe"){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true};start.ArgumentList.Add("/c");start.ArgumentList.Add("mklink");start.ArgumentList.Add("/J");start.ArgumentList.Add(link);start.ArgumentList.Add(external);using var process=Process.Start(start)!;await process.WaitForExitAsync();if(process.ExitCode!=0)throw new Exception("Could not create owned junction fixture");
+    var preview=await service.PreviewAsync(folder,"custom",true,Id());True(preview.Warnings.Count>0);await service.ConfirmAsync(preview.Token);Equal(1,service.Query(new()).Total);True(service.Store.Snapshot().Resources.Single().ReparsePoint);await ThrowsAsync(()=>service.BrowseAsync(service.Store.Snapshot().Resources.Single().Id,null,null,0));
+});
+await Test("Path traversal, arbitrary browse tokens, relative/UNC/device/ADS paths are rejected", async () =>
+{
+    using var service=Service();await ThrowsAsync(()=>service.BrowseAsync(null,"untrusted","..",0));foreach(var path in new[]{"../tmp",@"\\server\share",@"C:\x.txt:stream",@"\\?\C:\x"})await ThrowsAsync(()=>service.PreviewAsync(path,"custom",true,Id()));
+});
+await Test("Scanning locked files reads metadata only, and cloud-placeholder targets never open", async () =>
+{
+    using var service=Service();var folder=Fixture(1);var path=Path.Combine(folder,"0.txt");var hash=Hash(path);using(var locked=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.None)){await Import(service,folder);Equal(1,service.Query(new()).Total);}Equal(hash,Hash(path));
+    File.SetAttributes(path,File.GetAttributes(path)|FileAttributes.Offline);await service.RefreshAsync();var item=service.Store.Snapshot().Resources.Single();True(item.CloudPlaceholder);await ThrowsAsync(()=>Task.Run(()=>service.OpenTarget(item.Id)));File.SetAttributes(path,FileAttributes.Normal);
+});
+await Test("Resource store snapshots are isolated and metadata-only operations need no network", async () =>
+{
+    using var service=Service();await Import(service,Fixture(1));var copy=service.Store.Snapshot();copy.Resources[0].Favorite=true;copy.Resources.Clear();Equal(1,service.Query(new()).Total);True(!service.Store.Snapshot().Resources[0].Favorite);await service.SaveTagAsync(null,"离线","custom");Equal(1,service.Store.Snapshot().Tags.Count);
+});
+Console.WriteLine($"RESOURCE RESULT {passed} passed; {failed} failed. Fixtures retained at {root}");
+File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results,new JsonSerializerOptions{WriteIndented=true}));
+Environment.ExitCode=failed==0?0:1;
+
+string Id()=>Guid.NewGuid().ToString("N");
+string NewDirectory(string name){var path=Path.Combine(root,name+"-"+Id());Directory.CreateDirectory(path);return path;}
+ResourceLibraryService Service()=>new(NewDirectory("data"));
+string Fixture(int count){var path=NewDirectory("source");for(var i=0;i<count;i++)File.WriteAllText(Path.Combine(path,i+".txt"),"Desktop Hub owned harmless file "+i);return path;}
+async Task Import(ResourceLibraryService service,string path,bool recursive=false){var preview=await service.PreviewAsync(path,"custom",recursive,Id());await service.ConfirmAsync(preview.Token);}
+string Hash(string path)=>Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
+void True(bool value){if(!value)throw new Exception("Assertion failed");}
+void Equal<T>(T expected,T actual){if(JsonSerializer.Serialize(expected)!=JsonSerializer.Serialize(actual))throw new Exception($"Expected {JsonSerializer.Serialize(expected)}, got {JsonSerializer.Serialize(actual)}");}
+async Task ThrowsAsync(Func<Task> action){try{await action();}catch{return;}throw new Exception("Expected failure");}
+async Task Until(Func<bool> predicate,int timeout=10000){var watch=Stopwatch.StartNew();while(watch.ElapsedMilliseconds<timeout){if(predicate())return;await Task.Delay(80);}throw new TimeoutException("Watcher convergence");}
+async Task Test(string name,Func<Task> test){try{await test();passed++;results.Add(new{name,passed=true});Console.WriteLine("PASS "+name);}catch(Exception ex){failed++;results.Add(new{name,passed=false,error=ex.ToString()});Console.WriteLine("FAIL "+name+"\n"+ex);}}
