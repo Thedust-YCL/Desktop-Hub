@@ -1,0 +1,51 @@
+{
+  "verifiedUtc": "2026-10-09T13:09:05.8192625+00:00",
+  "method": "Independent recomputation from raw samples, mean memory over index 1..60 and time-weighted CPU",
+  "scenarios": [
+    {
+      "scenario": "mini-first",
+      "statisticsSamples": 60,
+      "totalPrivateMiBMean": 373.7791015625,
+      "totalPrivateMiBPeak": 376.1484375,
+      "cpuMachinePercentMean": 0.4277552777544606,
+      "cpuIntervals": 60,
+      "skippedCpuIntervals": 0,
+      "errors": 0
+    },
+    {
+      "scenario": "dock-open",
+      "statisticsSamples": 60,
+      "totalPrivateMiBMean": 524.1966796875,
+      "totalPrivateMiBPeak": 991.8359375,
+      "cpuMachinePercentMean": 0.3566381273306326,
+      "cpuIntervals": 58,
+      "skippedCpuIntervals": 2,
+      "errors": 0
+    },
+    {
+      "scenario": "workspace-home",
+      "statisticsSamples": 60,
+      "totalPrivateMiBMean": 687.2804036458333,
+      "totalPrivateMiBPeak": 701.66015625,
+      "cpuMachinePercentMean": 0.36263160178835624,
+      "cpuIntervals": 60,
+      "skippedCpuIntervals": 0,
+      "errors": 0
+    },
+    {
+      "scenario": "mini-after-use",
+      "statisticsSamples": 60,
+      "totalPrivateMiBMean": 685.9755208333333,
+      "totalPrivateMiBPeak": 686.4375,
+      "cpuMachinePercentMean": 0.40977706825358584,
+      "cpuIntervals": 60,
+      "skippedCpuIntervals": 0,
+      "errors": 0
+    }
+  ],
+  "miniAfterUseIncreaseMiB": 312.19641927083336,
+  "miniAfterUseIncreasePercent": 83.52431100769573,
+  "totalValidCpuIntervals": 238.0,
+  "totalSkippedCpuIntervals": 2.0,
+  "sourceTextSummaryNote": "Initial summary.txt counted 240 scheduled intervals; summary.json and this recomputation identify 238 valid and 2 skipped intervals. Diagnostic text has since been corrected for future runs."
+}

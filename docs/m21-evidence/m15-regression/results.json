@@ -1,0 +1,892 @@
+[
+  {
+    "name": "Mini is an independent HWND",
+    "passed": true,
+    "detail": {
+      "hwnd": 2623744,
+      "width": 62,
+      "height": 182,
+      "topmost": false,
+      "allowsTransparency": true
+    }
+  },
+  {
+    "name": "WebView native handshake",
+    "passed": true,
+    "detail": {
+      "ok": true,
+      "result": {
+        "appIcons": {},
+        "effectiveTheme": "light",
+        "executions": [],
+        "runtimeVersion": "154.0.4258.62",
+        "settings": {
+          "allowForeground": true,
+          "appEntries": [],
+          "dockBounds": {
+            "height": 540,
+            "left": 18,
+            "top": 260,
+            "width": 370
+          },
+          "dockIconSize": "normal",
+          "dockPosition": "left",
+          "dockSize": "normal",
+          "hoverDelay": 500,
+          "hoverEnabled": true,
+          "launchTarget": null,
+          "launcherPins": [],
+          "miniBounds": {
+            "height": 260,
+            "left": 18,
+            "top": 300,
+            "width": 56
+          },
+          "miniMode": "icons",
+          "miniPosition": "left",
+          "miniSize": "normal",
+          "reducedMotion": false,
+          "scenes": [],
+          "schemaVersion": 3,
+          "theme": "system",
+          "transparency": true,
+          "workspaceBounds": {
+            "height": 904,
+            "left": 32,
+            "top": 24,
+            "width": 1536
+          }
+        },
+        "settingsWarning": null,
+        "surface": "mini",
+        "version": "0.2.1"
+      }
+    }
+  },
+  {
+    "name": "Dock uses a separate visible HWND",
+    "passed": true,
+    "detail": {
+      "hwnd": 1773506,
+      "width": 338,
+      "height": 422
+    }
+  },
+  {
+    "name": "Dock really hides without exiting",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Workspace uses a third near-fullscreen HWND",
+    "passed": true,
+    "detail": {
+      "width": 1536,
+      "height": 904,
+      "left": 32,
+      "top": 24,
+      "workArea": "0,0,1600,952"
+    }
+  },
+  {
+    "name": "Native dark frame capture uses the actual foreground Workspace",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Actual dark Workspace top frame has no narrow light strip",
+    "passed": true,
+    "detail": {
+      "windowLeft": 64,
+      "windowTop": 48,
+      "width": 3072,
+      "height": 1808,
+      "visibleTopOffset": 0,
+      "sampleLeft": 1228,
+      "sampleRight": 1843,
+      "rows": [
+        {
+          "offset": 0,
+          "matchingRatio": 1,
+          "averageRed": 52,
+          "averageGreen": 69,
+          "averageBlue": 83
+        },
+        {
+          "offset": 1,
+          "matchingRatio": 1,
+          "averageRed": 52,
+          "averageGreen": 69,
+          "averageBlue": 83
+        },
+        {
+          "offset": 2,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        },
+        {
+          "offset": 3,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        },
+        {
+          "offset": 4,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        },
+        {
+          "offset": 5,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        }
+      ]
+    }
+  },
+  {
+    "name": "Actual Workspace top hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 1600,
+      "y": 49,
+      "expected": 12,
+      "actual": 12
+    }
+  },
+  {
+    "name": "Actual Workspace left hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 65,
+      "y": 952,
+      "expected": 10,
+      "actual": 10
+    }
+  },
+  {
+    "name": "Actual Workspace right hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 3134,
+      "y": 952,
+      "expected": 11,
+      "actual": 11
+    }
+  },
+  {
+    "name": "Actual Workspace bottom hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 1600,
+      "y": 1854,
+      "expected": 15,
+      "actual": 15
+    }
+  },
+  {
+    "name": "Actual Workspace center hit test preserves client interaction",
+    "passed": true,
+    "detail": {
+      "x": 1600,
+      "y": 952,
+      "expected": 1,
+      "actual": 1
+    }
+  },
+  {
+    "name": "Five distinct ordinary Windows GUI programs are available",
+    "passed": true,
+    "detail": [
+      "C:\\Windows\\system32\\winver.exe",
+      "C:\\Windows\\system32\\charmap.exe",
+      "C:\\Windows\\system32\\mstsc.exe",
+      "C:\\Windows\\system32\\msinfo32.exe",
+      "C:\\Windows\\system32\\colorcpl.exe"
+    ]
+  },
+  {
+    "name": "Native picker appends winver.exe without overwriting previous records",
+    "passed": true,
+    "detail": {
+      "appId": "00582c94-fccc-419b-950c-2871a2df53bb",
+      "target": "C:\\Windows\\system32\\winver.exe",
+      "total": 1
+    }
+  },
+  {
+    "name": "Native picker appends charmap.exe without overwriting previous records",
+    "passed": true,
+    "detail": {
+      "appId": "b1bdc632-8f9f-43cf-829c-301cda0cdaa3",
+      "target": "C:\\Windows\\system32\\charmap.exe",
+      "total": 2
+    }
+  },
+  {
+    "name": "Native picker appends mstsc.exe without overwriting previous records",
+    "passed": true,
+    "detail": {
+      "appId": "bad23036-95e2-43cc-a593-95eb88167580",
+      "target": "C:\\Windows\\system32\\mstsc.exe",
+      "total": 3
+    }
+  },
+  {
+    "name": "Native picker appends msinfo32.exe without overwriting previous records",
+    "passed": true,
+    "detail": {
+      "appId": "1d2175dd-ef93-4106-a05e-59a905841ea0",
+      "target": "C:\\Windows\\system32\\msinfo32.exe",
+      "total": 4
+    }
+  },
+  {
+    "name": "Native picker appends colorcpl.exe without overwriting previous records",
+    "passed": true,
+    "detail": {
+      "appId": "8f900675-938a-4ca4-b1aa-5761bd587823",
+      "target": "C:\\Windows\\system32\\colorcpl.exe",
+      "total": 5
+    }
+  },
+  {
+    "name": "Workspace shows five independent application launch buttons",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Local application icons are extracted and rendered",
+    "passed": true,
+    "detail": [
+      {
+        "id": "00582c94-fccc-419b-950c-2871a2df53bb",
+        "icon": "8e659be505436e75bbed5c5c2c1fa5ccc7f784c0310cae1141d1ffd6d8764324.png"
+      },
+      {
+        "id": "b1bdc632-8f9f-43cf-829c-301cda0cdaa3",
+        "icon": "c8e7a629bac6085bd5794578766b526e014bba5885b8523dc5997e3a21dce902.png"
+      },
+      {
+        "id": "bad23036-95e2-43cc-a593-95eb88167580",
+        "icon": "348b69cad096e088e151c30017af739da396c32226c02e33ebfcee027fab370d.png"
+      },
+      {
+        "id": "1d2175dd-ef93-4106-a05e-59a905841ea0",
+        "icon": "8ffd6a9d33cbadc6578d61dd88d66c6dacd3f42c06d194e8ec0f2b75af99e13f.png"
+      },
+      {
+        "id": "8f900675-938a-4ca4-b1aa-5761bd587823",
+        "icon": "1fb89d45e27cbb4055aade22815fc6e7f72ddcdb4b0284dbe26cf14bb6a5c312.png"
+      }
+    ]
+  },
+  {
+    "name": "UI independently launches winver.exe",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 41516\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 41516,
+      "success": true
+    }
+  },
+  {
+    "name": "Actual GUI process exists for winver.exe",
+    "passed": true,
+    "detail": {
+      "processId": 41516,
+      "hwnd": 2035614,
+      "executable": "C:\\Windows\\System32\\winver.exe"
+    }
+  },
+  {
+    "name": "Test GUI winver.exe exited without interaction",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "UI independently launches charmap.exe",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 5264\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 5264,
+      "success": true
+    }
+  },
+  {
+    "name": "Actual GUI process exists for charmap.exe",
+    "passed": true,
+    "detail": {
+      "processId": 5264,
+      "hwnd": 1902798,
+      "executable": "C:\\Windows\\System32\\charmap.exe"
+    }
+  },
+  {
+    "name": "Test GUI charmap.exe exited without interaction",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "UI independently launches mstsc.exe",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 10740\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 10740,
+      "success": true
+    }
+  },
+  {
+    "name": "Actual GUI process exists for mstsc.exe",
+    "passed": true,
+    "detail": {
+      "processId": 10740,
+      "hwnd": 1511566,
+      "executable": "C:\\Windows\\System32\\mstsc.exe"
+    }
+  },
+  {
+    "name": "Test GUI mstsc.exe exited without interaction",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "UI independently launches msinfo32.exe",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 2416\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 2416,
+      "success": true
+    }
+  },
+  {
+    "name": "Actual GUI process exists for msinfo32.exe",
+    "passed": true,
+    "detail": {
+      "processId": 2416,
+      "hwnd": 2033870,
+      "executable": "C:\\Windows\\System32\\msinfo32.exe"
+    }
+  },
+  {
+    "name": "Test GUI msinfo32.exe exited without interaction",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "UI independently launches colorcpl.exe",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 23632\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 23632,
+      "success": true
+    }
+  },
+  {
+    "name": "Actual GUI process exists for colorcpl.exe",
+    "passed": true,
+    "detail": {
+      "processId": 23632,
+      "hwnd": 2428290,
+      "executable": "C:\\Windows\\System32\\colorcpl.exe"
+    }
+  },
+  {
+    "name": "Test GUI colorcpl.exe exited without interaction",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Actual application editor changes only selected record",
+    "passed": true,
+    "detail": {
+      "id": "82e9d835-5be8-460c-9f8f-79ad9c70864b",
+      "name": "M1.5 \u72EC\u7ACB\u6D4B\u8BD5\u7A0B\u5E8F",
+      "target": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m15-smoke-data\\fixture\\DesktopHub.LaunchFixture.exe",
+      "arguments": "--label \u0022M1.5 \u53C2\u6570\u4FDD\u7559\u0022",
+      "workingDirectory": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m15-smoke-data\\fixture",
+      "icon": "8e659be505436e75bbed5c5c2c1fa5ccc7f784c0310cae1141d1ffd6d8764324.png",
+      "entryKind": "exe",
+      "displayOrder": 5,
+      "pinnedToMini": false,
+      "pinnedToDock": true
+    }
+  },
+  {
+    "name": "Edited arguments and working directory reach actual process",
+    "passed": true,
+    "detail": {
+      "processId": 41720,
+      "executable": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m15-smoke-data\\fixture\\DesktopHub.LaunchFixture.exe",
+      "arguments": [
+        "--label",
+        "M1.5 \u53C2\u6570\u4FDD\u7559"
+      ],
+      "workingDirectory": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m15-smoke-data\\fixture",
+      "startedUtc": "2026-10-10T03:58:11.4747447Z"
+    }
+  },
+  {
+    "name": "Actual LNK picker and launch preserve shortcut target, arguments and working directory",
+    "passed": true,
+    "detail": {
+      "processId": 17308,
+      "executable": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m15-smoke-data\\fixture\\DesktopHub.LaunchFixture.exe",
+      "arguments": [
+        "--shortcut",
+        "LNK \u53C2\u6570"
+      ],
+      "workingDirectory": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m15-smoke-data\\fixture",
+      "startedUtc": "2026-10-10T03:58:14.2555465Z"
+    }
+  },
+  {
+    "name": "Actual missing EXE failure appears in UI",
+    "passed": true,
+    "detail": {
+      "appId": "82e9d835-5be8-460c-9f8f-79ad9c70864b",
+      "code": "target_missing",
+      "message": "\u6240\u9009\u7A0B\u5E8F\u5DF2\u7ECF\u4E0D\u5B58\u5728\uFF0C\u8BF7\u7F16\u8F91\u5E94\u7528\u91CD\u65B0\u9009\u62E9\u3002",
+      "status": "error"
+    }
+  },
+  {
+    "name": "Actual missing shortcut target failure appears in UI",
+    "passed": true,
+    "detail": {
+      "appId": "77aac99a-68b2-46fb-8386-e830a6b96151",
+      "code": "target_missing",
+      "message": "\u6240\u9009\u7A0B\u5E8F\u5DF2\u7ECF\u4E0D\u5B58\u5728\uFF0C\u8BF7\u7F16\u8F91\u5E94\u7528\u91CD\u65B0\u9009\u62E9\u3002",
+      "status": "error"
+    }
+  },
+  {
+    "name": "Removal dialog clearly states original software stays installed",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Actual removal preserves other application configurations and relative order",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Removing an entry neither deletes nor modifies original software/shortcut",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Application ordering is independently saved",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Mini mixes two application/scene pins without duplicating AppEntry",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Dock displays independent application pin order",
+    "passed": true,
+    "detail": [
+      "8f900675-938a-4ca4-b1aa-5761bd587823",
+      "1d2175dd-ef93-4106-a05e-59a905841ea0",
+      "bad23036-95e2-43cc-a593-95eb88167580",
+      "b1bdc632-8f9f-43cf-829c-301cda0cdaa3",
+      "00582c94-fccc-419b-950c-2871a2df53bb"
+    ]
+  },
+  {
+    "name": "Dock application icon directly launches its own program",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 40480\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 40480,
+      "success": true
+    }
+  },
+  {
+    "name": "Dock icon size preference is saved",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Frontend path injection rejected",
+    "passed": true,
+    "detail": {
+      "error": {
+        "code": "FORBIDDEN_SETTING",
+        "message": "\u6B64\u8BBE\u7F6E\u4E0D\u80FD\u7531\u754C\u9762\u4FEE\u6539\uFF1AappEntries"
+      },
+      "ok": false
+    }
+  },
+  {
+    "name": "Invalid launch request is rejected before reserving the launcher",
+    "passed": true,
+    "detail": {
+      "error": {
+        "code": "INVALID_PARAMS",
+        "message": "\u53C2\u6570\u65E0\u6548\uFF1AappId"
+      },
+      "ok": false
+    }
+  },
+  {
+    "name": "Launcher recovers after rejected request and refuses unregistered target",
+    "passed": true,
+    "detail": {
+      "ok": true,
+      "result": {
+        "code": "app_not_registered",
+        "message": "\u5E94\u7528\u8BB0\u5F55\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u4ECE\u5E94\u7528\u5E93\u79FB\u9664\u3002",
+        "processId": null,
+        "success": false
+      }
+    }
+  },
+  {
+    "name": "Native allowlist rejects arbitrary command",
+    "passed": true,
+    "detail": {
+      "error": {
+        "code": "UNKNOWN_MESSAGE",
+        "message": "\u4E0D\u652F\u6301\u6B64\u64CD\u4F5C\u3002"
+      },
+      "id": "smoke-raw",
+      "ok": false,
+      "version": 1
+    }
+  },
+  {
+    "name": "Native light frame capture uses the actual foreground Workspace",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Actual light Workspace top frame follows light theme",
+    "passed": true,
+    "detail": {
+      "windowLeft": 64,
+      "windowTop": 48,
+      "width": 3072,
+      "height": 1808,
+      "visibleTopOffset": 0,
+      "sampleLeft": 1228,
+      "sampleRight": 1843,
+      "rows": [
+        {
+          "offset": 0,
+          "matchingRatio": 1,
+          "averageRed": 220,
+          "averageGreen": 228,
+          "averageBlue": 234
+        },
+        {
+          "offset": 1,
+          "matchingRatio": 1,
+          "averageRed": 220,
+          "averageGreen": 228,
+          "averageBlue": 234
+        },
+        {
+          "offset": 2,
+          "matchingRatio": 1,
+          "averageRed": 255,
+          "averageGreen": 255,
+          "averageBlue": 255
+        },
+        {
+          "offset": 3,
+          "matchingRatio": 1,
+          "averageRed": 255,
+          "averageGreen": 255,
+          "averageBlue": 255
+        },
+        {
+          "offset": 4,
+          "matchingRatio": 1,
+          "averageRed": 255,
+          "averageGreen": 255,
+          "averageBlue": 255
+        },
+        {
+          "offset": 5,
+          "matchingRatio": 1,
+          "averageRed": 255,
+          "averageGreen": 255,
+          "averageBlue": 255
+        }
+      ]
+    }
+  },
+  {
+    "name": "New store reads all saved application records and pins",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Window coordinates persist",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Remote navigation blocked",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Controlled focus fixture launches from its saved application ID",
+    "passed": true,
+    "detail": {
+      "ok": true,
+      "result": {
+        "code": "started",
+        "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 24648\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+        "processId": 24648,
+        "success": true
+      }
+    }
+  },
+  {
+    "name": "Controlled foreground HWND belongs to this test process",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Controlled external foreground ready",
+    "passed": true,
+    "detail": {
+      "hwnd": 2428462
+    }
+  },
+  {
+    "name": "Exposing Mini for a physical click preserves external foreground",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Physical Mini click point belongs to its actual native window",
+    "passed": true,
+    "detail": {
+      "x": 98,
+      "y": 664,
+      "hit": 2623744,
+      "root": 2623744,
+      "hitOwner": 28224,
+      "mini": 2623744
+    }
+  },
+  {
+    "name": "Actual Mini click makes Workspace foreground",
+    "passed": true,
+    "detail": {
+      "foreground": 1379814,
+      "workspace": 1379814,
+      "isActive": true
+    }
+  },
+  {
+    "name": "Real Esc hides Workspace and restores prior foreground",
+    "passed": true,
+    "detail": {
+      "focusRestoreResult": "restored",
+      "foreground": 2428462
+    }
+  },
+  {
+    "name": "Native edge hover respects delay",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Native edge hover opens actual Dock",
+    "passed": true,
+    "detail": {
+      "elapsedMilliseconds": 610
+    }
+  },
+  {
+    "name": "Local UI stays offline",
+    "passed": true,
+    "detail": [
+      "https://example.com/",
+      "https://example.com/"
+    ]
+  },
+  {
+    "name": "Persistence is verified in a second actual Windows host process",
+    "passed": true,
+    "detail": {
+      "previousProcessId": 28224,
+      "currentProcessId": 37232
+    }
+  },
+  {
+    "name": "Actual restart retains all application names, paths, parameters, work directories, icons, order and pin flags",
+    "passed": true,
+    "detail": [
+      {
+        "id": "77aac99a-68b2-46fb-8386-e830a6b96151",
+        "name": "M15 Fixture Shortcut",
+        "target": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m15-smoke-data\\fixture\\M15 Fixture Shortcut.lnk",
+        "arguments": "--shortcut \u0022LNK \u53C2\u6570\u0022",
+        "workingDirectory": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m15-smoke-data\\fixture",
+        "icon": "8e659be505436e75bbed5c5c2c1fa5ccc7f784c0310cae1141d1ffd6d8764324.png",
+        "entryKind": "lnk",
+        "displayOrder": 0,
+        "pinnedToMini": false,
+        "pinnedToDock": false
+      },
+      {
+        "id": "8f900675-938a-4ca4-b1aa-5761bd587823",
+        "name": "colorcpl",
+        "target": "C:\\Windows\\System32\\colorcpl.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Windows\\System32",
+        "icon": "1fb89d45e27cbb4055aade22815fc6e7f72ddcdb4b0284dbe26cf14bb6a5c312.png",
+        "entryKind": "exe",
+        "displayOrder": 1,
+        "pinnedToMini": false,
+        "pinnedToDock": true
+      },
+      {
+        "id": "1d2175dd-ef93-4106-a05e-59a905841ea0",
+        "name": "msinfo32",
+        "target": "C:\\Windows\\System32\\msinfo32.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Windows\\System32",
+        "icon": "8ffd6a9d33cbadc6578d61dd88d66c6dacd3f42c06d194e8ec0f2b75af99e13f.png",
+        "entryKind": "exe",
+        "displayOrder": 2,
+        "pinnedToMini": false,
+        "pinnedToDock": true
+      },
+      {
+        "id": "bad23036-95e2-43cc-a593-95eb88167580",
+        "name": "mstsc",
+        "target": "C:\\Windows\\System32\\mstsc.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Windows\\System32",
+        "icon": "348b69cad096e088e151c30017af739da396c32226c02e33ebfcee027fab370d.png",
+        "entryKind": "exe",
+        "displayOrder": 3,
+        "pinnedToMini": false,
+        "pinnedToDock": true
+      },
+      {
+        "id": "b1bdc632-8f9f-43cf-829c-301cda0cdaa3",
+        "name": "charmap",
+        "target": "C:\\Windows\\System32\\charmap.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Windows\\System32",
+        "icon": "c8e7a629bac6085bd5794578766b526e014bba5885b8523dc5997e3a21dce902.png",
+        "entryKind": "exe",
+        "displayOrder": 4,
+        "pinnedToMini": false,
+        "pinnedToDock": true
+      },
+      {
+        "id": "00582c94-fccc-419b-950c-2871a2df53bb",
+        "name": "winver",
+        "target": "C:\\Windows\\System32\\winver.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Windows\\System32",
+        "icon": "8e659be505436e75bbed5c5c2c1fa5ccc7f784c0310cae1141d1ffd6d8764324.png",
+        "entryKind": "exe",
+        "displayOrder": 5,
+        "pinnedToMini": true,
+        "pinnedToDock": true
+      }
+    ]
+  },
+  {
+    "name": "Actual restart retains surface pin positions and Dock icon size",
+    "passed": true,
+    "detail": [
+      {
+        "id": "912f1787-566b-44ee-9b77-b3a32b138e20",
+        "surface": "dock",
+        "itemType": "app",
+        "itemId": "8f900675-938a-4ca4-b1aa-5761bd587823",
+        "displayOrder": 0,
+        "enabled": true
+      },
+      {
+        "id": "35508793-7c0c-4061-b450-17a15723c438",
+        "surface": "dock",
+        "itemType": "app",
+        "itemId": "1d2175dd-ef93-4106-a05e-59a905841ea0",
+        "displayOrder": 1,
+        "enabled": true
+      },
+      {
+        "id": "08ae3c38-cfbb-47b2-9e21-5ff680884185",
+        "surface": "dock",
+        "itemType": "app",
+        "itemId": "bad23036-95e2-43cc-a593-95eb88167580",
+        "displayOrder": 2,
+        "enabled": true
+      },
+      {
+        "id": "cada25e1-e311-43d9-b804-80bd6e7d27e3",
+        "surface": "dock",
+        "itemType": "app",
+        "itemId": "b1bdc632-8f9f-43cf-829c-301cda0cdaa3",
+        "displayOrder": 3,
+        "enabled": true
+      },
+      {
+        "id": "0012ca91-3795-485d-b5e7-e78b7d50041b",
+        "surface": "dock",
+        "itemType": "app",
+        "itemId": "00582c94-fccc-419b-950c-2871a2df53bb",
+        "displayOrder": 4,
+        "enabled": true
+      },
+      {
+        "id": "4cbe3a79-581a-4187-8898-23944a4696c0",
+        "surface": "mini",
+        "itemType": "app",
+        "itemId": "00582c94-fccc-419b-950c-2871a2df53bb",
+        "displayOrder": 0,
+        "enabled": true
+      },
+      {
+        "id": "2cb549a8-4295-4bdb-a58c-61b985df43a2",
+        "surface": "mini",
+        "itemType": "scene",
+        "itemId": "a2be3155-2b3e-4a67-acde-7176bedeba27",
+        "displayOrder": 1,
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "name": "All original five different software entries survive host restart",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Restarted Dock renders five saved application launch entries",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Restarted Workspace renders the complete saved application library",
+    "passed": true,
+    "detail": null
+  }
+]

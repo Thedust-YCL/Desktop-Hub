@@ -1,0 +1,212 @@
+/* Host-only geometry and additions. The accepted prototype stylesheet stays intact. */
+html[data-desktop-host] body { background: transparent; }
+html[data-desktop-host] .desktop-stage,
+html[data-desktop-host] .demo-bar,
+html[data-desktop-host] .edge-trigger { display: none; }
+html[data-desktop-host] .workspace { inset: 0; border-radius: 0; box-shadow: none; }
+/* Keep every host surface opaque while metadata and controls are refreshed. */
+html[data-desktop-host][data-surface=workspace] body { background: var(--bg); }
+html[data-desktop-host] .workspace,
+html[data-desktop-host] .mini-bar,
+html[data-desktop-host] .dock-panel { animation: none; }
+html[data-desktop-host] .modal,
+html[data-desktop-host] .toast { animation: host-content-in 180ms cubic-bezier(.2,.8,.2,1); }
+html[data-desktop-host] .modal-backdrop { animation: host-backdrop-in 180ms ease-out; }
+html[data-desktop-host] .modal-backdrop.is-updating,
+html[data-desktop-host] .modal-backdrop.is-updating > .modal { animation: none; }
+@keyframes host-content-in { from { transform: translateY(6px); } to { transform: translateY(0); } }
+@keyframes host-backdrop-in { from { background-color: transparent; backdrop-filter: blur(0); } }
+html[data-desktop-host] .mini-bar,
+html[data-desktop-host] .dock-panel {
+  position: relative;
+  inset: auto;
+  margin: 4px;
+  transform: none;
+  max-width: none;
+  max-height: none;
+}
+html[data-desktop-host][data-surface=mini] #app { width: max-content; }
+html[data-desktop-host][data-surface=dock] body { overflow: auto; scrollbar-width: thin; }
+html[data-desktop-host] .mini-item[data-tooltip]::after { display: none; }
+html[data-desktop-host] .mini-brand { cursor: pointer; }
+html[data-desktop-host] .dock-heading > span { cursor: move; user-select: none; }
+html[data-desktop-host] .workspace-header { user-select: none; }
+.native-launch-panel { margin-bottom: 20px; }
+.native-launch-heading { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.native-launch-heading h2 { font-size: 16px; }
+.native-launch-heading .badge { color: var(--good); }
+.native-target { display: flex; align-items: center; gap: 12px; margin: 18px 0 16px; min-width: 0; }
+.native-target > div { min-width: 0; flex: 1; }
+.native-target strong { font-size: 13px; font-weight: 500; }
+.native-target p { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; margin-top: 4px; }
+.native-launch-panel .toolbar { gap: 10px; }
+.native-launch-status { font-size: 12px; line-height: 1.7; color: var(--muted); margin-top: 12px; overflow-wrap: anywhere; }
+.native-launch-status[data-status=success] { color: var(--good); }
+.native-launch-status[data-status=error] { color: var(--bad); }
+.native-launch-code { font-size: 10px; color: var(--faint); margin-left: 8px; }
+.native-dock-launch { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; }
+.native-dock-launch .native-target { margin: 0 0 10px; gap: 10px; }
+.native-dock-launch .native-target p { font-size: 10px; }
+.native-dock-launch .native-launch-status { font-size: 10px; margin-top: 8px; }
+.native-dock-launch .toolbar .button { font-size: 11px; }
+.native-warning { font-size: 11px; line-height: 1.7; color: var(--warn); margin-top: 12px; }
+.native-launch-item[data-status=success] { color: var(--good); }
+.native-launch-item[data-status=error] { color: var(--bad); }
+.native-launch-item[data-status=pending] svg { animation: spin 2s linear infinite; }
+.native-offline-warning { position: fixed; inset: 12px; z-index: 110; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--bad); }
+@media (max-width: 700px) {
+  .native-launch-heading { flex-wrap: wrap; gap: 8px; }
+  .native-launch-panel .toolbar .button { white-space: normal; }
+}
+
+/* Application Launcher reuses the accepted palette, type, controls, and spacing. */
+.application-launcher { border-bottom: 1px solid var(--line); padding-bottom: 22px; }
+.launcher-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.launcher-heading h2 { font-size: 17px; font-weight: 500; }
+.launcher-heading h2 > span { margin-left: 8px; color: var(--faint); font-size: 11px; font-weight: 400; }
+.launcher-heading p { margin-top: 5px; color: var(--muted); font-size: 12px; }
+.launcher-heading .toolbar { gap: 6px; }
+.launcher-heading .button { font-size: 12px; padding: 7px 11px; }
+.launcher-search { display: flex; align-items: center; gap: 9px; max-width: 430px; margin-top: 20px; color: var(--muted); }
+.launcher-search input { flex: 1; min-width: 0; font-size: 12px; padding: 7px 11px; min-height: 34px; }
+.launcher-search > span { font-size: 10px; white-space: nowrap; color: var(--faint); }
+.launcher-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 12px; margin-top: 16px; }
+.launcher-tile { min-width: 0; border-radius: 11px; }
+.launcher-app { width: 100%; min-height: 116px; padding: 13px 9px 10px; display: flex; align-items: center; flex-direction: column; gap: 11px; border: 1px solid transparent; border-radius: 11px; }
+.launcher-app:hover { background: var(--panel); border-color: var(--line); }
+.launcher-app > strong { max-width: 100%; font-size: 12px; font-weight: 500; line-height: 1.5; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.launcher-icon { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 13px; background: var(--raised); color: var(--accent); flex-shrink: 0; }
+.launcher-real-icon { object-fit: contain; flex-shrink: 0; }
+.launcher-app-state { font-size: 10px; color: var(--muted); margin-top: -6px; }
+.launcher-app[data-status=error] { border-color: var(--bad); }
+.launcher-tile-tools { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 1px; padding: 3px 0; border-top: 1px solid var(--line); }
+.launcher-tile:has(.launcher-tile-tools) { background: var(--panel); border: 1px solid var(--line); }
+.launcher-hint { color: var(--muted); font-size: 11px; margin-top: 15px; }
+.launcher-empty { padding: 24px 14px; text-align: center; color: var(--muted); margin-top: 18px; border: 1px dashed var(--line); border-radius: 12px; }
+.launcher-empty-icon { display: inline-flex; margin-bottom: 10px; color: var(--accent); }
+.launcher-empty h3 { font-size: 14px; font-weight: 500; color: var(--text); }
+.launcher-empty p { font-size: 12px; margin-top: 7px; margin-bottom: 12px; }
+.application-launcher .native-launch-status:empty, .native-dock-launch .native-launch-status:empty { display: none; }
+.launcher-modules-heading { margin: 22px 0 14px !important; }
+.launcher-modules-heading h2 { color: var(--muted); font-size: 12px; }
+.app-editor-identity { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
+.app-editor-identity strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.app-editor-identity p { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.app-editor-identity .launcher-icon { width: 46px; height: 46px; border-radius: 11px; }
+.app-target-row { display: flex; align-items: center; gap: 12px; }
+.app-target-row p { min-width: 0; flex: 1; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.app-target-row .button { flex-shrink: 0; }
+.app-pin-options { display: flex; gap: 24px; flex-wrap: wrap; }
+.app-remove-button { margin-right: auto; padding-left: 0; }
+.launcher-pin-tabs { margin: 0 0 14px; }
+.launcher-pin-description { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.launcher-pin-group-heading { font-size: 12px; font-weight: 500; margin: 18px 0 9px; }
+.launcher-pin-group-heading span { font-size: 10px; color: var(--faint); margin-left: 6px; }
+.launcher-pin-list { border: 1px solid var(--line); border-radius: 10px; max-height: 240px; overflow-y: auto; scrollbar-width: thin; }
+.launcher-pin-row, .launcher-pin-choice { min-height: 51px; display: flex; width: 100%; align-items: center; text-align: left; gap: 9px; padding: 8px 11px; border-bottom: 1px solid var(--line); }
+.launcher-pin-row:last-child, .launcher-pin-choice:last-child { border-bottom: 0; }
+.launcher-pin-choice:hover { background: var(--hover); }
+.launcher-pin-symbol { color: var(--accent); width: 26px; display: grid; place-items: center; flex-shrink: 0; }
+.launcher-pin-row .grow, .launcher-pin-choice .grow { font-size: 12px; overflow-wrap: anywhere; }
+.launcher-pin-row small { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.launcher-pin-row .icon-button { flex-shrink: 0; }
+.launcher-pin-empty { font-size: 11px; padding: 13px 11px; }
+.native-dock-launch { border-top: 0; padding-top: 0; margin-top: 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.native-dock-launch .dock-section-title { margin-top: 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.native-dock-launch .dock-section-title .text-button { font-size: 10px; }
+.dock-app-grid { --dock-icon: 30px; --dock-cell: 54px; display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--dock-cell), 1fr)); gap: 5px; margin: 8px -3px 0; }
+.dock-app-grid.icon-size-compact { --dock-icon: 24px; --dock-cell: 44px; gap: 3px; }
+.dock-app-grid.icon-size-large { --dock-icon: 38px; --dock-cell: 70px; gap: 7px; }
+.dock-app { display: flex; align-items: center; justify-content: flex-start; flex-direction: column; gap: 7px; min-width: 0; padding: 9px 3px 6px; border: 1px solid transparent; border-radius: 8px; }
+.dock-app:hover { background: var(--raised); }
+.dock-app > span { color: var(--accent); display: flex; align-items: center; justify-content: center; height: var(--dock-icon); }
+.dock-app svg, .dock-app img { width: var(--dock-icon); height: var(--dock-icon); }
+.dock-app small { width: 100%; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.dock-app[data-status=error] { border-color: var(--bad); }
+.dock-add-app { padding-top: 10px; }
+.dock-density { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 10px; color: var(--muted); font-size: 10px; }
+.dock-density select { min-height: 25px; font-size: 10px; padding: 3px 6px; background: transparent; }
+.launcher-missing { color: var(--warn); }
+.mini-item.launcher-pin[data-status=error] { color: var(--bad); background: var(--raised); }
+.mini-bar.has-launch-error { width: 220px; }
+.mini-bar.position-top.has-launch-error, .mini-bar.position-bottom.has-launch-error { flex-wrap: wrap; height: auto; width: auto; max-width: 300px; }
+.mini-launch-error { display: flex; align-items: flex-start; width: 202px; max-width: 100%; padding: 8px; gap: 5px; color: var(--bad); background: var(--panel); border-radius: 8px; border: 1px solid var(--line); }
+.mini-launch-error > span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 11px; line-height: 1.7; }
+.mini-launch-error .icon-button { margin: -2px -2px 0 0; }
+@media (max-width: 960px) {
+  .launcher-heading { align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .launcher-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
+@media (max-width: 700px) {
+  .launcher-heading .toolbar { gap: 3px; }
+  .launcher-heading .button { padding: 6px 8px; }
+  .launcher-grid { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 9px; }
+  .app-target-row { align-items: flex-start; }
+  .app-remove-button { flex-basis: 100%; }
+  .launcher-pin-row { gap: 5px; padding: 8px; }
+}
+
+/* Scene Launcher extends Quiet Desktop's existing controls and palette. */
+.native-scene-editor { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(320px, 1.6fr); gap: 22px; align-items: start; }
+.scene-editor-error:empty { display: none; }
+.native-action-list, .native-action-config { padding: 20px; min-width: 0; }
+.native-action-list h2, .native-action-config h2 { font-size: 15px; font-weight: 500; margin-bottom: 16px; }
+.scene-list-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.scene-list-heading h2 { margin: 0; }
+.scene-list-heading .button, .scene-sequence-tools .button { font-size: 11px; padding: 6px 9px; }
+.scene-sequence-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 15px 0 9px; }
+.scene-form-note, .scene-app-reference { font-size: 11px; color: var(--muted); line-height: 1.8; overflow-wrap: anywhere; }
+.scene-form-note { margin-bottom: 12px; }
+.native-action-row { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 9px; margin-top: 9px; }
+.native-action-row.selected { background: var(--raised); border-color: var(--accent); }
+.native-action-select { display: flex; flex: 1; align-items: flex-start; min-width: 0; padding: 13px 10px; gap: 9px; text-align: left; }
+.native-action-select > span:last-child { min-width: 0; }
+.native-action-select strong { display: block; font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+.native-action-select small { display: block; margin-top: 4px; font-size: 10px; color: var(--muted); line-height: 1.6; overflow-wrap: anywhere; }
+.scene-action-index { font-size: 10px; color: var(--faint); padding-top: 2px; }
+.native-action-order { display: flex; flex-direction: column; padding: 3px; }
+.native-action-order .button { padding: 2px 7px; font-size: 12px; min-height: 25px; }
+.scene-target-input { display: flex; gap: 8px; }
+.scene-target-input input { flex: 1; min-width: 0; }
+.scene-target-input .button { flex-shrink: 0; }
+.scene-schedule { border-top: 1px solid var(--line); padding-top: 18px; }
+.scene-schedule h3 { font-size: 12px; font-weight: 500; margin-bottom: 10px; }
+.scene-dependency { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; padding: 10px; background: var(--bg); border-radius: 8px; }
+.scene-dependency .check-row { flex: 1; min-width: 140px; overflow-wrap: anywhere; }
+.scene-dependency select { font-size: 11px; padding: 6px; max-width: 170px; }
+.scene-dependency input[type=number] { width: 100px; padding: 6px; font-size: 11px; }
+.scene-advanced { border-top: 1px solid var(--line); padding-top: 14px; }
+.scene-advanced summary { font-size: 12px; cursor: pointer; margin-bottom: 15px; color: var(--muted); }
+.scene-advanced textarea { width: 100%; resize: vertical; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 9px; }
+.scene-custom-icon { font-size: 22px; line-height: 1; }
+.scene-card-header h2 { font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
+.scene-card-header > div { flex: 1; min-width: 0; }
+.scene-card-header p { color: var(--muted); font-size: 11px; margin-top: 5px; }
+.scene-card-description { overflow-wrap: anywhere; font-size: 12px; line-height: 1.8; color: var(--muted); margin: 18px 0; }
+.scene-card-footer { flex-wrap: wrap; gap: 5px; }
+.scene-card-footer .button { padding: 6px 9px; font-size: 11px; }
+.scene-execution { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 18px; margin-top: 22px; }
+.scene-run-summary { font-size: 11px; color: var(--muted); margin: 7px 0 12px; }
+.scene-execution details { margin-top: 13px; }
+.scene-execution summary { cursor: pointer; color: var(--muted); font-size: 11px; }
+.scene-results { margin-top: 10px; }
+.scene-result { display: flex; align-items: flex-start; gap: 10px; border-top: 1px solid var(--line); padding: 10px 0; font-size: 12px; }
+.scene-result > div { flex: 1; min-width: 0; }
+.scene-result strong { font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+.scene-result p { color: var(--muted); font-size: 11px; line-height: 1.8; margin-top: 4px; overflow-wrap: anywhere; }
+.scene-result small { font-size: 10px; color: var(--faint); overflow-wrap: anywhere; }
+.scene-result-status { font-size: 10px; flex-shrink: 0; }
+[data-state=Failed], [data-state=PartialSuccess] { color: var(--bad); }
+.scene-result[data-state=Success], [data-scene-status=Success] > .scene-icon { color: var(--good); }
+.scene-result[data-state=Skipped] { color: var(--muted); }
+.scene-result[data-state=Running], [data-scene-status=Running] { color: var(--accent); }
+.scene-history-choice { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 11px; color: var(--muted); margin-top: 14px; }
+.scene-history-choice select { font-size: 11px; padding: 6px; max-width: 100%; }
+.dock-panel .scene-execution { margin: 12px 0 0; padding: 12px; background: transparent; }
+.dock-panel .scene-results { max-height: 240px; overflow-y: auto; }
+.mini-scene-feedback { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--accent); padding: 7px; border-radius: 7px; }
+.mini-scene-feedback small { font-size: 9px; }
+.mini-scene-feedback[data-state=Failed], .mini-scene-feedback[data-state=PartialSuccess] { color: var(--bad); }
+.mini-scene-feedback[data-state=Success] { color: var(--good); }
+@media (max-width: 960px) { .native-scene-editor { grid-template-columns: 1fr; } .native-action-list { max-height: 400px; overflow-y: auto; } }
+@media (prefers-reduced-motion: reduce) { [data-scene-status=Running] { animation: none; } }

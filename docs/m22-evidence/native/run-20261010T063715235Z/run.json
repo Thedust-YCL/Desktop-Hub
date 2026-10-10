@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "startedUtc": "2026-10-10T06:37:15.2359930Z",
+  "completedUtc": "2026-10-10T06:37:26.6724382Z",
+  "phases": [
+    {
+      "flag": "--index-smoke",
+      "processId": 42840,
+      "exitCode": 0,
+      "startedUtc": "2026-10-10T06:37:15.2401288Z"
+    },
+    {
+      "flag": "--index-smoke-restart",
+      "processId": 39784,
+      "exitCode": 0,
+      "startedUtc": "2026-10-10T06:37:24.0300450Z"
+    }
+  ],
+  "evidence": "E:\\桌软工作台\\docs\\m22-evidence\\native\\run-20261010T063715235Z"
+}

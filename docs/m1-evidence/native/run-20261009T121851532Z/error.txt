@@ -1,0 +1,3 @@
+System.InvalidOperationException: Smoke assertion failed: Workspace foreground before Esc input
+   at DesktopHub.Windows.SmokeTests.Check(String name, Boolean passed, Object detail) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 23
+   at DesktopHub.Windows.SmokeTests.RunAsync(HubApplication host) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 104

@@ -1,0 +1,109 @@
+Ready: .NET SDK 8.0.425; WebView2 SDK 1.0.4258.31; Windows SDK .NET Ref 10.0.17763.56; workspace-local cache.
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+  DesktopHub.Core -> E:\桌软工作台\src\DesktopHub.Core\bin\Release\net8.0\DesktopHub.Core.dll
+  DesktopHub.Windows -> E:\桌软工作台\src\DesktopHub.Windows\bin\Release\net8.0-windows\DesktopHub.Windows.dll
+
+已成功生成。
+    0 个警告
+    0 个错误
+
+已用时间 00:00:23.05
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+PASS Missing configuration uses defaults
+PASS Camel-case JSON round trip persists theme, geometry and target
+PASS Corrupted JSON is preserved and safely recovered
+PASS Unsupported schema and unknown fields are quarantined
+PASS Oversized configuration is not deserialized
+PASS Invalid settings choices cannot replace saved data
+PASS Non-finite and unreasonable bounds are repaired
+PASS Null geometry from JSON safely uses defaults
+PASS Store snapshots cannot mutate the saved Current
+PASS Atomic replacement leaves no temporary files
+PASS Failed replacement preserves original JSON and Current
+PASS Unregistered and command-string launches are rejected
+PASS Relative, protocol, UNC and alternate stream paths are rejected
+PASS Script, shortcut and command-host registration is denied
+PASS Unsafe legacy migration preserves the exact old target and reports a warning
+PASS Missing program reports an actual failure
+PASS Renamed text file cannot masquerade as an executable
+PASS Five independently registered apps append, persist, and survive deep snapshot mutation
+PASS Editing and removing one app leaves the other records and original software intact
+PASS Workspace, Dock and Mini orders are independent and pin IDs stay stable
+PASS Mini cap applies to mixed visible pins without limiting the application library
+PASS Duplicate targets append while duplicate IDs and malformed mutations cannot overwrite saved data
+PASS Missing app and missing shortcut records survive restart with truthful launch errors
+PASS Legacy migration is additive, uses the stable ID and cannot resurrect removed apps
+PASS Locked migration cannot replace the old file and leaves usable in-memory data
+PASS Local persistence supports libraries beyond the M1 file budget and concurrent additive writes
+PASS Shortcut resolver is required and fresh shortcut targets cannot bypass executable validation
+SKIP controlled launch integration: pass --fixture <DesktopHub.LaunchFixture.exe>.
+RESULT 27 passed; 0 failed.
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+PASS Five stable app references persist, isolate snapshots, and read updated entries
+PASS Deletion preserves scenes and marks broken references; re-association repairs them
+PASS Explicit cycles and invalid references cannot overwrite a saved graph
+PASS A corrupt scene is quarantined without losing the app library or valid scenes
+PASS Independent actions overlap, explicit dependencies wait, and display order is irrelevant
+PASS Failure skips its transitive dependents while independent work continues
+PASS Fixed delay is measured from satisfied prerequisites
+PASS Skipped already-running app satisfies process dependencies
+PASS Window timeout is Failed, and downstream actions skip
+PASS Dependency observation timeout fails the waiting action and skips its downstream
+PASS Concurrent same-scene executions are isolated and do not overlap scripts
+PASS Each action runs once in a diamond dependency graph; new executions rerun scripts
+PASS Script session repeat rule can be configured per action
+PASS Disabled predecessors propagate skip without launching dependents
+PASS Shutdown cancellation ends long delays and queued scene instances
+PASS Settings accept only legal web URLs and explicitly typed safe script targets
+PASS Scene CRUD and independent pin layouts have no low scene-count limit
+Scene scheduler/storage: 17 passed, 0 failed. Runner is controlled; this is not Windows launch acceptance.
+✔ each HTML surface stays assigned to its native window (3.0635ms)
+✔ Windows effective theme and native saved settings override prototype cache (0.6099ms)
+✔ settings writes include only editable fields and never application records or bounds (1.4273ms)
+✔ five consecutive additions stay independent and each native launch carries only its id (2.0023ms)
+✔ real native failures and malformed success keep UI in error state (0.7256ms)
+✔ Esc dismisses modal first then sends native close without prototype toast (0.5938ms)
+✔ original scene click does not claim a process launch (0.6338ms)
+✔ settings save failure rolls back native preferences with the actual error (0.6835ms)
+✔ a newer user edit survives a delayed save reply and is subsequently persisted (0.69ms)
+✔ editing and removing one application preserve its neighbours and do not send any path execution (1.7125ms)
+✔ cancelled picker adds nothing; replacing a target keeps the stable id and does not send a frontend path (0.9327ms)
+✔ Workspace reorder stays independent from the Mini and Dock layouts and search keeps record identity (0.8751ms)
+✔ Mini pin management mixes app/scene ids, caps four and preserves independent order (1.3432ms)
+✔ Dock renders app icons separately from scene demos and saves only permitted density preference (0.8108ms)
+✔ Mini renders empty add entry then mixed pins and visible real error with dismissal (0.9999ms)
+✔ native icons are preferred, missing icons share fallback, and stored paths or remote URLs never become image sources (0.8164ms)
+✔ duplicate clicks are pending-guarded per app while another saved app can launch independently (1.3365ms)
+✔ loaded Mini and Dock refresh custom scene metadata without importing cached applications, preferences or execution actions (2.2398ms)
+✔ request/response correlation and only selected native launch id crosses boundary (1.9467ms)
+✔ out-of-order responses resolve their original requests (0.1681ms)
+✔ native failures preserve the actual host code and message (0.3463ms)
+✔ unknown types and invalid payload never reach host (0.167ms)
+✔ malformed or wrong-version responses cannot simulate success (16.3104ms)
+✔ events are restricted and subscriptions can be removed (0.2827ms)
+✔ unavailable WebView and postMessage failure return honest errors (0.219ms)
+✔ dispose rejects pending requests and late messages cannot revive them (0.1989ms)
+✔ native editor selects AppEntry ids, creates explicit sequence edges, and reordering leaves dependencies unchanged (2.0892ms)
+✔ each of five action types receives real configuration with default ten-second waits and script repeat rule (0.957ms)
+✔ invalid app references have a recovery option and re-association removes copied paths (1.4971ms)
+✔ Mini, Dock and Workspace request new scene execution by id and never launch individual apps (1.3726ms)
+✔ all surfaces consume shared execution events and render truthful skipped/failed results with escaped errors (1.5249ms)
+✔ disabled scenes, real graph relationships and custom symbols are visible in the scene center (0.9466ms)
+✔ 1. First run requires scan confirmation, saves Mini position, then creates and pins a local scene (6.5382ms)
+✔ 2. Creation run shows all five simulated states, skips failed dependencies and keeps Dock open (2.4134ms)
+✔ 3. Scene CRUD, waiting parameters, cycle validation, ordering and Mini 2–4 protection integrate (3.6736ms)
+✔ 4. Suggested tags require acceptance; list/grid/tag views, filename/tag search and favorites use confirmed relations (3.9496ms)
+✔ 5. Missing repair changes only synthetic path/state, preserving tags/favorite; cleanup removes selected invalid indexes only (1.1895ms)
+✔ 6. Surface navigation, 500ms edge hover, game protection, Esc return and system/light/dark themes integrate (3.3764ms)
+✔ 7. Desktop-icon demo requires restore choice first; independent shortcuts reject collisions and save valid settings (1.7846ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 252.4273

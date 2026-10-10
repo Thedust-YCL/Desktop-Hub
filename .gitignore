@@ -1,0 +1,6 @@
+.tools/
+**/bin/
+**/obj/
+artifacts/
+*.user
+*.suo

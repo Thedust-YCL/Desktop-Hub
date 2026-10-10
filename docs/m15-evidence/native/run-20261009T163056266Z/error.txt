@@ -1,0 +1,10 @@
+System.InvalidOperationException: Picker Open button unavailable.
+   at DesktopHub.Windows.SmokeTests.SelectNativePicker(String filename) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 552
+   at DesktopHub.Windows.SmokeTests.<>c__DisplayClass18_0.<AddViaPicker>b__0() in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 304
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at DesktopHub.Windows.SmokeTests.AddViaPicker(HubWindow window, HubApplication host, String filename) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 306
+   at DesktopHub.Windows.SmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 88

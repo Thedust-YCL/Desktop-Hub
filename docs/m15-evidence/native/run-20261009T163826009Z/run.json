@@ -1,0 +1,17 @@
+{
+  "startedUtc": "2026-10-09T16:38:26.0090517Z",
+  "completedUtc": "2026-10-09T16:39:10.8954580Z",
+  "passed": false,
+  "phases": [
+    {
+      "name": "management-and-launch",
+      "processId": 31420,
+      "flag": "--smoke-test",
+      "exitCode": 1,
+      "timedOut": false,
+      "elapsedSeconds": 44.6671875
+    }
+  ],
+  "failure": "Native phase management-and-launch failed (exit 1).",
+  "archive": "E:\\桌软工作台\\docs\\m15-evidence\\native\\run-20261009T163826009Z"
+}

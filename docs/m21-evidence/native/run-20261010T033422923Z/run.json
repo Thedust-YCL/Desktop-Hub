@@ -1,0 +1,14 @@
+{
+  "passed": false,
+  "startedUtc": "2026-10-10T03:34:22.9233439Z",
+  "completedUtc": "2026-10-10T03:34:42.8679561Z",
+  "phases": [
+    {
+      "flag": "--scene-smoke",
+      "processId": 42336,
+      "exitCode": 1,
+      "startedUtc": "2026-10-10T03:34:22.9276698Z"
+    }
+  ],
+  "evidence": "E:\\桌软工作台\\docs\\m21-evidence\\native\\run-20261010T033422923Z"
+}

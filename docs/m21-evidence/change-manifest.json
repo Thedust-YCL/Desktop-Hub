@@ -1,0 +1,182 @@
+[
+  {
+    "path": "scripts\\test-m15-native.ps1",
+    "before": "84CD1985F161A6227A2C281E9779CF6F2346D4777A6D96E0F70696C426657A40",
+    "after": "7F4123C2FCDB37EE28C55DC6EA5695D3268CA28DA5A332CE4815236076F71094",
+    "change": "modified"
+  },
+  {
+    "path": "scripts\\build.ps1",
+    "before": "1B943117F209F7F4F36D948B2FBC3CC14CA9E7309E12DCA1E86779CF08E32A7E",
+    "after": "C363BCE124571E265BA6F49B5483F40700C1C33FE513C1BFC8C4B38E5BFB40CA",
+    "change": "modified"
+  },
+  {
+    "path": "desktop\\tests\\desktop-adapter.test.mjs",
+    "before": "C5C5E901C919F3EAB720E8BDE4704A0866AF23E76077D8D8534A1389BE66516B",
+    "after": "65D680139DEEBD62F5C097B80380EA7A617FAA326D0CEC94E2DFD32D28545F81",
+    "change": "modified"
+  },
+  {
+    "path": "desktop\\native.js",
+    "before": "E4CD921E7CA8CE769712B0B80E721494CAFFBBE44A2E4F357AAC3960C5B2A314",
+    "after": "19C4273854A0261973BBC0A5EB7539244EB31E59611675F4570CCA39624B9CFC",
+    "change": "modified"
+  },
+  {
+    "path": "desktop\\index.html",
+    "before": "CBC41EAF6AF21A66E132A55116448F0F89B4CB1DEA124045ECF7542FFAD832B6",
+    "after": "4B6AAE90C7D46CFF7FE7094BC66FF87241442F5798E7BC28AE2BBF02B8720B6C",
+    "change": "modified"
+  },
+  {
+    "path": "desktop\\desktop.js",
+    "before": "3E17B516D915B715D7A3F9A74B8E5FB125EFDFAC71FC3A46CDD563B0F70D8972",
+    "after": "FC312C1925DC2E15AEABBD88B96A7B67F74413965F90891ED5A124C7D597B4DB",
+    "change": "modified"
+  },
+  {
+    "path": "desktop\\desktop.css",
+    "before": "34C6B4395AA4F45299A243A1FCDF442F6F60DDE59BBDCF1A1CE205599EA08D08",
+    "after": "91AC12B46149019557243260709D38F5ABFB5FDB7FB5320C707C74396A0A35D6",
+    "change": "modified"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\AppLibraryService.cs",
+    "before": "F42EAF539C82FF5C1FFA0B48AFD0A200B24DB25717C42218EA4711D0CC862CAE",
+    "after": "017EC0F5F293E76A6A46A412EA01A6E935C3408B5DB9235E9B551080BBD9A774",
+    "change": "modified"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\NativeLaunchService.cs",
+    "before": "6A9AA2A38C92966BE7764C93232EAAEFB2411ADECF316E12CBCAFD9AD05E3A09",
+    "after": "F5E60BC6A4EBE8AFBB6049D651F58F3406045EA4BF66F5BE933BE14750938F43",
+    "change": "modified"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\SettingsValidator.cs",
+    "before": "45A73AD6934133155DCA670959A0CF10C4C49410EAC5E33805B799445A97DB16",
+    "after": "2F5142DC8F5B0B61F2C49C5F6465B24E3975FF76A592D1A1218BD619FEC3B3A2",
+    "change": "modified"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\SettingsStore.cs",
+    "before": "66FA4A321263C505D7EFF0AF375F86A56550ED831815BA87FF36D928BB5E65A0",
+    "after": "791EB10A95BDFE815FF22F357C1BA511A1082E43199ED4558BDC2AEEBA6A024A",
+    "change": "modified"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\AppSettings.cs",
+    "before": "B90715632C1E97A56B5DA1550334867BF3E1B7B9B4438322F8FA1486E3748B4A",
+    "after": "0B8A9594F2C9FBDF22A25B4344A0B4B060F8DF902449266FBC8A755CA7A49D2E",
+    "change": "modified"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\SmokeTests.cs",
+    "before": "255D3D5085FC810E58C7C74A35A758A62C6981F1414A3E4ED56DD04E339D7410",
+    "after": "D0E9591B329C83CD79365CD872F9FBC6AB67D690E3D0A5CDE01740D7D2AEDF99",
+    "change": "modified"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\Program.cs",
+    "before": "E06690BB999E91D05AEDBE1EDA0C4122DF22D7B6DDD271F98C8F0F692FED6167",
+    "after": "754EAC12C16F1934E2428500EBFC2E00F75B841CEF9F9E0968A1AB40A5A937CE",
+    "change": "modified"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\DesktopHub.Windows.csproj",
+    "before": "1DB5C216EC94449E0352DDFA463E8D3F4147B42D7F7D349ACDE3CD86078D8EE8",
+    "after": "306B3E4E910222A163B8BBA4BC6A557B8E1BFAFBAC5C5E4AD3ABCE9CE2709CF9",
+    "change": "modified"
+  },
+  {
+    "path": "tests\\DesktopHub.Core.Tests\\Program.cs",
+    "before": "FB9828D2BA0DEB6AF57D68CA6F7AE6247C75601BE11F1E494C06412E2A6A9B91",
+    "after": "B549AD19BFC6D648CD2FB5D182282BDABDEE80CB55B958CD241B6532F1E825D1",
+    "change": "modified"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\HubApplication.cs",
+    "before": "B835C8CD1F792017D4C46CDA1BF988EE111D33D1CD4B672847BD206CAB92C932",
+    "after": "CAC6900CAD6E4CC8B15B8394D1F1268A53577B044BE6E55237A7E9EB5D4C0F79",
+    "change": "modified"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\NativeBridge.cs",
+    "before": "EAEFDE9A7DD0476E21C95086D33DB776F9AF0E9433299FDE3F19D5F428D84EAF",
+    "after": "BAD79004EB5CF68693513818C5FBB5834B78F1FE2BF641E45B189C78F757F473",
+    "change": "modified"
+  },
+  {
+    "path": "scripts\\test-m21-native.ps1",
+    "before": null,
+    "after": "A12028342852AF31ED84CB89B85661292847FA3E93F4F6E6D9599F162EB52BBE",
+    "change": "added"
+  },
+  {
+    "path": "tests\\DesktopHub.Scene.Tests\\Program.cs",
+    "before": null,
+    "after": "841730B03C811EAC6AA5E229BF2141794438290333A262EC0BC65BE16E3CF197",
+    "change": "added"
+  },
+  {
+    "path": "desktop\\tests\\native-scenes.test.mjs",
+    "before": null,
+    "after": "CA56FAA3E65D2471563C8A00C4C802C17378078919EA226BD1978429425EED62",
+    "change": "added"
+  },
+  {
+    "path": "desktop\\scenes.js",
+    "before": null,
+    "after": "CEFE611468B056B4EE6A9B7E6A28632B1FF382A30EED20F538AA2CAF7DF05E72",
+    "change": "added"
+  },
+  {
+    "path": "tests\\DesktopHub.Scene.Tests\\DesktopHub.Scene.Tests.csproj",
+    "before": null,
+    "after": "48D73F79870A5D1D9075A69ADFFBAF0FD541D8693A2C54FB0720DF6BF96181C4",
+    "change": "added"
+  },
+  {
+    "path": "src\\DesktopHub.Windows\\SceneSmokeTests.cs",
+    "before": null,
+    "after": "1E84E3DE200A1F239863C05DACE1A4C9A63819739516B189E016F018565A5BEB",
+    "change": "added"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\Scenes.cs",
+    "before": null,
+    "after": "9EAD02514AC2B97A1FF131941914CBA19F667E4C6759D2A1958CF7585BF275FB",
+    "change": "added"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\SceneExecutionService.cs",
+    "before": null,
+    "after": "AFEDEACB9BEAB766FE6BC31510FF837038B227F503B8DDB9F316D6DEDE7388D4",
+    "change": "added"
+  },
+  {
+    "path": "src\\DesktopHub.Core\\WindowsSceneActionRunner.cs",
+    "before": null,
+    "after": "48A0BC5764F6475CE4AAD293A4BE187A82C56322255CCBD96FA89381CE766281",
+    "change": "added"
+  },
+  {
+    "path": "README.md",
+    "before": null,
+    "after": "D09F8E978E3685AF98FA0AE809A4D8CCAD770AA81674D8D739AAC659E1363BA8",
+    "change": "modified"
+  },
+  {
+    "path": "docs/M2.1_Bridge_Protocol.md",
+    "before": null,
+    "after": "E00EC6D1952558F1D5A1A0FC63460862C73DBAA6A401B7AD40FE080FE9D6EC06",
+    "change": "added"
+  },
+  {
+    "path": "docs/M2.1_Implementation_Report.md",
+    "before": null,
+    "after": "AB1565BE1D91BB3605677B8D2B1ED6D4BE578090D3D81D3BA2580642EED96AD8",
+    "change": "added"
+  }
+]

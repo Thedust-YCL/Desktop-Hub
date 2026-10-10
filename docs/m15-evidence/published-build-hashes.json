@@ -1,0 +1,17 @@
+[
+  {
+    "file": "DesktopHub.Windows.exe",
+    "sha256": "DED2ACD0975581984CE16BAB9F062183D5CC15FFAA57B07827DA42F13C605EFD",
+    "publishedMatchesTestBuild": true
+  },
+  {
+    "file": "DesktopHub.Windows.dll",
+    "sha256": "DCE193A369763AE48A0B11F74EA81888DBAC9BD4A48266350A4BFF5D5C127CB8",
+    "publishedMatchesTestBuild": true
+  },
+  {
+    "file": "DesktopHub.Core.dll",
+    "sha256": "C08BDEB8C17C16E458BDDD1B5C95D59E7EE1D4063AABF35BE81308547E41C0F9",
+    "publishedMatchesTestBuild": true
+  }
+]

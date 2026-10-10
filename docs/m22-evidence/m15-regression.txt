@@ -1,0 +1,50 @@
+Ready: .NET SDK 8.0.425; WebView2 SDK 1.0.4258.31; Windows SDK .NET Ref 10.0.17763.56; workspace-local cache.
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+  DesktopHub.LaunchFixture -> E:\桌软工作台\tests\DesktopHub.LaunchFixture\bin\Release\net8.0-windows\DesktopHub.LaunchFixture.dll
+
+已成功生成。
+    0 个警告
+    0 个错误
+
+已用时间 00:00:00.49
+PASS Missing configuration uses defaults
+PASS Camel-case JSON round trip persists theme, geometry and target
+PASS Corrupted JSON is preserved and safely recovered
+PASS Unsupported schema and unknown fields are quarantined
+PASS Oversized configuration is not deserialized
+PASS Invalid settings choices cannot replace saved data
+PASS Non-finite and unreasonable bounds are repaired
+PASS Null geometry from JSON safely uses defaults
+PASS Store snapshots cannot mutate the saved Current
+PASS Atomic replacement leaves no temporary files
+PASS Failed replacement preserves original JSON and Current
+PASS Unregistered and command-string launches are rejected
+PASS Relative, protocol, UNC and alternate stream paths are rejected
+PASS Script, shortcut and command-host registration is denied
+PASS Unsafe legacy migration preserves the exact old target and reports a warning
+PASS Missing program reports an actual failure
+PASS Renamed text file cannot masquerade as an executable
+PASS Five independently registered apps append, persist, and survive deep snapshot mutation
+PASS Editing and removing one app leaves the other records and original software intact
+PASS Workspace, Dock and Mini orders are independent and pin IDs stay stable
+PASS Mini cap applies to mixed visible pins without limiting the application library
+PASS Duplicate targets append while duplicate IDs and malformed mutations cannot overwrite saved data
+PASS Missing app and missing shortcut records survive restart with truthful launch errors
+PASS Legacy migration is additive, uses the stable ID and cannot resurrect removed apps
+PASS Locked migration cannot replace the old file and leaves usable in-memory data
+PASS Local persistence supports libraries beyond the M1 file budget and concurrent additive writes
+PASS Shortcut resolver is required and fresh shortcut targets cannot bypass executable validation
+[WARNING] Ignore caches that are heterogeneous
+PASS Explicit inert fixture launches through Process.Start and returns PID
+[WARNING] Ignore caches that are heterogeneous
+PASS App ID launch passes literal arguments and working directory without a command shell
+[WARNING] Ignore caches that are heterogeneous
+PASS Shortcut launch re-resolves targets while saved empty arguments override shortcut defaults
+RESULT 30 passed; 0 failed.
+67 M1.5 native integration checks passed before restart.
+Host working set 513142784
+
+73 M1.5 native integration checks passed, including an actual host restart.
+
+M1.5 native evidence copied to E:\桌软工作台\docs\m22-evidence\m15-regression\run-20261010T065116469Z

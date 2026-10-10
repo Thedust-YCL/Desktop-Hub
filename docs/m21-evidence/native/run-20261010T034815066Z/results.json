@@ -1,0 +1,614 @@
+[
+  {
+    "name": "Independent app launcher and native scenes coexist on home",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Five different harmless Windows applications available",
+    "passed": true,
+    "detail": [
+      "C:\\Windows\\system32\\winver.exe",
+      "C:\\Windows\\system32\\charmap.exe",
+      "C:\\Windows\\system32\\mstsc.exe",
+      "C:\\Windows\\system32\\msinfo32.exe",
+      "C:\\Windows\\system32\\colorcpl.exe"
+    ]
+  },
+  {
+    "name": "Editor selects five AppEntry IDs without copying target paths",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Scene editor saves to shared native store",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Workspace really starts five application requests and observes their windows",
+    "passed": true,
+    "detail": {
+      "id": "004bb35f-27fc-46f9-a32b-7a197369d821",
+      "sceneId": "f72672d8-6c7d-48ee-b77c-c00bf6249912",
+      "sceneName": "\u4E94\u5E94\u7528\u573A\u666F",
+      "status": "Success",
+      "summary": "\u6267\u884C\u6210\u529F",
+      "createdAt": "2026-10-10T03:48:17.6156071\u002B00:00",
+      "finishedAt": "2026-10-10T03:48:18.9661893\u002B00:00",
+      "actions": [
+        {
+          "actionId": "3e76ba2c-3807-4c57-a280-78ceb3089a34",
+          "name": "winver",
+          "status": "Success",
+          "code": "window_appeared",
+          "message": "\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 25196,
+          "targetPath": "C:\\Windows\\system32\\winver.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:17.6193912\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:18.521973\u002B00:00"
+        },
+        {
+          "actionId": "b31cb850-f1d8-43c9-a8c7-39a005c3c996",
+          "name": "charmap",
+          "status": "Success",
+          "code": "window_appeared",
+          "message": "\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 33364,
+          "targetPath": "C:\\Windows\\system32\\charmap.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:17.6300915\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:18.9655989\u002B00:00"
+        },
+        {
+          "actionId": "e6d7c220-8649-4525-88e4-a2011cf2190e",
+          "name": "mstsc",
+          "status": "Success",
+          "code": "window_appeared",
+          "message": "\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 17304,
+          "targetPath": "C:\\Windows\\system32\\mstsc.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:17.637015\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:18.8785788\u002B00:00"
+        },
+        {
+          "actionId": "1aea5e41-9448-4fb3-85ec-8f31394f47a6",
+          "name": "msinfo32",
+          "status": "Success",
+          "code": "window_appeared",
+          "message": "\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 17048,
+          "targetPath": "C:\\Windows\\system32\\msinfo32.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:17.6440535\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:18.4716487\u002B00:00"
+        },
+        {
+          "actionId": "e0268502-2ac4-4995-a6f6-03acaf23de00",
+          "name": "colorcpl",
+          "status": "Success",
+          "code": "window_appeared",
+          "message": "\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 40988,
+          "targetPath": "C:\\Windows\\system32\\colorcpl.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:17.6526365\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:18.8085382\u002B00:00"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Actual PID path matches scene application winver.exe",
+    "passed": true,
+    "detail": {
+      "id": 25196,
+      "target": "C:\\Windows\\system32\\winver.exe"
+    }
+  },
+  {
+    "name": "Actual PID path matches scene application charmap.exe",
+    "passed": true,
+    "detail": {
+      "id": 33364,
+      "target": "C:\\Windows\\system32\\charmap.exe"
+    }
+  },
+  {
+    "name": "Actual PID path matches scene application mstsc.exe",
+    "passed": true,
+    "detail": {
+      "id": 17304,
+      "target": "C:\\Windows\\system32\\mstsc.exe"
+    }
+  },
+  {
+    "name": "Actual PID path matches scene application msinfo32.exe",
+    "passed": true,
+    "detail": {
+      "id": 17048,
+      "target": "C:\\Windows\\system32\\msinfo32.exe"
+    }
+  },
+  {
+    "name": "Actual PID path matches scene application colorcpl.exe",
+    "passed": true,
+    "detail": {
+      "id": 40988,
+      "target": "C:\\Windows\\system32\\colorcpl.exe"
+    }
+  },
+  {
+    "name": "Dock repeat skips all five running apps by target path",
+    "passed": true,
+    "detail": {
+      "id": "92f62ca9-650d-4735-b006-9980a498c0cc",
+      "sceneId": "f72672d8-6c7d-48ee-b77c-c00bf6249912",
+      "sceneName": "\u4E94\u5E94\u7528\u573A\u666F",
+      "status": "Success",
+      "summary": "\u6267\u884C\u6210\u529F",
+      "createdAt": "2026-10-10T03:48:19.5818166\u002B00:00",
+      "finishedAt": "2026-10-10T03:48:19.6842293\u002B00:00",
+      "actions": [
+        {
+          "actionId": "3e76ba2c-3807-4c57-a280-78ceb3089a34",
+          "name": "winver",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 25196,
+          "targetPath": "C:\\Windows\\system32\\winver.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:19.5830917\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:19.6056745\u002B00:00"
+        },
+        {
+          "actionId": "b31cb850-f1d8-43c9-a8c7-39a005c3c996",
+          "name": "charmap",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 33364,
+          "targetPath": "C:\\Windows\\system32\\charmap.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:19.6057743\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:19.6292466\u002B00:00"
+        },
+        {
+          "actionId": "e6d7c220-8649-4525-88e4-a2011cf2190e",
+          "name": "mstsc",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 17304,
+          "targetPath": "C:\\Windows\\system32\\mstsc.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:19.6293477\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:19.6530969\u002B00:00"
+        },
+        {
+          "actionId": "1aea5e41-9448-4fb3-85ec-8f31394f47a6",
+          "name": "msinfo32",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 17048,
+          "targetPath": "C:\\Windows\\system32\\msinfo32.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:19.6534442\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:19.6694637\u002B00:00"
+        },
+        {
+          "actionId": "e0268502-2ac4-4995-a6f6-03acaf23de00",
+          "name": "colorcpl",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 40988,
+          "targetPath": "C:\\Windows\\system32\\colorcpl.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:19.6694878\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:19.6841641\u002B00:00"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Mini mixed entry triggers its own new execution",
+    "passed": true,
+    "detail": {
+      "id": "a3a6aacc-6236-4ff4-a897-35aa2b42f7d2",
+      "sceneId": "f72672d8-6c7d-48ee-b77c-c00bf6249912",
+      "sceneName": "\u4E94\u5E94\u7528\u573A\u666F",
+      "status": "Success",
+      "summary": "\u6267\u884C\u6210\u529F",
+      "createdAt": "2026-10-10T03:48:19.695815\u002B00:00",
+      "finishedAt": "2026-10-10T03:48:19.8132005\u002B00:00",
+      "actions": [
+        {
+          "actionId": "3e76ba2c-3807-4c57-a280-78ceb3089a34",
+          "name": "winver",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 25196,
+          "targetPath": "C:\\Windows\\system32\\winver.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:19.6959021\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:19.7233029\u002B00:00"
+        },
+        {
+          "actionId": "b31cb850-f1d8-43c9-a8c7-39a005c3c996",
+          "name": "charmap",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 33364,
+          "targetPath": "C:\\Windows\\system32\\charmap.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:19.7238392\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:19.7502426\u002B00:00"
+        },
+        {
+          "actionId": "e6d7c220-8649-4525-88e4-a2011cf2190e",
+          "name": "mstsc",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 17304,
+          "targetPath": "C:\\Windows\\system32\\mstsc.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:19.7502765\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:19.7691015\u002B00:00"
+        },
+        {
+          "actionId": "1aea5e41-9448-4fb3-85ec-8f31394f47a6",
+          "name": "msinfo32",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 17048,
+          "targetPath": "C:\\Windows\\system32\\msinfo32.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:19.7695348\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:19.7919234\u002B00:00"
+        },
+        {
+          "actionId": "e0268502-2ac4-4995-a6f6-03acaf23de00",
+          "name": "colorcpl",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 40988,
+          "targetPath": "C:\\Windows\\system32\\colorcpl.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:19.7919773\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:19.8126003\u002B00:00"
+        }
+      ]
+    }
+  },
+  {
+    "name": "All three surfaces share the same final execution state",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Execution completion keeps Dock and Workspace visible",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Referenced scene reads edited AppEntry arguments and work directory",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Sequential process dependency accepts already-running app and honors delay",
+    "passed": true,
+    "detail": {
+      "id": "52b0dc99-75ef-4b43-9e98-b4e0dc77e6c6",
+      "sceneId": "c9d31e96-0490-4f18-9fb8-68689e98028b",
+      "sceneName": "\u987A\u5E8F\u4E0E\u66F4\u65B0",
+      "status": "Success",
+      "summary": "\u6267\u884C\u6210\u529F",
+      "createdAt": "2026-10-10T03:48:24.3469222\u002B00:00",
+      "finishedAt": "2026-10-10T03:48:25.3938322\u002B00:00",
+      "actions": [
+        {
+          "actionId": "62b7f65f-4f0e-427f-8568-02950a6c6c09",
+          "name": "\u6700\u65B0\u5E94\u7528\u914D\u7F6E",
+          "status": "Success",
+          "code": "window_appeared",
+          "message": "\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 24388,
+          "targetPath": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m21-smoke-data\\fixture-4053cad3-445a-412e-adec-ada451057e95\\DesktopHub.LaunchFixture.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:24.3472369\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:25.1209228\u002B00:00"
+        },
+        {
+          "actionId": "cabdd6a3-e9ae-4afd-9db3-9f58c0e11f73",
+          "name": "\u7B49\u5F85\u8FDB\u7A0B\u540E\u5EF6\u8FDF",
+          "status": "Skipped",
+          "code": "already_running",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF08\u5339\u914D\u76EE\u6807\u8DEF\u5F84\uFF0C1 \u4E2A\u5B9E\u4F8B\uFF09",
+          "processId": 24388,
+          "targetPath": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m21-smoke-data\\fixture-4053cad3-445a-412e-adec-ada451057e95\\DesktopHub.LaunchFixture.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:25.1333543\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:25.3937694\u002B00:00"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Same process name at another path is not mistaken for running target",
+    "passed": true,
+    "detail": {
+      "success": true,
+      "skipped": false,
+      "code": "submitted",
+      "message": "\u542F\u52A8\u8BF7\u6C42\u5DF2\u63D0\u4EA4",
+      "processId": 5104,
+      "targetPath": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m21-smoke-data\\same-name-fixture-032b7186-4a72-4bfe-ace7-27a03529cad8\\DesktopHub.LaunchFixture.exe",
+      "diagnostic": ""
+    }
+  },
+  {
+    "name": "Explicit repeat policy can create another instance",
+    "passed": true,
+    "detail": {
+      "success": true,
+      "skipped": false,
+      "code": "submitted",
+      "message": "\u542F\u52A8\u8BF7\u6C42\u5DF2\u63D0\u4EA4",
+      "processId": 17160,
+      "targetPath": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m21-smoke-data\\fixture-4053cad3-445a-412e-adec-ada451057e95\\DesktopHub.LaunchFixture.exe",
+      "diagnostic": ""
+    }
+  },
+  {
+    "name": "Default app rule skips reliably matched multiple instances",
+    "passed": true,
+    "detail": {
+      "success": true,
+      "skipped": true,
+      "code": "already_running",
+      "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF08\u5339\u914D\u76EE\u6807\u8DEF\u5F84\uFF0C2 \u4E2A\u5B9E\u4F8B\uFF09",
+      "processId": 24388,
+      "targetPath": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m21-smoke-data\\fixture-4053cad3-445a-412e-adec-ada451057e95\\DesktopHub.LaunchFixture.exe",
+      "diagnostic": ""
+    }
+  },
+  {
+    "name": "Real window wait fails after the default ten seconds",
+    "passed": true,
+    "detail": {
+      "id": "bef77ffc-e29d-42fb-9074-ff0e0ab740bc",
+      "sceneId": "cb9d5b0b-4380-46e4-93dd-bd1ec99a9df9",
+      "sceneName": "\u7A97\u53E3\u8D85\u65F6\u4E0E\u4F9D\u8D56",
+      "status": "PartialSuccess",
+      "summary": "\u90E8\u5206\u6210\u529F\uFF0C\u8BF7\u67E5\u770B\u5931\u8D25\u539F\u56E0",
+      "createdAt": "2026-10-10T03:48:25.6591571\u002B00:00",
+      "finishedAt": "2026-10-10T03:48:35.6756519\u002B00:00",
+      "actions": [
+        {
+          "actionId": "879770ae-f374-4959-80da-43cf92181c56",
+          "name": "\u7B49\u5F85\u4E0D\u5B58\u5728\u7684\u7A97\u53E3",
+          "status": "Failed",
+          "code": "wait_window_timeout",
+          "message": "\u7B49\u5F85\u76EE\u6807\u7A97\u53E3\u8D85\u65F6\uFF0810 \u79D2\uFF09",
+          "processId": 24388,
+          "targetPath": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m21-smoke-data\\fixture-4053cad3-445a-412e-adec-ada451057e95\\DesktopHub.LaunchFixture.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": false,
+          "startedAt": "2026-10-10T03:48:25.6592458\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:35.675206\u002B00:00"
+        },
+        {
+          "actionId": "b0489d80-8748-4b83-b494-838dd9627395",
+          "name": "\u4F9D\u8D56\u5931\u8D25\u540E\u8DF3\u8FC7",
+          "status": "Skipped",
+          "code": "dependency_failed",
+          "message": "\u524D\u7F6E\u52A8\u4F5C\u672A\u6210\u529F\uFF0C\u5DF2\u8DF3\u8FC7\u6B64\u52A8\u4F5C\u3002",
+          "processId": null,
+          "targetPath": "",
+          "diagnostic": "",
+          "satisfiesDependencies": false,
+          "startedAt": null,
+          "finishedAt": "2026-10-10T03:48:35.6755964\u002B00:00"
+        },
+        {
+          "actionId": "90c49a47-ffd2-41df-8af9-e5e2a022bf43",
+          "name": "\u72EC\u7ACB\u52A8\u4F5C\u7EE7\u7EED",
+          "status": "Skipped",
+          "code": "process_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u8FDB\u7A0B\u5DF2\u51FA\u73B0\uFF1B\u5C1A\u672A\u786E\u8BA4\u7A97\u53E3\u5C31\u7EEA",
+          "processId": 24388,
+          "targetPath": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m21-smoke-data\\fixture-4053cad3-445a-412e-adec-ada451057e95\\DesktopHub.LaunchFixture.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:25.6859621\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:25.7076646\u002B00:00"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Failed prerequisite skips dependent and independent action continues",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "UI responds during asynchronous scene wait",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Concurrent clicks create separate runs; each script runs exactly once",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "New scene execution reruns the script",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Batch command control syntax is rejected before execution",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Script exit errors report actual Windows process result",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Interactive or slow script produces a finite timeout",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Timed-out script is not duplicated while its previous process is still running",
+    "passed": true,
+    "detail": {
+      "success": false,
+      "skipped": false,
+      "code": "previous_script_running",
+      "message": "\u6B64\u52A8\u4F5C\u7684\u4E0A\u4E00\u6B21\u811A\u672C\u4ECD\u5728\u8FD0\u884C\uFF0C\u8BF7\u68C0\u67E5\u53EF\u89C1\u7EC8\u7AEF\uFF1B\u7ED3\u675F\u540E\u53EF\u518D\u6B21\u6267\u884C\u3002",
+      "processId": null,
+      "targetPath": "",
+      "diagnostic": ""
+    }
+  },
+  {
+    "name": "Real Windows shell receives web/file/folder open requests",
+    "passed": true,
+    "detail": {
+      "id": "d8bf4761-e839-4c1e-a064-c4b322f52e38",
+      "sceneId": "6ccc80e1-69f0-465d-af8a-164096f7368d",
+      "sceneName": "\u7CFB\u7EDF\u5173\u8054\u6253\u5F00",
+      "status": "Success",
+      "summary": "\u6267\u884C\u6210\u529F",
+      "createdAt": "2026-10-10T03:48:38.8461917\u002B00:00",
+      "finishedAt": "2026-10-10T03:48:39.0978338\u002B00:00",
+      "actions": [
+        {
+          "actionId": "32abcdef-0f80-47ce-b01b-407a729a93f0",
+          "name": "\u7F51\u9875",
+          "status": "Success",
+          "code": "submitted",
+          "message": "\u6253\u5F00\u8BF7\u6C42\u5DF2\u63D0\u4EA4\u7ED9 Windows",
+          "processId": 8956,
+          "targetPath": "",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:38.8463444\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:38.9875529\u002B00:00"
+        },
+        {
+          "actionId": "a2fa0ffb-7f55-4725-8a18-1cf1aee0f5da",
+          "name": "\u6587\u4EF6",
+          "status": "Success",
+          "code": "submitted",
+          "message": "\u6253\u5F00\u8BF7\u6C42\u5DF2\u63D0\u4EA4\u7ED9 Windows",
+          "processId": 11708,
+          "targetPath": "",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:38.846416\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:39.0978063\u002B00:00"
+        },
+        {
+          "actionId": "9756741f-013d-4d5c-9162-a5ff0a0fea94",
+          "name": "\u6587\u4EF6\u5939",
+          "status": "Success",
+          "code": "submitted",
+          "message": "\u6253\u5F00\u8BF7\u6C42\u5DF2\u63D0\u4EA4\u7ED9 Windows",
+          "processId": 23040,
+          "targetPath": "C:\\Windows\\explorer.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:48:38.8466715\u002B00:00",
+          "finishedAt": "2026-10-10T03:48:38.9018083\u002B00:00"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Missing file reports a real error",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Removing referenced app lists affected scenes",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Native bridge requires explicit confirmation of affected scenes",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Confirmed removal succeeds",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Referenced scene survives removal with repairable invalid action",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Local scene diagnostics exist",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Second host reloads appEntries",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Second host reloads scenes",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Second host reloads launcherPins",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Scene references and missing references survive actual host restart",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Restarted Workspace renders native scene library",
+    "passed": true,
+    "detail": null
+  }
+]

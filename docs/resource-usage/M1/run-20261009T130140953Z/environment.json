@@ -1,0 +1,67 @@
+{
+  "version": "M1 / 0.1.0",
+  "startedUtc": "2026-10-09T13:01:41.2010507+00:00",
+  "hostProcessId": 39096,
+  "os": "Microsoft Windows 10.0.26200",
+  "osVersion": "10.0.26200.0",
+  "framework": ".NET 8.0.17",
+  "logicalProcessorCount": 16,
+  "webView2Runtime": "154.0.4258.62",
+  "workArea": {
+    "width": 1600,
+    "height": 952
+  },
+  "dpi": {
+    "dpiScaleX": 2,
+    "dpiScaleY": 2
+  },
+  "settings": {
+    "schemaVersion": 1,
+    "theme": "dark",
+    "reducedMotion": false,
+    "transparency": true,
+    "miniPosition": "left",
+    "miniSize": "normal",
+    "miniMode": "icons",
+    "dockPosition": "left",
+    "dockSize": "normal",
+    "hoverEnabled": false,
+    "hoverDelay": 500,
+    "allowForeground": true,
+    "workspaceBounds": {
+      "left": 32,
+      "top": 24,
+      "width": 1536,
+      "height": 904
+    },
+    "miniBounds": {
+      "left": 18,
+      "top": 300,
+      "width": 56,
+      "height": 260
+    },
+    "dockBounds": {
+      "left": 18,
+      "top": 260,
+      "width": 370,
+      "height": 540
+    },
+    "launchTarget": null
+  },
+  "executableSha256": "9A4D09A46281950036B26D627B1852AC7F06B80EA8F436B689863B883D4DAF81",
+  "assemblySha256": "92206050A52949C5CA3C27BFBBAD88B2B106C8027CA26F76FE414B38FC441E6A",
+  "coreSha256": "DE3895E1F14ED7E60B2D3F611FBA74FCB054AF1378A70794366939239A9FB426",
+  "settleSeconds": 15,
+  "sampleCount": 60,
+  "intervalTargetSeconds": 1,
+  "profile": "isolated resource-data, reusable WebView2 disk cache",
+  "attribution": "Environment.GetProcessInfos() plus msedgewebview2 descendants (includes crashpad), deduplicated PID/start time",
+  "cpuDefinition": "100 * sum(delta processor seconds) / actual interval seconds / logical processors",
+  "notMeasured": [
+    "GPU memory/utilization",
+    "disk IO",
+    "network",
+    "cold-start latency",
+    "exact physical RAM"
+  ]
+}

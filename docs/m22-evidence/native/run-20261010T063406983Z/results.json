@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Native bridge discovers actual desktop without importing or monitoring",
+    "passed": true
+  },
+  {
+    "name": "Empty native library does not show prototype paths",
+    "passed": true
+  }
+]

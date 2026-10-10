@@ -1,0 +1,212 @@
+[
+  {
+    "name": "Mini is an independent HWND",
+    "passed": true,
+    "detail": {
+      "hwnd": 4590956,
+      "width": 62,
+      "height": 182,
+      "topmost": false,
+      "allowsTransparency": true
+    }
+  },
+  {
+    "name": "WebView native handshake",
+    "passed": true,
+    "detail": {
+      "ok": true,
+      "result": {
+        "appIcons": {},
+        "effectiveTheme": "light",
+        "runtimeVersion": "154.0.4258.62",
+        "settings": {
+          "allowForeground": true,
+          "appEntries": [],
+          "dockBounds": {
+            "height": 540,
+            "left": 18,
+            "top": 260,
+            "width": 370
+          },
+          "dockIconSize": "normal",
+          "dockPosition": "left",
+          "dockSize": "normal",
+          "hoverDelay": 500,
+          "hoverEnabled": true,
+          "launchTarget": null,
+          "launcherPins": [],
+          "miniBounds": {
+            "height": 260,
+            "left": 18,
+            "top": 300,
+            "width": 56
+          },
+          "miniMode": "icons",
+          "miniPosition": "left",
+          "miniSize": "normal",
+          "reducedMotion": false,
+          "schemaVersion": 2,
+          "theme": "system",
+          "transparency": true,
+          "workspaceBounds": {
+            "height": 904,
+            "left": 32,
+            "top": 24,
+            "width": 1536
+          }
+        },
+        "settingsWarning": null,
+        "surface": "mini",
+        "version": "0.1.5"
+      }
+    }
+  },
+  {
+    "name": "Dock uses a separate visible HWND",
+    "passed": true,
+    "detail": {
+      "hwnd": 5116802,
+      "width": 338,
+      "height": 422
+    }
+  },
+  {
+    "name": "Dock really hides without exiting",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Workspace uses a third near-fullscreen HWND",
+    "passed": true,
+    "detail": {
+      "width": 1536,
+      "height": 904,
+      "left": 32,
+      "top": 24,
+      "workArea": "0,0,1600,952"
+    }
+  },
+  {
+    "name": "Native dark frame capture uses the actual foreground Workspace",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Actual dark Workspace top frame has no narrow light strip",
+    "passed": true,
+    "detail": {
+      "windowLeft": 64,
+      "windowTop": 48,
+      "width": 3072,
+      "height": 1808,
+      "visibleTopOffset": 0,
+      "sampleLeft": 1228,
+      "sampleRight": 1843,
+      "rows": [
+        {
+          "offset": 0,
+          "matchingRatio": 1,
+          "averageRed": 52,
+          "averageGreen": 69,
+          "averageBlue": 83
+        },
+        {
+          "offset": 1,
+          "matchingRatio": 1,
+          "averageRed": 52,
+          "averageGreen": 69,
+          "averageBlue": 83
+        },
+        {
+          "offset": 2,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        },
+        {
+          "offset": 3,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        },
+        {
+          "offset": 4,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        },
+        {
+          "offset": 5,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        }
+      ]
+    }
+  },
+  {
+    "name": "Actual Workspace top hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 1600,
+      "y": 49,
+      "expected": 12,
+      "actual": 12
+    }
+  },
+  {
+    "name": "Actual Workspace left hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 65,
+      "y": 952,
+      "expected": 10,
+      "actual": 10
+    }
+  },
+  {
+    "name": "Actual Workspace right hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 3134,
+      "y": 952,
+      "expected": 11,
+      "actual": 11
+    }
+  },
+  {
+    "name": "Actual Workspace bottom hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 1600,
+      "y": 1854,
+      "expected": 15,
+      "actual": 15
+    }
+  },
+  {
+    "name": "Actual Workspace center hit test preserves client interaction",
+    "passed": true,
+    "detail": {
+      "x": 1600,
+      "y": 952,
+      "expected": 1,
+      "actual": 1
+    }
+  },
+  {
+    "name": "Five distinct ordinary Windows GUI programs are available",
+    "passed": true,
+    "detail": [
+      "C:\\Windows\\system32\\winver.exe",
+      "C:\\Windows\\system32\\charmap.exe",
+      "C:\\Windows\\system32\\mstsc.exe",
+      "C:\\Windows\\system32\\msinfo32.exe",
+      "C:\\Windows\\system32\\odbcad32.exe"
+    ]
+  }
+]

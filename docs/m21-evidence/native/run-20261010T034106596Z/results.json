@@ -1,0 +1,318 @@
+[
+  {
+    "name": "Independent app launcher and native scenes coexist on home",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Five different harmless Windows applications available",
+    "passed": true,
+    "detail": [
+      "C:\\Windows\\system32\\winver.exe",
+      "C:\\Windows\\system32\\charmap.exe",
+      "C:\\Windows\\system32\\mstsc.exe",
+      "C:\\Windows\\system32\\msinfo32.exe",
+      "C:\\Windows\\system32\\colorcpl.exe"
+    ]
+  },
+  {
+    "name": "Editor selects five AppEntry IDs without copying target paths",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Scene editor saves to shared native store",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Workspace really starts five application requests and observes their windows",
+    "passed": true,
+    "detail": {
+      "id": "46ff993a-61b8-461c-a4e6-0e0495a8e7e4",
+      "sceneId": "2acfc7d1-bbbb-4c11-9343-d994cca3951b",
+      "sceneName": "\u4E94\u5E94\u7528\u573A\u666F",
+      "status": "Success",
+      "summary": "\u6267\u884C\u6210\u529F",
+      "createdAt": "2026-10-10T03:41:09.2160822+00:00",
+      "finishedAt": "2026-10-10T03:41:10.0567383+00:00",
+      "actions": [
+        {
+          "actionId": "26e7cd60-9099-49be-a958-c06e0eecf8b5",
+          "name": "winver",
+          "status": "Success",
+          "code": "window_appeared",
+          "message": "\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 11940,
+          "targetPath": "C:\\Windows\\system32\\winver.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:09.220682+00:00",
+          "finishedAt": "2026-10-10T03:41:09.4890469+00:00"
+        },
+        {
+          "actionId": "895a281b-dd5a-4eac-9860-fa55fbab63e0",
+          "name": "charmap",
+          "status": "Success",
+          "code": "window_appeared",
+          "message": "\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 6852,
+          "targetPath": "C:\\Windows\\system32\\charmap.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:09.233919+00:00",
+          "finishedAt": "2026-10-10T03:41:10.0560132+00:00"
+        },
+        {
+          "actionId": "e365aed2-1660-4e1c-a9d0-986dd5533a32",
+          "name": "mstsc",
+          "status": "Success",
+          "code": "window_appeared",
+          "message": "\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 23680,
+          "targetPath": "C:\\Windows\\system32\\mstsc.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:09.2450426+00:00",
+          "finishedAt": "2026-10-10T03:41:09.7619864+00:00"
+        },
+        {
+          "actionId": "6134cd8f-a202-4f10-8504-b2d5b91a2385",
+          "name": "msinfo32",
+          "status": "Success",
+          "code": "window_appeared",
+          "message": "\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 31480,
+          "targetPath": "C:\\Windows\\system32\\msinfo32.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:09.2555009+00:00",
+          "finishedAt": "2026-10-10T03:41:09.6604512+00:00"
+        },
+        {
+          "actionId": "bb5aff27-6b6b-40de-a0b4-18ffb8646b6c",
+          "name": "colorcpl",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 30104,
+          "targetPath": "C:\\Windows\\system32\\colorcpl.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:09.2649072+00:00",
+          "finishedAt": "2026-10-10T03:41:09.2917696+00:00"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Actual PID path matches scene application winver.exe",
+    "passed": true,
+    "detail": {
+      "id": 11940,
+      "target": "C:\\Windows\\system32\\winver.exe"
+    }
+  },
+  {
+    "name": "Actual PID path matches scene application charmap.exe",
+    "passed": true,
+    "detail": {
+      "id": 6852,
+      "target": "C:\\Windows\\system32\\charmap.exe"
+    }
+  },
+  {
+    "name": "Actual PID path matches scene application mstsc.exe",
+    "passed": true,
+    "detail": {
+      "id": 23680,
+      "target": "C:\\Windows\\system32\\mstsc.exe"
+    }
+  },
+  {
+    "name": "Actual PID path matches scene application msinfo32.exe",
+    "passed": true,
+    "detail": {
+      "id": 31480,
+      "target": "C:\\Windows\\system32\\msinfo32.exe"
+    }
+  },
+  {
+    "name": "Actual PID path matches scene application colorcpl.exe",
+    "passed": true,
+    "detail": {
+      "id": 30104,
+      "target": "C:\\Windows\\system32\\colorcpl.exe"
+    }
+  },
+  {
+    "name": "Dock repeat skips all five running apps by target path",
+    "passed": true,
+    "detail": {
+      "id": "8ab93b79-3310-40be-a95e-c17135e0156c",
+      "sceneId": "2acfc7d1-bbbb-4c11-9343-d994cca3951b",
+      "sceneName": "\u4E94\u5E94\u7528\u573A\u666F",
+      "status": "Success",
+      "summary": "\u6267\u884C\u6210\u529F",
+      "createdAt": "2026-10-10T03:41:10.7010257+00:00",
+      "finishedAt": "2026-10-10T03:41:10.8327732+00:00",
+      "actions": [
+        {
+          "actionId": "26e7cd60-9099-49be-a958-c06e0eecf8b5",
+          "name": "winver",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 11940,
+          "targetPath": "C:\\Windows\\system32\\winver.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:10.7022329+00:00",
+          "finishedAt": "2026-10-10T03:41:10.7375574+00:00"
+        },
+        {
+          "actionId": "895a281b-dd5a-4eac-9860-fa55fbab63e0",
+          "name": "charmap",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 6852,
+          "targetPath": "C:\\Windows\\system32\\charmap.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:10.7381192+00:00",
+          "finishedAt": "2026-10-10T03:41:10.7643976+00:00"
+        },
+        {
+          "actionId": "e365aed2-1660-4e1c-a9d0-986dd5533a32",
+          "name": "mstsc",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 23680,
+          "targetPath": "C:\\Windows\\system32\\mstsc.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:10.7654248+00:00",
+          "finishedAt": "2026-10-10T03:41:10.7817909+00:00"
+        },
+        {
+          "actionId": "6134cd8f-a202-4f10-8504-b2d5b91a2385",
+          "name": "msinfo32",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 31480,
+          "targetPath": "C:\\Windows\\system32\\msinfo32.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:10.7818177+00:00",
+          "finishedAt": "2026-10-10T03:41:10.8047029+00:00"
+        },
+        {
+          "actionId": "bb5aff27-6b6b-40de-a0b4-18ffb8646b6c",
+          "name": "colorcpl",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 30104,
+          "targetPath": "C:\\Windows\\system32\\colorcpl.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:10.8054623+00:00",
+          "finishedAt": "2026-10-10T03:41:10.8322606+00:00"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Mini mixed entry triggers its own new execution",
+    "passed": true,
+    "detail": {
+      "id": "05e4881d-3009-4115-bcce-e066d8cb8675",
+      "sceneId": "2acfc7d1-bbbb-4c11-9343-d994cca3951b",
+      "sceneName": "\u4E94\u5E94\u7528\u573A\u666F",
+      "status": "Success",
+      "summary": "\u6267\u884C\u6210\u529F",
+      "createdAt": "2026-10-10T03:41:10.844864+00:00",
+      "finishedAt": "2026-10-10T03:41:10.9505286+00:00",
+      "actions": [
+        {
+          "actionId": "26e7cd60-9099-49be-a958-c06e0eecf8b5",
+          "name": "winver",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 11940,
+          "targetPath": "C:\\Windows\\system32\\winver.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:10.8453341+00:00",
+          "finishedAt": "2026-10-10T03:41:10.8731182+00:00"
+        },
+        {
+          "actionId": "895a281b-dd5a-4eac-9860-fa55fbab63e0",
+          "name": "charmap",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 6852,
+          "targetPath": "C:\\Windows\\system32\\charmap.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:10.8731632+00:00",
+          "finishedAt": "2026-10-10T03:41:10.8932514+00:00"
+        },
+        {
+          "actionId": "e365aed2-1660-4e1c-a9d0-986dd5533a32",
+          "name": "mstsc",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 23680,
+          "targetPath": "C:\\Windows\\system32\\mstsc.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:10.8937879+00:00",
+          "finishedAt": "2026-10-10T03:41:10.9114363+00:00"
+        },
+        {
+          "actionId": "6134cd8f-a202-4f10-8504-b2d5b91a2385",
+          "name": "msinfo32",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 31480,
+          "targetPath": "C:\\Windows\\system32\\msinfo32.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:10.9114833+00:00",
+          "finishedAt": "2026-10-10T03:41:10.930678+00:00"
+        },
+        {
+          "actionId": "bb5aff27-6b6b-40de-a0b4-18ffb8646b6c",
+          "name": "colorcpl",
+          "status": "Skipped",
+          "code": "window_appeared",
+          "message": "\u5DF2\u8FD0\u884C\uFF0C\u8DF3\u8FC7\u542F\u52A8\uFF1B\u76EE\u6807\u7A97\u53E3\u5DF2\u51FA\u73B0",
+          "processId": 30104,
+          "targetPath": "C:\\Windows\\system32\\colorcpl.exe",
+          "diagnostic": "",
+          "satisfiesDependencies": true,
+          "startedAt": "2026-10-10T03:41:10.9307623+00:00",
+          "finishedAt": "2026-10-10T03:41:10.9503834+00:00"
+        }
+      ]
+    }
+  },
+  {
+    "name": "All three surfaces share the same final execution state",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Execution completion keeps Dock and Workspace visible",
+    "passed": true,
+    "detail": null
+  }
+]

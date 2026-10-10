@@ -1,0 +1,3 @@
+System.TimeoutException: Native resource state
+   at DesktopHub.Windows.ResourceSmokeTests.Wait(Func`1 predicate) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 138
+   at DesktopHub.Windows.ResourceSmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 59

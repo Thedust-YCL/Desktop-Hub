@@ -1,0 +1,41 @@
+✔ each HTML surface stays assigned to its native window (2.6087ms)
+✔ Windows effective theme and native saved settings override prototype cache (1.3848ms)
+✔ settings writes include only editable fields and never application records or bounds (1.7941ms)
+✔ five consecutive additions stay independent and each native launch carries only its id (2.1834ms)
+✔ real native failures and malformed success keep UI in error state (0.7711ms)
+✔ Esc dismisses modal first then sends native close without prototype toast (0.9169ms)
+✔ original scene click does not claim a process launch (0.8128ms)
+✔ settings save failure rolls back native preferences with the actual error (0.8565ms)
+✔ a newer user edit survives a delayed save reply and is subsequently persisted (0.7251ms)
+✔ editing and removing one application preserve its neighbours and do not send any path execution (1.3658ms)
+✔ cancelled picker adds nothing; replacing a target keeps the stable id and does not send a frontend path (0.9568ms)
+✔ Workspace reorder stays independent from the Mini and Dock layouts and search keeps record identity (1.1985ms)
+✔ Mini pin management mixes app/scene ids, caps four and preserves independent order (1.318ms)
+✔ Dock renders app icons separately from scene demos and saves only permitted density preference (0.8348ms)
+✔ Mini renders empty add entry then mixed pins and visible real error with dismissal (1.0983ms)
+✔ native icons are preferred, missing icons share fallback, and stored paths or remote URLs never become image sources (0.7481ms)
+✔ duplicate clicks are pending-guarded per app while another saved app can launch independently (1.3366ms)
+✔ loaded Mini and Dock refresh custom scene metadata without importing cached applications, preferences or execution actions (1.9251ms)
+✔ request/response correlation and only selected native launch id crosses boundary (2.653ms)
+✔ out-of-order responses resolve their original requests (0.3872ms)
+✔ native failures preserve the actual host code and message (0.8557ms)
+✔ unknown types and invalid payload never reach host (0.3407ms)
+✔ malformed or wrong-version responses cannot simulate success (30.2821ms)
+✔ events are restricted and subscriptions can be removed (0.2323ms)
+✔ unavailable WebView and postMessage failure return honest errors (0.1946ms)
+✔ dispose rejects pending requests and late messages cannot revive them (0.1793ms)
+✔ 1. First run requires scan confirmation, saves Mini position, then creates and pins a local scene (6.8041ms)
+✔ 2. Creation run shows all five simulated states, skips failed dependencies and keeps Dock open (3.3405ms)
+✔ 3. Scene CRUD, waiting parameters, cycle validation, ordering and Mini 2–4 protection integrate (4.0067ms)
+✔ 4. Suggested tags require acceptance; list/grid/tag views, filename/tag search and favorites use confirmed relations (4.578ms)
+✔ 5. Missing repair changes only synthetic path/state, preserving tags/favorite; cleanup removes selected invalid indexes only (1.2432ms)
+✔ 6. Surface navigation, 500ms edge hover, game protection, Esc return and system/light/dark themes integrate (3.7014ms)
+✔ 7. Desktop-icon demo requires restore choice first; independent shortcuts reject collisions and save valid settings (1.8073ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 205.2229

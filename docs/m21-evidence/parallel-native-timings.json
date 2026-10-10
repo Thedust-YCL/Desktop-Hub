@@ -1,0 +1,71 @@
+{
+  "run": "run-20261010T035636409Z",
+  "allFiveStartedBeforeAnyFinished": true,
+  "actions": [
+    {
+      "actionId": "8f30ded4-6440-448d-a6e2-66992cbc15ce",
+      "name": "winver",
+      "status": "Success",
+      "code": "window_appeared",
+      "message": "目标窗口已出现",
+      "processId": 28012,
+      "targetPath": "C:\\Windows\\system32\\winver.exe",
+      "diagnostic": "",
+      "satisfiesDependencies": true,
+      "startedAt": "2026-10-10T11:56:38.9734243+08:00",
+      "finishedAt": "2026-10-10T11:56:39.2352946+08:00"
+    },
+    {
+      "actionId": "2e594c0f-c794-43b9-bbcd-b419008ae5af",
+      "name": "charmap",
+      "status": "Success",
+      "code": "window_appeared",
+      "message": "目标窗口已出现",
+      "processId": 44476,
+      "targetPath": "C:\\Windows\\system32\\charmap.exe",
+      "diagnostic": "",
+      "satisfiesDependencies": true,
+      "startedAt": "2026-10-10T11:56:38.9849124+08:00",
+      "finishedAt": "2026-10-10T11:56:40.2316805+08:00"
+    },
+    {
+      "actionId": "d87756d9-395b-40b7-9cc4-e31088b9a345",
+      "name": "mstsc",
+      "status": "Success",
+      "code": "window_appeared",
+      "message": "目标窗口已出现",
+      "processId": 23776,
+      "targetPath": "C:\\Windows\\system32\\mstsc.exe",
+      "diagnostic": "",
+      "satisfiesDependencies": true,
+      "startedAt": "2026-10-10T11:56:38.9935552+08:00",
+      "finishedAt": "2026-10-10T11:56:39.7977676+08:00"
+    },
+    {
+      "actionId": "9e339c70-272b-4679-8ebd-537307803c19",
+      "name": "msinfo32",
+      "status": "Success",
+      "code": "window_appeared",
+      "message": "目标窗口已出现",
+      "processId": 40680,
+      "targetPath": "C:\\Windows\\system32\\msinfo32.exe",
+      "diagnostic": "",
+      "satisfiesDependencies": true,
+      "startedAt": "2026-10-10T11:56:39.0010954+08:00",
+      "finishedAt": "2026-10-10T11:56:39.5956746+08:00"
+    },
+    {
+      "actionId": "55b30d23-c4c9-4ca9-b992-de9328872ac4",
+      "name": "colorcpl",
+      "status": "Success",
+      "code": "window_appeared",
+      "message": "目标窗口已出现",
+      "processId": 14732,
+      "targetPath": "C:\\Windows\\system32\\colorcpl.exe",
+      "diagnostic": "",
+      "satisfiesDependencies": true,
+      "startedAt": "2026-10-10T11:56:39.0077935+08:00",
+      "finishedAt": "2026-10-10T11:56:39.6082047+08:00"
+    }
+  ]
+}

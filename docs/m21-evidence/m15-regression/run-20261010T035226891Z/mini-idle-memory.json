@@ -1,0 +1,38 @@
+{
+  "hostWorkingSet": 260399104,
+  "hostPrivateBytes": 172122112,
+  "webViewWorkingSet": 398249984,
+  "webViewPrivateBytes": 209219584,
+  "processes": [
+    {
+      "processId": 10236,
+      "kind": "Utility",
+      "workingSet": 22016000,
+      "privateBytes": 7966720
+    },
+    {
+      "processId": 18576,
+      "kind": "Browser",
+      "workingSet": 163184640,
+      "privateBytes": 72839168
+    },
+    {
+      "processId": 37448,
+      "kind": "Utility",
+      "workingSet": 39882752,
+      "privateBytes": 11280384
+    },
+    {
+      "processId": 37840,
+      "kind": "Renderer",
+      "workingSet": 58490880,
+      "privateBytes": 26218496
+    },
+    {
+      "processId": 44360,
+      "kind": "Gpu",
+      "workingSet": 114675712,
+      "privateBytes": 90914816
+    }
+  ]
+}

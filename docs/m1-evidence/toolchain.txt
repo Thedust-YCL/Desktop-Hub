@@ -1,0 +1,56 @@
+Desktop Hub M1 toolchain evidence — 2026-10-09 (Asia/Shanghai)
+
+Initial inspection:
+- No global .NET SDK; dotnet --info reported no SDKs.
+- No Visual Studio installation or msbuild executable found.
+- No existing user NuGet package cache found.
+- Existing global Microsoft.WindowsDesktop.App: 8.0.17 and 9.0.5.
+- Existing global Microsoft.NETCore.App: 8.0.14, 8.0.17, 9.0.5.
+- Node executable: C:\Program Files\nodejs\node.exe.
+- Windows: build 26200.9457, DisplayVersion 25H2, x64 (Windows 11).
+- Registry ProductName retains "Windows 10 Home China"; build identifies Windows 11.
+- WebView2 Evergreen Runtime: 154.0.4258.62.
+
+Provisioned solely within E:\桌软工作台\.tools:
+- .NET SDK 8.0.425, MSBuild 17.11.48+02bf66295.
+- Bundled .NET / ASP.NET / Windows Desktop runtimes 8.0.31.
+- Microsoft.WindowsDesktop.App.Ref 8.0.31 and WPF SDK included.
+- SDK ZIP length: 285157731 bytes.
+- SDK SHA512: F0B6F15BF6F1A0507205C0CB102AB99E1DEE875C4682C8ED94665BE1D580186A06B21455E83B3A01A0FF7F4CD887B67420F2E2FE09ED985534A4CEA488AE1AF9.
+- SHA512 verified against official Microsoft release metadata.
+- Cached NuGet package: Microsoft.Web.WebView2 1.0.4258.31, 9801922 bytes.
+- Package SHA512: 1E5195C2FC8FFC85A25C053C2B9ED59A0E7D9216370D630EC4C9C7E001EEB05472D3FBC3023288B5750854D5E25D76AAE022DF499C8D522735C0E2259CF2EC3D.
+- SDK path: E:\桌软工作台\.tools\dotnet\dotnet.exe.
+- NuGet source: E:\桌软工作台\.tools\nuget-feed.
+- Restore package cache: E:\桌软工作台\.tools\nuget-packages.
+- Additional composition-control targeting pack: Microsoft.Windows.SDK.NET.Ref 10.0.17763.56.
+- Targeting pack length: 8952152 bytes; .NETCoreApp8.0 dependency group empty.
+- Targeting pack SHA512: BC5CD10B7B27B0DEF94F8EF98DFC54107DB3DD14C6C78D923F803A8016F58C8E86D0850485D8E294B7A27BB34B8A53A6B7AE342DF096B74E8466DFB6989221B1.
+- Official package source: https://api.nuget.org/v3-flatcontainer/microsoft.windows.sdk.net.ref/10.0.17763.56/microsoft.windows.sdk.net.ref.10.0.17763.56.nupkg
+
+Network:
+- Default sandbox DNS blocked the official download request.
+- Approved require_escalated download reached official Microsoft metadata and archive.
+- Official https://api.nuget.org/v3/index.json returned HTTP 200.
+- Official WebView2 package downloaded from api.nuget.org/v3-flatcontainer.
+- No administrator installation, machine PATH modification, or global configuration change.
+- build/publish restore from the local feed with NuGetAudit=false: no remote source is passed.
+- bootstrap checks pinned caches first; -Offline rejects missing/corrupt caches without networking.
+- Build/publish keep DOTNET_CLI_HOME, APPDATA, and LOCALAPPDATA within .tools during restore/compile;
+  process environment values are restored in finally before a normal app launch.
+- build.ps1 includes desktop native-bridge and desktop-adapter tests plus accepted prototype tests.
+- test-native.ps1 builds the repository-owned inert fixture from the local feed, optionally runs
+  the Core fixture integration, launches --smoke-test, and preserves each run's evidence.
+
+Dependencies and lifecycle:
+- Development: the pinned local .NET SDK; Node.js for frontend verification.
+- Framework-dependent output: .NET Desktop Runtime 8 x64 and WebView2 Evergreen Runtime.
+- SDK download page: https://dotnet.microsoft.com/en-us/download/dotnet/8.0
+- Official metadata: https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/8.0/releases.json
+- Official SDK URL: https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.425/dotnet-sdk-8.0.425-win-x64.zip
+- .NET 8 and 9 end support on 2026-11-10; M2/release planning should migrate to .NET 10 LTS.
+- Official lifecycle announcement: https://devblogs.microsoft.com/dotnet/dotnet-8-9-end-of-support/
+- Official support policy: https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core
+
+Application build/test execution is recorded separately by the implementation report;
+these scripts were created while the host code was being developed.

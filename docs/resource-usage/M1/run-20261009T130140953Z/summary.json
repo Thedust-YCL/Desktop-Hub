@@ -1,0 +1,188 @@
+{
+  "version": "M1",
+  "startedUtc": "2026-10-09T13:01:41.2010507+00:00",
+  "finishedUtc": "2026-10-09T13:06:43.860767+00:00",
+  "scenarios": [
+    {
+      "scenario": "mini-first",
+      "startedUtc": "2026-10-09T13:01:58.7677404+00:00",
+      "endedUtc": "2026-10-09T13:02:57.7669452+00:00",
+      "settleSeconds": 15,
+      "memorySamples": 61,
+      "cpuIntervals": 60,
+      "skippedCpuIntervals": 0,
+      "measuredSeconds": 60.042727899999996,
+      "hostPrivateMiBMean": 159.55266927083332,
+      "webViewPrivateMiBMean": 214.22643229166667,
+      "totalPrivateMiBMean": 373.7791015625,
+      "totalPrivateMiBMin": 370.42578125,
+      "totalPrivateMiBPeak": 376.1484375,
+      "workingSetSumMiBMean": 689.346875,
+      "cpuMachinePercentMean": 0.4277552777544606,
+      "cpuMachinePercentPeak": 1.759988373626318,
+      "cpuOneCorePercentMean": 6.8440844440713695,
+      "cpuSeconds": 4.109375,
+      "validCpuSeconds": 60.042727899999996,
+      "processCountMin": 7,
+      "processCountMax": 7,
+      "windows": [
+        {
+          "surface": "mini",
+          "hwnd": 267178,
+          "isVisible": true,
+          "width": 62,
+          "height": 314,
+          "topmost": false,
+          "suspended": false
+        }
+      ]
+    },
+    {
+      "scenario": "dock-open",
+      "startedUtc": "2026-10-09T13:03:14.2415439+00:00",
+      "endedUtc": "2026-10-09T13:04:13.241645+00:00",
+      "settleSeconds": 15,
+      "memorySamples": 61,
+      "cpuIntervals": 58,
+      "skippedCpuIntervals": 2,
+      "measuredSeconds": 60.047634099999996,
+      "hostPrivateMiBMean": 213.18014322916667,
+      "webViewPrivateMiBMean": 311.01653645833335,
+      "totalPrivateMiBMean": 524.1966796875,
+      "totalPrivateMiBMin": 514.9375,
+      "totalPrivateMiBPeak": 991.8359375,
+      "workingSetSumMiBMean": 885.7367838541667,
+      "cpuMachinePercentMean": 0.3566381273306326,
+      "cpuMachinePercentPeak": 0.8753659200728591,
+      "cpuOneCorePercentMean": 5.706210037290122,
+      "cpuSeconds": 3.3125,
+      "validCpuSeconds": 58.0507899,
+      "processCountMin": 8,
+      "processCountMax": 9,
+      "windows": [
+        {
+          "surface": "mini",
+          "hwnd": 267178,
+          "isVisible": true,
+          "width": 62,
+          "height": 314,
+          "topmost": false,
+          "suspended": false
+        },
+        {
+          "surface": "dock",
+          "hwnd": 10029476,
+          "isVisible": true,
+          "width": 338,
+          "height": 591,
+          "topmost": true,
+          "suspended": false
+        }
+      ]
+    },
+    {
+      "scenario": "workspace-home",
+      "startedUtc": "2026-10-09T13:04:29.6593901+00:00",
+      "endedUtc": "2026-10-09T13:05:28.6591337+00:00",
+      "settleSeconds": 15,
+      "memorySamples": 61,
+      "cpuIntervals": 60,
+      "skippedCpuIntervals": 0,
+      "measuredSeconds": 60.05362919999999,
+      "hostPrivateMiBMean": 274.6935546875,
+      "webViewPrivateMiBMean": 412.58684895833335,
+      "totalPrivateMiBMean": 687.2804036458333,
+      "totalPrivateMiBMin": 685.3515625,
+      "totalPrivateMiBPeak": 701.66015625,
+      "workingSetSumMiBMean": 1036.7547526041667,
+      "cpuMachinePercentMean": 0.36263160178835624,
+      "cpuMachinePercentPeak": 0.7810348249057489,
+      "cpuOneCorePercentMean": 5.8021056286137,
+      "cpuSeconds": 3.484375,
+      "validCpuSeconds": 60.05362919999999,
+      "processCountMin": 9,
+      "processCountMax": 9,
+      "windows": [
+        {
+          "surface": "mini",
+          "hwnd": 267178,
+          "isVisible": true,
+          "width": 62,
+          "height": 314,
+          "topmost": false,
+          "suspended": false
+        },
+        {
+          "surface": "dock",
+          "hwnd": 10029476,
+          "isVisible": false,
+          "width": 338,
+          "height": 591,
+          "topmost": false,
+          "suspended": true
+        },
+        {
+          "surface": "workspace",
+          "hwnd": 4131300,
+          "isVisible": true,
+          "width": 1536,
+          "height": 904,
+          "topmost": false,
+          "suspended": false
+        }
+      ]
+    },
+    {
+      "scenario": "mini-after-use",
+      "startedUtc": "2026-10-09T13:05:44.7916906+00:00",
+      "endedUtc": "2026-10-09T13:06:43.7908995+00:00",
+      "settleSeconds": 15,
+      "memorySamples": 61,
+      "cpuIntervals": 60,
+      "skippedCpuIntervals": 0,
+      "measuredSeconds": 60.05552019999999,
+      "hostPrivateMiBMean": 275.6459635416667,
+      "webViewPrivateMiBMean": 410.3295572916667,
+      "totalPrivateMiBMean": 685.9755208333333,
+      "totalPrivateMiBMin": 685.7109375,
+      "totalPrivateMiBPeak": 686.4375,
+      "workingSetSumMiBMean": 972.8160807291666,
+      "cpuMachinePercentMean": 0.40977706825358584,
+      "cpuMachinePercentPeak": 0.8779634050992688,
+      "cpuOneCorePercentMean": 6.5564330920573735,
+      "cpuSeconds": 3.9375,
+      "validCpuSeconds": 60.05552019999999,
+      "processCountMin": 9,
+      "processCountMax": 9,
+      "windows": [
+        {
+          "surface": "mini",
+          "hwnd": 267178,
+          "isVisible": true,
+          "width": 62,
+          "height": 314,
+          "topmost": false,
+          "suspended": false
+        },
+        {
+          "surface": "dock",
+          "hwnd": 10029476,
+          "isVisible": false,
+          "width": 338,
+          "height": 591,
+          "topmost": false,
+          "suspended": true
+        },
+        {
+          "surface": "workspace",
+          "hwnd": 4131300,
+          "isVisible": false,
+          "width": 1536,
+          "height": 904,
+          "topmost": false,
+          "suspended": true
+        }
+      ]
+    }
+  ]
+}

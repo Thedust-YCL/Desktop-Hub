@@ -1,0 +1,10 @@
+System.Runtime.InteropServices.COMException (0x8000FFFF): 灾难性故障
+
+   at System.Runtime.InteropServices.Marshal.ThrowExceptionForHR(Int32 errorCode)
+   at Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateCoreWebView2CompositionControllerAsync(IntPtr ParentWindow)
+   at Microsoft.Web.WebView2.Wpf.WebView2CompositionControl.Microsoft.Web.WebView2.Wpf.IWebView2Private.InitializeController(IntPtr parent_window, CoreWebView2ControllerOptions controllerOptions)
+   at Microsoft.Web.WebView2.Wpf.WebView2Base.<>c__DisplayClass32_0.<<EnsureCoreWebView2Async>g__Init|0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at DesktopHub.Windows.HubWindow.InitializeAsync(CoreWebView2Environment environment) in E:\桌软工作台\src\DesktopHub.Windows\HubWindow.cs:line 108
+   at DesktopHub.Windows.HubApplication.StartAsync() in E:\桌软工作台\src\DesktopHub.Windows\HubApplication.cs:line 95
+   at DesktopHub.Windows.Program.<>c__DisplayClass0_0.<<Main>b__1>d.MoveNext() in E:\桌软工作台\src\DesktopHub.Windows\Program.cs:line 42

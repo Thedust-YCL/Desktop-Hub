@@ -1,0 +1,5 @@
+C:\Windows\system32\winver.exe	IDC1 BM_CLICK	hwnd=1119194	pid=22940
+C:\Windows\system32\charmap.exe	IDC1 BM_CLICK	hwnd=3083212	pid=22940
+C:\Windows\system32\mstsc.exe	IDC1 BM_CLICK	hwnd=1184654	pid=22940
+C:\Windows\system32\msinfo32.exe	IDC1 BM_CLICK	hwnd=40834076	pid=22940
+C:\Windows\system32\odbcad32.exe	IDC1 BM_CLICK	hwnd=4197260	pid=22940

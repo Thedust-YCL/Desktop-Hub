@@ -1,0 +1,433 @@
+[
+  {
+    "name": "Mini is an independent HWND",
+    "passed": true,
+    "detail": {
+      "hwnd": 4393162,
+      "width": 62,
+      "height": 182,
+      "topmost": false,
+      "allowsTransparency": true
+    }
+  },
+  {
+    "name": "WebView native handshake",
+    "passed": true,
+    "detail": {
+      "ok": true,
+      "result": {
+        "appIcons": {},
+        "effectiveTheme": "light",
+        "runtimeVersion": "154.0.4258.62",
+        "settings": {
+          "allowForeground": true,
+          "appEntries": [],
+          "dockBounds": {
+            "height": 540,
+            "left": 18,
+            "top": 260,
+            "width": 370
+          },
+          "dockIconSize": "normal",
+          "dockPosition": "left",
+          "dockSize": "normal",
+          "hoverDelay": 500,
+          "hoverEnabled": true,
+          "launchTarget": null,
+          "launcherPins": [],
+          "miniBounds": {
+            "height": 260,
+            "left": 18,
+            "top": 300,
+            "width": 56
+          },
+          "miniMode": "icons",
+          "miniPosition": "left",
+          "miniSize": "normal",
+          "reducedMotion": false,
+          "schemaVersion": 2,
+          "theme": "system",
+          "transparency": true,
+          "workspaceBounds": {
+            "height": 904,
+            "left": 32,
+            "top": 24,
+            "width": 1536
+          }
+        },
+        "settingsWarning": null,
+        "surface": "mini",
+        "version": "0.1.5"
+      }
+    }
+  },
+  {
+    "name": "Dock uses a separate visible HWND",
+    "passed": true,
+    "detail": {
+      "hwnd": 7540928,
+      "width": 338,
+      "height": 422
+    }
+  },
+  {
+    "name": "Dock really hides without exiting",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Workspace uses a third near-fullscreen HWND",
+    "passed": true,
+    "detail": {
+      "width": 1536,
+      "height": 904,
+      "left": 32,
+      "top": 24,
+      "workArea": "0,0,1600,952"
+    }
+  },
+  {
+    "name": "Native dark frame capture uses the actual foreground Workspace",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Actual dark Workspace top frame has no narrow light strip",
+    "passed": true,
+    "detail": {
+      "windowLeft": 64,
+      "windowTop": 48,
+      "width": 3072,
+      "height": 1808,
+      "visibleTopOffset": 0,
+      "sampleLeft": 1228,
+      "sampleRight": 1843,
+      "rows": [
+        {
+          "offset": 0,
+          "matchingRatio": 1,
+          "averageRed": 52,
+          "averageGreen": 69,
+          "averageBlue": 83
+        },
+        {
+          "offset": 1,
+          "matchingRatio": 1,
+          "averageRed": 52,
+          "averageGreen": 69,
+          "averageBlue": 83
+        },
+        {
+          "offset": 2,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        },
+        {
+          "offset": 3,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        },
+        {
+          "offset": 4,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        },
+        {
+          "offset": 5,
+          "matchingRatio": 1,
+          "averageRed": 28,
+          "averageGreen": 42,
+          "averageBlue": 54
+        }
+      ]
+    }
+  },
+  {
+    "name": "Actual Workspace top hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 1600,
+      "y": 49,
+      "expected": 12,
+      "actual": 12
+    }
+  },
+  {
+    "name": "Actual Workspace left hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 65,
+      "y": 952,
+      "expected": 10,
+      "actual": 10
+    }
+  },
+  {
+    "name": "Actual Workspace right hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 3134,
+      "y": 952,
+      "expected": 11,
+      "actual": 11
+    }
+  },
+  {
+    "name": "Actual Workspace bottom hit test preserves window resizing",
+    "passed": true,
+    "detail": {
+      "x": 1600,
+      "y": 1854,
+      "expected": 15,
+      "actual": 15
+    }
+  },
+  {
+    "name": "Actual Workspace center hit test preserves client interaction",
+    "passed": true,
+    "detail": {
+      "x": 1600,
+      "y": 952,
+      "expected": 1,
+      "actual": 1
+    }
+  },
+  {
+    "name": "Five distinct ordinary Windows GUI programs are available",
+    "passed": true,
+    "detail": [
+      "C:\\Windows\\system32\\winver.exe",
+      "C:\\Windows\\system32\\charmap.exe",
+      "C:\\Windows\\system32\\mstsc.exe",
+      "C:\\Windows\\system32\\msinfo32.exe",
+      "C:\\Windows\\system32\\colorcpl.exe"
+    ]
+  },
+  {
+    "name": "Native picker appends winver.exe without overwriting previous records",
+    "passed": true,
+    "detail": {
+      "appId": "5071731e-dbed-4c52-b71e-7b468632d4ed",
+      "target": "C:\\Windows\\system32\\winver.exe",
+      "total": 1
+    }
+  },
+  {
+    "name": "Native picker appends charmap.exe without overwriting previous records",
+    "passed": true,
+    "detail": {
+      "appId": "4703a6e1-ffb8-4244-8f3d-73cbf94b3f82",
+      "target": "C:\\Windows\\system32\\charmap.exe",
+      "total": 2
+    }
+  },
+  {
+    "name": "Native picker appends mstsc.exe without overwriting previous records",
+    "passed": true,
+    "detail": {
+      "appId": "eae3e4cb-0bfa-4a22-9ab0-5625ac010a38",
+      "target": "C:\\Windows\\system32\\mstsc.exe",
+      "total": 3
+    }
+  },
+  {
+    "name": "Native picker appends msinfo32.exe without overwriting previous records",
+    "passed": true,
+    "detail": {
+      "appId": "72396c5c-a2f9-4de1-b2e5-9ed0b473dc61",
+      "target": "C:\\Windows\\system32\\msinfo32.exe",
+      "total": 4
+    }
+  },
+  {
+    "name": "Native picker appends colorcpl.exe without overwriting previous records",
+    "passed": true,
+    "detail": {
+      "appId": "e59e7d1b-c047-4d49-a2c6-9d1e8ad0c20d",
+      "target": "C:\\Windows\\system32\\colorcpl.exe",
+      "total": 5
+    }
+  },
+  {
+    "name": "Workspace shows five independent application launch buttons",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Local application icons are extracted and rendered",
+    "passed": true,
+    "detail": [
+      {
+        "id": "5071731e-dbed-4c52-b71e-7b468632d4ed",
+        "icon": "8e659be505436e75bbed5c5c2c1fa5ccc7f784c0310cae1141d1ffd6d8764324.png"
+      },
+      {
+        "id": "4703a6e1-ffb8-4244-8f3d-73cbf94b3f82",
+        "icon": "c8e7a629bac6085bd5794578766b526e014bba5885b8523dc5997e3a21dce902.png"
+      },
+      {
+        "id": "eae3e4cb-0bfa-4a22-9ab0-5625ac010a38",
+        "icon": "348b69cad096e088e151c30017af739da396c32226c02e33ebfcee027fab370d.png"
+      },
+      {
+        "id": "72396c5c-a2f9-4de1-b2e5-9ed0b473dc61",
+        "icon": "8ffd6a9d33cbadc6578d61dd88d66c6dacd3f42c06d194e8ec0f2b75af99e13f.png"
+      },
+      {
+        "id": "e59e7d1b-c047-4d49-a2c6-9d1e8ad0c20d",
+        "icon": "1fb89d45e27cbb4055aade22815fc6e7f72ddcdb4b0284dbe26cf14bb6a5c312.png"
+      }
+    ]
+  },
+  {
+    "name": "UI independently launches winver.exe",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 43628\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 43628,
+      "success": true
+    }
+  },
+  {
+    "name": "Actual GUI process exists for winver.exe",
+    "passed": true,
+    "detail": {
+      "processId": 43628,
+      "hwnd": 15797210,
+      "executable": "C:\\Windows\\System32\\winver.exe"
+    }
+  },
+  {
+    "name": "Only this run\u0027s winver.exe is normally closed",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Test GUI winver.exe exited without interaction",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "UI independently launches charmap.exe",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 42852\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 42852,
+      "success": true
+    }
+  },
+  {
+    "name": "Actual GUI process exists for charmap.exe",
+    "passed": true,
+    "detail": {
+      "processId": 42852,
+      "hwnd": 7541842,
+      "executable": "C:\\Windows\\System32\\charmap.exe"
+    }
+  },
+  {
+    "name": "Only this run\u0027s charmap.exe is normally closed",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Test GUI charmap.exe exited without interaction",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "UI independently launches mstsc.exe",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 41400\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 41400,
+      "success": true
+    }
+  },
+  {
+    "name": "Actual GUI process exists for mstsc.exe",
+    "passed": true,
+    "detail": {
+      "processId": 41400,
+      "hwnd": 4788904,
+      "executable": "C:\\Windows\\System32\\mstsc.exe"
+    }
+  },
+  {
+    "name": "Only this run\u0027s mstsc.exe is normally closed",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Test GUI mstsc.exe exited without interaction",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "UI independently launches msinfo32.exe",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 41924\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 41924,
+      "success": true
+    }
+  },
+  {
+    "name": "Actual GUI process exists for msinfo32.exe",
+    "passed": true,
+    "detail": {
+      "processId": 41924,
+      "hwnd": 24580458,
+      "executable": "C:\\Windows\\System32\\msinfo32.exe"
+    }
+  },
+  {
+    "name": "Only this run\u0027s msinfo32.exe is normally closed",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Test GUI msinfo32.exe exited without interaction",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "UI independently launches colorcpl.exe",
+    "passed": true,
+    "detail": {
+      "code": "started",
+      "message": "Windows \u5DF2\u521B\u5EFA\u8FDB\u7A0B\uFF08PID 9752\uFF09\u3002\u7A0B\u5E8F\u662F\u5426\u5B8C\u6210\u521D\u59CB\u5316\u9700\u7531\u540E\u7EED\u9636\u6BB5\u68C0\u6D4B\u3002",
+      "processId": 9752,
+      "success": true
+    }
+  },
+  {
+    "name": "Actual GUI process exists for colorcpl.exe",
+    "passed": true,
+    "detail": {
+      "processId": 9752,
+      "hwnd": 31855400,
+      "executable": "C:\\Windows\\System32\\colorcpl.exe"
+    }
+  },
+  {
+    "name": "Only this run\u0027s colorcpl.exe is normally closed",
+    "passed": true,
+    "detail": null
+  },
+  {
+    "name": "Test GUI colorcpl.exe exited without interaction",
+    "passed": false,
+    "detail": null
+  }
+]

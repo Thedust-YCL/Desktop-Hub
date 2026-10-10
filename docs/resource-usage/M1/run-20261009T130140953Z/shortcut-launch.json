@@ -1,0 +1,15 @@
+{
+  "openedThrough": "E:\\桌软工作台\\打开 Desktop Hub.lnk",
+  "startedUtc": "2026-10-09T13:11:06.0076008+00:00",
+  "processId": 34248,
+  "executable": "E:\\桌软工作台\\artifacts\\win-x64\\DesktopHub.Windows.exe",
+  "startTimeUtc": "2026-10-09T13:11:06.2023336Z",
+  "userSettingsSha256": "D5D69485FDA3089BC399168AE2800B39DAFE8BFCDA7112FB5CA249CD78A911F5",
+  "userSettingsMatchBeforeProbe": true,
+  "recentHostLog": [
+    "2026-10-09T12:55:40.1156983Z [BridgeRequest] window.resizeSurface",
+    "2026-10-09T13:11:06.3813082Z [Runtime] 154.0.4258.62",
+    "2026-10-09T13:11:07.7819381Z [BridgeRequest] app.getState",
+    "2026-10-09T13:11:07.8893171Z [BridgeRequest] window.resizeSurface"
+  ]
+}

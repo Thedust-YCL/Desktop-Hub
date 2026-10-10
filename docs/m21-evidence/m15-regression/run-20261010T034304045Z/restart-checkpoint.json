@@ -1,0 +1,187 @@
+{
+  "hostProcessId": 7120,
+  "settings": {
+    "schemaVersion": 3,
+    "theme": "light",
+    "reducedMotion": true,
+    "transparency": true,
+    "miniPosition": "left",
+    "miniSize": "normal",
+    "miniMode": "icons",
+    "dockPosition": "left",
+    "dockSize": "normal",
+    "dockIconSize": "compact",
+    "hoverEnabled": true,
+    "hoverDelay": 500,
+    "allowForeground": true,
+    "workspaceBounds": {
+      "left": 45,
+      "top": 40,
+      "width": 1536,
+      "height": 904
+    },
+    "miniBounds": {
+      "left": 18,
+      "top": 300,
+      "width": 56,
+      "height": 260
+    },
+    "dockBounds": {
+      "left": 18,
+      "top": 260,
+      "width": 338,
+      "height": 493
+    },
+    "launchTarget": null,
+    "appEntries": [
+      {
+        "id": "061d3961-61d5-49b8-825f-f024b54401a5",
+        "name": "M15 Fixture Shortcut",
+        "target": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m15-smoke-data\\fixture\\M15 Fixture Shortcut.lnk",
+        "arguments": "--shortcut \u0022LNK \u53C2\u6570\u0022",
+        "workingDirectory": "E:\\\u684C\u8F6F\u5DE5\u4F5C\u53F0\\src\\DesktopHub.Windows\\bin\\Release\\net8.0-windows\\m15-smoke-data\\fixture",
+        "icon": "8e659be505436e75bbed5c5c2c1fa5ccc7f784c0310cae1141d1ffd6d8764324.png",
+        "entryKind": "lnk",
+        "displayOrder": 0,
+        "pinnedToMini": false,
+        "pinnedToDock": false
+      },
+      {
+        "id": "7c51a3d2-b8e2-464e-92d7-0a717e9e1749",
+        "name": "colorcpl",
+        "target": "C:\\Windows\\System32\\colorcpl.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Windows\\System32",
+        "icon": "1fb89d45e27cbb4055aade22815fc6e7f72ddcdb4b0284dbe26cf14bb6a5c312.png",
+        "entryKind": "exe",
+        "displayOrder": 1,
+        "pinnedToMini": false,
+        "pinnedToDock": true
+      },
+      {
+        "id": "e60a4698-685d-4eac-946e-5aa0d679137a",
+        "name": "msinfo32",
+        "target": "C:\\Windows\\System32\\msinfo32.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Windows\\System32",
+        "icon": "8ffd6a9d33cbadc6578d61dd88d66c6dacd3f42c06d194e8ec0f2b75af99e13f.png",
+        "entryKind": "exe",
+        "displayOrder": 2,
+        "pinnedToMini": false,
+        "pinnedToDock": true
+      },
+      {
+        "id": "6e0ffb77-799b-4c5f-90a8-662e4c197b3e",
+        "name": "mstsc",
+        "target": "C:\\Windows\\System32\\mstsc.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Windows\\System32",
+        "icon": "348b69cad096e088e151c30017af739da396c32226c02e33ebfcee027fab370d.png",
+        "entryKind": "exe",
+        "displayOrder": 3,
+        "pinnedToMini": false,
+        "pinnedToDock": true
+      },
+      {
+        "id": "55c22244-8467-4aee-8002-85a442d1433f",
+        "name": "charmap",
+        "target": "C:\\Windows\\System32\\charmap.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Windows\\System32",
+        "icon": "c8e7a629bac6085bd5794578766b526e014bba5885b8523dc5997e3a21dce902.png",
+        "entryKind": "exe",
+        "displayOrder": 4,
+        "pinnedToMini": false,
+        "pinnedToDock": true
+      },
+      {
+        "id": "2eec379a-aa51-4429-ad24-927dff8d2350",
+        "name": "winver",
+        "target": "C:\\Windows\\System32\\winver.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Windows\\System32",
+        "icon": "8e659be505436e75bbed5c5c2c1fa5ccc7f784c0310cae1141d1ffd6d8764324.png",
+        "entryKind": "exe",
+        "displayOrder": 5,
+        "pinnedToMini": true,
+        "pinnedToDock": true
+      }
+    ],
+    "launcherPins": [
+      {
+        "id": "614219bd-4c11-4a0e-8876-41435164a223",
+        "surface": "dock",
+        "itemType": "app",
+        "itemId": "7c51a3d2-b8e2-464e-92d7-0a717e9e1749",
+        "displayOrder": 0,
+        "enabled": true
+      },
+      {
+        "id": "5c73201f-3cd3-4301-85e3-57ebf853b0c3",
+        "surface": "dock",
+        "itemType": "app",
+        "itemId": "e60a4698-685d-4eac-946e-5aa0d679137a",
+        "displayOrder": 1,
+        "enabled": true
+      },
+      {
+        "id": "c66593ec-8729-407d-bf53-d9a4c7e54ce6",
+        "surface": "dock",
+        "itemType": "app",
+        "itemId": "6e0ffb77-799b-4c5f-90a8-662e4c197b3e",
+        "displayOrder": 2,
+        "enabled": true
+      },
+      {
+        "id": "5236b050-5c5f-464b-9752-94a491bed236",
+        "surface": "dock",
+        "itemType": "app",
+        "itemId": "55c22244-8467-4aee-8002-85a442d1433f",
+        "displayOrder": 3,
+        "enabled": true
+      },
+      {
+        "id": "9fa38018-72da-42c7-9d0d-7f31c0a96349",
+        "surface": "dock",
+        "itemType": "app",
+        "itemId": "2eec379a-aa51-4429-ad24-927dff8d2350",
+        "displayOrder": 4,
+        "enabled": true
+      },
+      {
+        "id": "d27ddd0d-3db2-4ad3-bd9d-969eac05ccce",
+        "surface": "mini",
+        "itemType": "app",
+        "itemId": "2eec379a-aa51-4429-ad24-927dff8d2350",
+        "displayOrder": 0,
+        "enabled": true
+      },
+      {
+        "id": "7b771d18-8f95-441c-b9aa-76e794deace6",
+        "surface": "mini",
+        "itemType": "scene",
+        "itemId": "061dbe10-620c-4fd0-88e3-91c98c59142d",
+        "displayOrder": 1,
+        "enabled": true
+      }
+    ],
+    "scenes": [
+      {
+        "id": "061dbe10-620c-4fd0-88e3-91c98c59142d",
+        "name": "\u56DE\u5F52\u6D4B\u8BD5\u573A\u666F",
+        "icon": "scenes",
+        "displayOrder": 0,
+        "enabled": true,
+        "actions": [],
+        "dependencies": []
+      }
+    ]
+  },
+  "originalApplicationIds": [
+    "2eec379a-aa51-4429-ad24-927dff8d2350",
+    "55c22244-8467-4aee-8002-85a442d1433f",
+    "6e0ffb77-799b-4c5f-90a8-662e4c197b3e",
+    "e60a4698-685d-4eac-946e-5aa0d679137a",
+    "7c51a3d2-b8e2-464e-92d7-0a717e9e1749"
+  ]
+}
