@@ -16,7 +16,7 @@ try
         var settings = store.Load();
         Equal("system", settings.Theme);
         Equal(500, settings.HoverDelay);
-        Equal(3, settings.SchemaVersion);
+        Equal(4, settings.SchemaVersion);
         True(settings.LaunchTarget is null && store.RecoveryWarning is null);
     });
     Check("Camel-case JSON round trip persists theme, geometry and target", () =>
@@ -323,7 +323,7 @@ try
         var legacy = new LaunchTarget { Id = Guid.NewGuid().ToString("D"), Path = Path.Combine(testRoot, "old-stale.exe"), DisplayName = "old" };
         Write(store, JsonSerializer.Serialize(new AppSettings { SchemaVersion = 1, AppEntries = [existing], LaunchTarget = legacy }, SettingsStore.JsonOptions));
         var loaded = store.Load();
-        Equal(3, loaded.SchemaVersion);
+        Equal(4, loaded.SchemaVersion);
         Equal(2, loaded.AppEntries.Count);
         Equal(existing.Id, loaded.AppEntries[0].Id);
         Equal(legacy.Id, loaded.AppEntries[1].Id);
@@ -350,7 +350,7 @@ try
             Equal(original, File.ReadAllText(store.SettingsPath));
         }
         Equal(1, store.Load().AppEntries.Count);
-        Equal(3, JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(store.SettingsPath), SettingsStore.JsonOptions)!.SchemaVersion);
+        Equal(4, JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(store.SettingsPath), SettingsStore.JsonOptions)!.SchemaVersion);
     });
     Check("Local persistence supports libraries beyond the M1 file budget and concurrent additive writes", () =>
     {

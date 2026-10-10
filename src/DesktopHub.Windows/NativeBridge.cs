@@ -12,11 +12,12 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
 {
     private readonly HashSet<string> pending = new();
     private static readonly HashSet<string> Editable = new(StringComparer.Ordinal)
-    { "theme", "reducedMotion", "transparency", "miniPosition", "miniSize", "miniMode", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground" };
+    { "theme", "reducedMotion", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
     private static readonly HashSet<string> Pages = new(StringComparer.Ordinal)
     { "home", "scenes", "library", "tags", "favorites", "search", "settings" };
     private bool pickerOpen, launching;
     private readonly ResourceBridge resources = new(host, window);
+    private readonly SystemBridge system = new(host, window);
 
     public async Task ReceiveAsync(CoreWebView2WebMessageReceivedEventArgs message)
     {
@@ -39,13 +40,14 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
             if (json.Length > 16384 && type.GetString() is not ("apps.update" or "apps.reorder" or "launcher.setPins" or "scenes.save" or "scenes.reorder"))
                 throw new BridgeException("MESSAGE_TOO_LARGE", "请求过大。");
             if (pending.Count >= 16 || !pending.Add(id)) throw new BridgeException("BUSY", "请等待当前操作完成。");
+            window.BeginNativeRequest();
             try
             {
                 host.Log("BridgeRequest", type.GetString()!);
                 var result = await DispatchAsync(type.GetString()!, payload);
                 Reply(new { version = 1, id, ok = true, result });
             }
-            finally { pending.Remove(id); }
+            finally { pending.Remove(id); window.EndNativeRequest(); }
         }
         catch (Exception e)
         {
@@ -58,7 +60,9 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
 
     private async Task<object> DispatchAsync(string type, JsonElement payload)
     {
+        if (host.IsExiting) throw new BridgeException("APP_EXITING", "Desktop Hub 正在退出，请稍后重新打开。");
         if (type.StartsWith("resources.", StringComparison.Ordinal)) return await resources.DispatchAsync(type, payload);
+        if (type.StartsWith("system.", StringComparison.Ordinal)) return system.Dispatch(type, payload);
         switch (type)
         {
             case "app.getState": Empty(payload); return host.State(window);
@@ -76,6 +80,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                 {
                     if (!Editable.Contains(field.Name)) throw new BridgeException("FORBIDDEN_SETTING", "此设置不能由界面修改：" + field.Name);
                     if (!patchKeys.Add(field.Name)) throw new BridgeException("INVALID_PARAMS", "重复设置：" + field.Name);
+                    if (field.Name == "foregroundBlocklist") SystemBridge.ValidateBlocklist(field.Value);
                     merged[field.Name] = JsonNode.Parse(field.Value.GetRawText());
                 }
                 var settings = merged.Deserialize<AppSettings>(HubApplication.Json)!;
@@ -85,9 +90,9 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                 RequireKeys(payload, "page");
                 string? page = payload.TryGetProperty("page", out _) ? String(payload, "page", 24) : null;
                 if (page is not null && !Pages.Contains(page)) throw new BridgeException("INVALID_PARAMS", "页面不存在。");
-                await host.OpenWorkspaceAsync(page); return new { opened = true };
+                await host.OpenWorkspaceAsync(page); return new { opened = host.Workspace?.IsVisible == true };
             case "window.closeWorkspace": RequireWorkspace(); Empty(payload); host.CloseWorkspace(); return new { closed = true, focusRestore = host.FocusRestoreResult };
-            case "window.openDock": Empty(payload); await host.OpenDockAsync(); return new { opened = true };
+            case "window.openDock": Empty(payload); await host.OpenDockAsync(); return new { opened = host.Dock?.IsVisible == true };
             case "window.closeDock": Empty(payload); host.CloseDock(); return new { closed = true };
             case "window.resizeSurface": RequireKeys(payload, "width", "height"); window.ResizeSurface(payload.GetProperty("width").GetDouble(), payload.GetProperty("height").GetDouble()); return new { resized = true };
             case "window.drag":

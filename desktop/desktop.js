@@ -7,9 +7,12 @@
   const requestedSurface = new URLSearchParams(location.search).get('surface');
   const surface = surfaces.has(requestedSurface) ? requestedSurface : 'workspace';
   const editableSettings = [
-    'theme', 'reducedMotion', 'transparency', 'miniPosition', 'miniSize', 'miniMode',
-    'dockPosition', 'dockSize', 'dockIconSize', 'hoverEnabled', 'hoverDelay', 'allowForeground'
+    'theme', 'reducedMotion', 'transparency', 'miniPosition', 'miniSize', 'miniMode', 'miniEnabled', 'miniOpacity',
+    'dockPosition', 'dockSize', 'dockIconSize', 'hoverEnabled', 'hoverDelay', 'allowForeground', 'foregroundBlocklist'
   ];
+  // These preferences use their own explicit saves. Including them in the
+  // debounced appearance snapshot could overwrite a newer system-setting reply.
+  const dedicatedSettings = new Set(['miniEnabled', 'miniOpacity', 'foregroundBlocklist']);
   const pages = new Set(['home', 'scenes', 'library', 'tags', 'favorites', 'search', 'settings']);
   const prototypeStorageKey = 'desktop-hub-m0-v07';
   const originalRender = H.render;
@@ -44,7 +47,7 @@
   const icon = (name, size = 20) => H.icon(name, size);
   const button = (action, text, primary = false, disabled = false) => `<button class="button ${primary ? 'primary' : 'quiet'}" data-action="${action}" ${disabled ? 'disabled' : ''}>${text}</button>`;
   function visualSettings(settings) {
-    return Object.fromEntries(editableSettings.filter(key => settings[key] !== undefined).map(key => [key, settings[key]]));
+    return Object.fromEntries(editableSettings.filter(key => !dedicatedSettings.has(key) && settings[key] !== undefined).map(key => [key, settings[key]]));
   }
   function apps() { return [...(hostState?.settings?.appEntries || [])].sort((a, b) => a.displayOrder - b.displayOrder); }
   function appById(id) { return apps().find(app => app.id === id); }
@@ -308,7 +311,7 @@
     }
     if (H.ui.page === 'settings') {
       const badge = document.querySelector('.page-heading > .badge');
-      if (badge) badge.textContent = '外观与窗口偏好保存到本地';
+      if (badge) badge.textContent = '本地设置';
       for (const control of document.querySelectorAll('[data-setting]')) {
         if (!editableSettings.includes(control.dataset.setting)) {
           control.disabled = true;

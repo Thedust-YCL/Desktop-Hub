@@ -1,0 +1,9 @@
+  DesktopHub.LaunchFixture -> E:\桌软工作台\tests\DesktopHub.LaunchFixture\bin\Release\net8.0-windows\DesktopHub.LaunchFixture.dll
+
+已成功生成。
+    0 个警告
+    0 个错误
+
+已用时间 00:00:00.53
+35 real Windows scene checks passed.
+40 real Windows scene checks passed.

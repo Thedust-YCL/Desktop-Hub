@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "startedUtc": "2026-10-10T09:06:15.5628252Z",
+  "completedUtc": "2026-10-10T09:06:35.9499150Z",
+  "phases": [
+    {
+      "flag": "--index-smoke",
+      "processId": 36080,
+      "exitCode": 0,
+      "startedUtc": "2026-10-10T09:06:15.5666670Z"
+    },
+    {
+      "flag": "--index-smoke-restart",
+      "processId": 23324,
+      "exitCode": 0,
+      "startedUtc": "2026-10-10T09:06:33.0074148Z"
+    }
+  ],
+  "evidence": "E:\\桌软工作台\\docs\\m23-evidence\\m22-regression\\run-20261010T090615562Z"
+}

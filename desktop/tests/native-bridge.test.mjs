@@ -47,6 +47,26 @@ test('out-of-order responses resolve their original requests', async () => {
   bridge.dispose();
 });
 
+test('system API admits only explicit target-state operations and preserves structured native failures', async () => {
+  const view = fakeWebView();
+  const bridge = createBridge(view);
+  for (const [type, payload] of [
+    ['system.getState', {}], ['system.setDesktopIcons', { visible: false, firstHidePolicy: 'restore' }],
+    ['system.setIconExitPolicy', { policy: 'keepHidden' }], ['system.setStartup', { enabled: false }],
+    ['system.setHotkeys', { dock: 'Alt+D', workspace: 'Ctrl+Alt+W' }]
+  ]) {
+    const pending = bridge.request(type, payload);
+    const sent = view.sent.at(-1);
+    assert.deepEqual(sent.payload, payload);
+    view.receive({ version: 1, id: sent.id, ok: true, result: { operation: { success: false, message: '实际系统失败' } } });
+    assert.equal((await pending).operation.success, false);
+  }
+  await assert.rejects(bridge.request('system.execute', { command: 'reg.exe' }), error => error.code === 'UNKNOWN_MESSAGE');
+  await assert.rejects(bridge.request('system.toggleDesktopIcons', {}), error => error.code === 'UNKNOWN_MESSAGE');
+  assert.equal(view.sent.length, 5);
+  bridge.dispose();
+});
+
 test('native failures preserve the actual host code and message', async () => {
   const view = fakeWebView();
   const bridge = createBridge(view);

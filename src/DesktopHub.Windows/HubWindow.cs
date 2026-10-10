@@ -23,6 +23,7 @@ public sealed class HubWindow : Window, IDisposable
     private readonly NativeBridge bridge;
     private string? position;
     private bool disposing;
+    private int activeNativeRequests;
 
     public HubWindow(HubApplication application, string surface)
     {
@@ -58,7 +59,7 @@ public sealed class HubWindow : Window, IDisposable
                 {
                     ((FrameworkElement)Browser).Visibility = Visibility.Hidden;
                     await Task.Delay(150);
-                    if (!IsVisible && !disposing) host.Log("Suspend", Surface + ":" + await Browser.CoreWebView2.TrySuspendAsync());
+                    if (!IsVisible && !disposing && activeNativeRequests == 0) host.Log("Suspend", Surface + ":" + await Browser.CoreWebView2.TrySuspendAsync());
                 }
             }
             catch (Exception e) { host.Log("Suspend", Surface + ":" + e.Message); }
@@ -71,16 +72,18 @@ public sealed class HubWindow : Window, IDisposable
             HwndSource.FromHwnd(Handle)?.AddHook((nint hwnd, int message, nint wParam, nint lParam, ref bool handled) =>
             {
                 if (surface == "mini" && message == 0x21) { handled = true; return 3; } // WM_MOUSEACTIVATE / MA_NOACTIVATE
+                if (message is 0x02E0 or 0x007E) // WM_DPICHANGED / WM_DISPLAYCHANGE, after WPF processes DPI.
+                    _ = Dispatcher.BeginInvoke(() => { if (!disposing) ClampToWorkArea(Left, Top); });
                 return 0;
             });
         };
         Closing += (_, e) =>
         {
-            if (disposing) return;
+            if (disposing || host.IsExiting) return;
             e.Cancel = true;
             if (surface == "workspace") host.CloseWorkspace();
             else if (surface == "dock") host.CloseDock();
-            else host.Exit();
+            else Hide(); // Closing a window never toggles persisted preferences during shutdown.
         };
         LocationChanged += (_, _) => { if (IsLoaded) position = PositionSetting; };
         PreviewKeyDown += (_, e) =>
@@ -211,6 +214,21 @@ public sealed class HubWindow : Window, IDisposable
         // Start the standard Windows move loop after JS has posted its mouse event.
         NativeDrag.ReleaseCapture(); NativeDrag.SendMessage(Handle, 0xA1, 2, 0);
         host.SaveWindow(this);
+    }
+
+    internal void BeginNativeRequest() => activeNativeRequests++;
+    internal async void EndNativeRequest()
+    {
+        activeNativeRequests--;
+        if (activeNativeRequests != 0 || IsVisible || disposing) return;
+        try
+        {
+            // Allow an opening request's reply to reach its original surface before suspension.
+            await Task.Delay(150);
+            if (activeNativeRequests == 0 && !IsVisible && !disposing && Browser.CoreWebView2 is { } core)
+                await core.TrySuspendAsync();
+        }
+        catch (Exception ex) { host.Log("Suspend", Surface + ":" + ex.Message); }
     }
 
     public void Dispose() { disposing = true; Browser.Dispose(); Close(); }

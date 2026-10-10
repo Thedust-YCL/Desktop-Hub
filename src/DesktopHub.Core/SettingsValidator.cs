@@ -11,7 +11,7 @@ public static class SettingsValidator
     {
         ArgumentNullException.ThrowIfNull(settings);
         migrationWarning = null;
-        if (settings.SchemaVersion is not (1 or 2 or 3))
+        if (settings.SchemaVersion is not (1 or 2 or 3 or 4))
             throw new SettingsValidationException("不支持此配置版本。请保留配置文件后升级应用。");
         CheckChoice(settings.Theme, ["system", "dark", "light"], "theme");
         CheckChoice(settings.MiniPosition, Positions, "miniPosition");
@@ -20,6 +20,23 @@ public static class SettingsValidator
         CheckChoice(settings.DockSize, Sizes, "dockSize");
         CheckChoice(settings.DockIconSize, ["compact", "normal", "large"], "dockIconSize");
         CheckChoice(settings.MiniMode, ["icons", "labels"], "miniMode");
+        ValidateHotkey(settings.DockHotkey);
+        ValidateHotkey(settings.WorkspaceHotkey);
+        if (string.Equals(settings.DockHotkey, settings.WorkspaceHotkey, StringComparison.OrdinalIgnoreCase))
+            throw new SettingsValidationException("Dock 与 Workspace 快捷键必须不同。");
+        var desktopIcons = settings.DesktopIcons ?? new();
+        if (desktopIcons.ExitPolicy is not null) CheckChoice(desktopIcons.ExitPolicy, ["restore", "keepHidden"], "desktopIcons.exitPolicy");
+        if (desktopIcons.FirstHideAuthorized && desktopIcons.ExitPolicy is null)
+            throw new SettingsValidationException("桌面图标授权必须包含退出策略。");
+        if (desktopIcons.NeedsRecovery && (!desktopIcons.FirstHideAuthorized || desktopIcons.InitialVisible is null))
+            throw new SettingsValidationException("桌面图标恢复记录缺少初始状态或授权。");
+        if (settings.StartupCommand is { } command && (command.Length > 4096 || command.Any(char.IsControl)))
+            throw new SettingsValidationException("开机自启所有权记录无效。");
+        if (settings.StartupPendingCommand is { } pending && (pending.Length > 4096 || pending.Any(char.IsControl)))
+            throw new SettingsValidationException("开机自启待确认记录无效。");
+        var blocklist = (settings.ForegroundBlocklist ?? []).Select(value => value?.Trim().ToLowerInvariant() ?? "").Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (blocklist.Count > 100 || blocklist.Any(value => string.IsNullOrEmpty(value) || value.Length > 260 || value.IndexOfAny(['/', '\\', ':', '*', '?', '"']) >= 0 || value.Any(char.IsControl)))
+            throw new SettingsValidationException("屏蔽名单只能包含程序文件名（如 game.exe），最多 100 项。");
         var defaults = new AppSettings();
         var entries = (settings.AppEntries ?? []).Select(NormalizeEntry).OrderBy(entry => entry.DisplayOrder).ToList();
         if (entries.Select(entry => entry.Id).Distinct(StringComparer.Ordinal).Count() != entries.Count)
@@ -66,7 +83,10 @@ public static class SettingsValidator
             action.ReferenceInvalid = action.AppEntryId is { } id && entries.All(entry => entry.Id != id);
         return settings with
         {
-            SchemaVersion = 3,
+            SchemaVersion = 4,
+            MiniOpacity = FiniteClamp(settings.MiniOpacity, .92, .3, 1),
+            ForegroundBlocklist = blocklist,
+            DesktopIcons = desktopIcons with { },
             HoverDelay = Math.Clamp(settings.HoverDelay, 100, 3000),
             WorkspaceBounds = NormalizeBounds(settings.WorkspaceBounds, defaults.WorkspaceBounds, 480, 320),
             MiniBounds = NormalizeBounds(settings.MiniBounds, defaults.MiniBounds, 40, 40),
@@ -129,6 +149,21 @@ public static class SettingsValidator
     {
         if (value is null || !allowed.Contains(value, StringComparer.Ordinal))
             throw new SettingsValidationException($"配置字段 {field} 无效。");
+    }
+
+    private static void ValidateHotkey(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length > 80 || value.Any(char.IsControl))
+            throw new SettingsValidationException("快捷键必须是有效的组合键。");
+        var parts = value.Split('+', StringSplitOptions.TrimEntries);
+        if (parts.Length < 2 || parts.Length > 5 || parts.Any(string.IsNullOrEmpty) || parts.Distinct(StringComparer.OrdinalIgnoreCase).Count() != parts.Length)
+            throw new SettingsValidationException("快捷键需包含修饰键和一个按键。");
+        if (parts.Take(parts.Length - 1).Any(part => !new[] { "Ctrl", "Alt", "Shift", "Win" }.Contains(part, StringComparer.OrdinalIgnoreCase)))
+            throw new SettingsValidationException("快捷键修饰键只支持 Ctrl、Alt、Shift、Win。");
+        var key = parts[^1];
+        if (!(key.Length == 1 && char.IsAsciiLetterOrDigit(key[0])) && !(key.StartsWith("F", StringComparison.OrdinalIgnoreCase) && int.TryParse(key[1..], out var number) && number is >= 1 and <= 24) &&
+            !new[] { "Space", "Tab", "Enter", "Escape", "Home", "End", "PageUp", "PageDown", "Insert", "Delete", "Up", "Down", "Left", "Right" }.Contains(key, StringComparer.OrdinalIgnoreCase))
+            throw new SettingsValidationException("快捷键主键不受支持。");
     }
 
     private static WindowBounds NormalizeBounds(WindowBounds? bounds, WindowBounds fallback, double minWidth, double minHeight)

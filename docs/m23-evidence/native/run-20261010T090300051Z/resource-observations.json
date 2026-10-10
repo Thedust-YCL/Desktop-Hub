@@ -1,0 +1,118 @@
+{
+  "environment": "Microsoft Windows 10.0.26200",
+  "framework": ".NET 8.0.31",
+  "processors": 16,
+  "method": "2 s settle \u002B 5 s sample; host plus GetProcessInfos WebView processes; private committed memory, machine-normalized CPU; excludes crashpad/GPU-memory; short observation only",
+  "samples": [
+    {
+      "scenario": "mini-visible",
+      "seconds": 5.1968314,
+      "sampleCount": 6,
+      "meanPrivateMiB": 371.7291666666667,
+      "cpuMachinePercent": 0.3568937472393405,
+      "processGroupStable": true,
+      "windows": [
+        {
+          "surface": "mini",
+          "isVisible": true,
+          "topmost": false,
+          "suspended": false
+        }
+      ]
+    },
+    {
+      "scenario": "quiet-resident-all-hidden",
+      "seconds": 5.2400712,
+      "sampleCount": 6,
+      "meanPrivateMiB": 370.24609375,
+      "cpuMachinePercent": 0.33545458152262203,
+      "processGroupStable": true,
+      "windows": [
+        {
+          "surface": "mini",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        }
+      ]
+    },
+    {
+      "scenario": "dock-visible",
+      "seconds": 5.2177967,
+      "sampleCount": 6,
+      "meanPrivateMiB": 540.7591145833334,
+      "cpuMachinePercent": 0.3368828500232096,
+      "processGroupStable": true,
+      "windows": [
+        {
+          "surface": "mini",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        },
+        {
+          "surface": "dock",
+          "isVisible": true,
+          "topmost": true,
+          "suspended": false
+        }
+      ]
+    },
+    {
+      "scenario": "workspace-visible",
+      "seconds": 5.2580607,
+      "sampleCount": 6,
+      "meanPrivateMiB": 763.2265625,
+      "cpuMachinePercent": 0.48288768246224584,
+      "processGroupStable": true,
+      "windows": [
+        {
+          "surface": "mini",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        },
+        {
+          "surface": "dock",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        },
+        {
+          "surface": "workspace",
+          "isVisible": true,
+          "topmost": false,
+          "suspended": false
+        }
+      ]
+    },
+    {
+      "scenario": "authorized-file-change",
+      "seconds": 5.2394981,
+      "sampleCount": 6,
+      "meanPrivateMiB": 672.0963541666666,
+      "cpuMachinePercent": 0.3727681245134571,
+      "processGroupStable": true,
+      "windows": [
+        {
+          "surface": "mini",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        },
+        {
+          "surface": "dock",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        },
+        {
+          "surface": "workspace",
+          "isVisible": true,
+          "topmost": false,
+          "suspended": false
+        }
+      ]
+    }
+  ]
+}
