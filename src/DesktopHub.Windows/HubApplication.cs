@@ -88,18 +88,24 @@ public sealed class HubApplication : IDisposable
             try { Store.Save(loaded); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or SettingsValidationException) { Log("IconCache", e.Message); }
         }
-        if (firstRun)
+        if (firstRun || Store.Current.WorkspaceLayoutVersion < 1)
         {
             var settings = Store.Current;
             var area = SystemParameters.WorkArea;
-            settings.WorkspaceBounds = new WindowBounds { Left = area.Left + 32, Top = area.Top + 24, Width = area.Width - 64, Height = area.Height - 48 };
+            if (firstRun || (settings.WorkspaceBounds.Width >= area.Width * .88 && settings.WorkspaceBounds.Height >= area.Height * .88))
+            {
+                var width = Math.Min(960, area.Width * .8);
+                var height = Math.Min(640, area.Height * .8);
+                settings.WorkspaceBounds = new WindowBounds { Left = area.Left + (area.Width - width) / 2, Top = area.Top + (area.Height - height) / 2, Width = width, Height = height };
+            }
+            settings.WorkspaceLayoutVersion = 1;
             Store.Save(settings);
         }
         timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
         timer.Tick += Tick;
     }
 
-    public async Task StartAsync()
+    public async Task StartAsync(bool loginStartup = false)
     {
         var version = CoreWebView2Environment.GetAvailableBrowserVersionString();
         Log("Runtime", version);
@@ -128,6 +134,8 @@ public sealed class HubApplication : IDisposable
         timer.Start();
         Resources = await resourceInitialization;
         _ = ResumeResourcesAsync();
+        if (!Smoke && !loginStartup && !Store.Current.OnboardingCompleted)
+            await OpenWorkspaceAsync("home");
     }
 
     private async Task ResumeResourcesAsync()
@@ -151,6 +159,7 @@ public sealed class HubApplication : IDisposable
         var settings = Store.Current;
         return new { version = "0.2.3", surface = window.Surface, settings, executions = Scenes.Snapshot(), appIcons = Icons.GetIcons(settings),
             effectiveTheme = EffectiveTheme, settingsWarning = Store.RecoveryWarning,
+            onboardingRequired = !Smoke && !settings.OnboardingCompleted,
             systemIntegration = new { desktopIcons = DesktopIcons.Query(), startup = Startup.Query(), hotkeys = HotkeyStatus },
             runtimeVersion = environment?.BrowserVersionString };
     }
@@ -219,6 +228,9 @@ public sealed class HubApplication : IDisposable
         }
         catch { Workspace?.Dispose(); Workspace = null; SyncMiniVisibility(); throw; }
         if (exiting || generation != activationGeneration || !Workspace.IsVisible) return;
+        // The tray's Settings entry is a recovery path for a fully transparent
+        // workspace. Temporarily reveal it without overwriting the saved value.
+        Workspace.Opacity = (page == "settings" || !Store.Current.OnboardingCompleted) && Store.Current.WorkspaceOpacity < .1 ? 1 : Store.Current.WorkspaceOpacity;
         // No permanent topmost Workspace. Foreground activation is a user-requested action.
         Workspace.Activate();
         NativeMethods.SetForegroundWindow(new WindowInteropHelper(Workspace).Handle);
@@ -247,6 +259,7 @@ public sealed class HubApplication : IDisposable
         if (exiting) return;
         timer.Interval = TimeSpan.FromMilliseconds(Store.Current.HoverEnabled ? 100 : 1000);
         Mini.Opacity = Store.Current.Transparency ? Store.Current.MiniOpacity : 1;
+        if (Workspace is not null) Workspace.Opacity = Store.Current.WorkspaceOpacity;
         SyncMiniVisibility();
         tray?.RefreshMiniLabel();
         foreach (var window in Windows)

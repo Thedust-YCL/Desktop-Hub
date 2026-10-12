@@ -47,7 +47,7 @@ public static class Program
                 if (indexSmoke && !indexRestart) ResourceSmokeTests.Prepare(directory);
                 if (systemSmoke && !systemRestart) SystemSmokeTests.Prepare(directory);
                 host = new HubApplication(directory, diagnostic, systemSmoke);
-                await host.StartAsync();
+                await host.StartAsync(loginStartup: args.Contains("--startup"));
                 instance.StartListening(() => _ = app.Dispatcher.BeginInvoke(() => _ = host.OpenFromSystemAsync("activation")));
                 if (smoke) await SmokeTests.RunAsync(host, smokeRestart);
                 else if (sceneSmoke) await SceneSmokeTests.RunAsync(host, sceneRestart);

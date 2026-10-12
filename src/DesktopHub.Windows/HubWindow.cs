@@ -31,19 +31,29 @@ public sealed class HubWindow : Window, IDisposable
         Title = "Desktop Hub · " + surface;
         WindowStyle = WindowStyle.None; ResizeMode = surface == "workspace" ? ResizeMode.CanResizeWithGrip : ResizeMode.NoResize;
         if (surface == "workspace")
+        {
+            MinWidth = 640; MinHeight = 480;
             WindowChrome.SetWindowChrome(this, new WindowChrome
             {
-                CaptionHeight = 0, GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(0),
+                CaptionHeight = 0, GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(18),
                 ResizeBorderThickness = new Thickness(6), NonClientFrameEdges = NonClientFrameEdges.None,
                 UseAeroCaptionButtons = false
             });
-        AllowsTransparency = surface != "workspace";
-        Background = AllowsTransparency ? Brushes.Transparent : new SolidColorBrush(Color.FromRgb(17, 26, 35));
+        }
+        AllowsTransparency = true;
+        Background = Brushes.Transparent;
+        if (surface == "workspace") Opacity = host.Store.Current.WorkspaceOpacity;
         ShowInTaskbar = surface == "workspace"; ShowActivated = surface != "mini";
         Topmost = surface == "dock";
-        Browser = surface == "workspace" ? new WebView2 { DefaultBackgroundColor = System.Drawing.Color.FromArgb(255, 17, 26, 35) } :
-            new WebView2CompositionControl { DefaultBackgroundColor = System.Drawing.Color.Transparent, UseLayoutRounding = false };
+        // Composition makes the entire surface participate in WPF alpha blending,
+        // including its WebView content, rather than leaving an opaque child HWND.
+        Browser = new WebView2CompositionControl { DefaultBackgroundColor = System.Drawing.Color.Transparent, UseLayoutRounding = false };
         Content = (FrameworkElement)Browser;
+        if (surface == "workspace")
+        {
+            var content = (FrameworkElement)Browser;
+            content.SizeChanged += (_, _) => content.Clip = new RectangleGeometry(new Rect(0, 0, content.ActualWidth, content.ActualHeight), 18, 18);
+        }
         IsVisibleChanged += async (_, _) =>
         {
             if (Browser.CoreWebView2 is null || disposing) return;
@@ -72,6 +82,16 @@ public sealed class HubWindow : Window, IDisposable
             HwndSource.FromHwnd(Handle)?.AddHook((nint hwnd, int message, nint wParam, nint lParam, ref bool handled) =>
             {
                 if (surface == "mini" && message == 0x21) { handled = true; return 3; } // WM_MOUSEACTIVATE / MA_NOACTIVATE
+                if (surface == "workspace" && message == 0x0319) // WM_APPCOMMAND / browser back & forward
+                {
+                    var command = ((long)lParam >> 16) & 0x7ff;
+                    if (command is 1 or 2)
+                    {
+                        handled = true;
+                        SendEvent("window.historyNavigate", new { direction = command == 1 ? -1 : 1 });
+                        return 1;
+                    }
+                }
                 if (message is 0x02E0 or 0x007E) // WM_DPICHANGED / WM_DISPLAYCHANGE, after WPF processes DPI.
                     _ = Dispatcher.BeginInvoke(() => { if (!disposing) ClampToWorkArea(Left, Top); });
                 return 0;
@@ -155,9 +175,6 @@ public sealed class HubWindow : Window, IDisposable
     {
         if (Surface != "workspace") return;
         var dark = host.EffectiveTheme == "dark";
-        var color = dark ? Color.FromRgb(17, 26, 35) : Color.FromRgb(241, 244, 246);
-        Background = new SolidColorBrush(color);
-        if (Browser is WebView2 webView) webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(color.R, color.G, color.B);
         if (new WindowInteropHelper(this).Handle == 0) return;
         var immersive = dark ? 1 : 0;
         NativeMethods.DwmSetWindowAttribute(Handle, 20, ref immersive, sizeof(int));
@@ -216,6 +233,18 @@ public sealed class HubWindow : Window, IDisposable
         host.SaveWindow(this);
     }
 
+    public void BeginNativeResize(string edge)
+    {
+        if (Surface != "workspace") throw new BridgeException("WRONG_SURFACE", "请在工作空间调整窗口大小。");
+        var hit = edge switch { "left" => 10, "right" => 11, "top" => 12, "top-left" => 13,
+            "top-right" => 14, "bottom" => 15, "bottom-left" => 16, "bottom-right" => 17,
+            _ => throw new BridgeException("INVALID_PARAMS", "缩放边缘无效。") };
+        NativeDrag.GetCursorPos(out var cursor);
+        var coordinates = (nint)((cursor.Y << 16) | (cursor.X & 0xffff));
+        NativeDrag.ReleaseCapture(); NativeDrag.SendMessage(Handle, 0xA1, hit, coordinates);
+        host.SaveWindow(this);
+    }
+
     internal void BeginNativeRequest() => activeNativeRequests++;
     internal async void EndNativeRequest()
     {
@@ -235,6 +264,9 @@ public sealed class HubWindow : Window, IDisposable
 
     private static class NativeDrag
     {
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        internal struct Point { public int X; public int Y; }
+        [System.Runtime.InteropServices.DllImport("user32.dll")] internal static extern bool GetCursorPos(out Point point);
         [System.Runtime.InteropServices.DllImport("user32.dll")] internal static extern bool ReleaseCapture();
         [System.Runtime.InteropServices.DllImport("user32.dll")] internal static extern nint SendMessage(nint hwnd, uint msg, nint wParam, nint lParam);
     }

@@ -17,6 +17,8 @@ try
         Equal("system", settings.Theme);
         Equal(500, settings.HoverDelay);
         Equal(4, settings.SchemaVersion);
+        Equal(1d, settings.WorkspaceOpacity);
+        True(!settings.OnboardingCompleted);
         True(settings.LaunchTarget is null && store.RecoveryWarning is null);
     });
     Check("Camel-case JSON round trip persists theme, geometry and target", () =>
@@ -24,7 +26,7 @@ try
         var store = Store("roundtrip");
         var settings = new AppSettings
         {
-            Theme = "light", MiniPosition = "right", ReducedMotion = true, Transparency = false,
+            Theme = "light", MiniPosition = "right", ReducedMotion = true, OnboardingCompleted = true, Transparency = false, WorkspaceOpacity = .65,
             WorkspaceBounds = new() { Left = 320, Top = 120, Width = 1260, Height = 800 },
             MiniBounds = new() { Left = 200, Top = 240, Width = 56, Height = 320 },
             DockBounds = new() { Left = 300, Top = 160, Width = 400, Height = 620 },
@@ -34,6 +36,8 @@ try
         var restart = new SettingsStore(Path.GetDirectoryName(store.SettingsPath)!);
         var loaded = restart.Load();
         Equal("light", loaded.Theme);
+        Equal(.65, loaded.WorkspaceOpacity);
+        True(loaded.OnboardingCompleted);
         Equal(settings.WorkspaceBounds, loaded.WorkspaceBounds);
         Equal(settings.MiniBounds, loaded.MiniBounds);
         Equal(settings.DockBounds, loaded.DockBounds);
@@ -43,6 +47,13 @@ try
         var json = File.ReadAllText(store.SettingsPath);
         True(json.Contains("\"schemaVersion\"") && json.Contains("\"workspaceBounds\""));
         True(!json.Contains("\"SchemaVersion\""));
+    });
+    Check("Workspace opacity covers the full range and recovers non-finite input", () =>
+    {
+        foreach (var value in new[] { 0d, .01, .65, 1d }) Equal(value, SettingsValidator.Normalize(new AppSettings { WorkspaceOpacity = value }).WorkspaceOpacity);
+        Equal(0d, SettingsValidator.Normalize(new AppSettings { WorkspaceOpacity = -1 }).WorkspaceOpacity);
+        Equal(1d, SettingsValidator.Normalize(new AppSettings { WorkspaceOpacity = 2 }).WorkspaceOpacity);
+        Equal(1d, SettingsValidator.Normalize(new AppSettings { WorkspaceOpacity = double.NaN }).WorkspaceOpacity);
     });
     Check("Corrupted JSON is preserved and safely recovered", () =>
     {
@@ -198,6 +209,15 @@ try
         Equal("invalid_executable", Throws<TargetValidationException>(() => launcher.RegisterTarget(path)).Code);
         var target = new LaunchTarget { Id = Guid.NewGuid().ToString("D"), Path = path };
         Equal("invalid_executable", launcher.Launch(new AppSettings { LaunchTarget = target }, target.Id).Code);
+    });
+    Check("New application stays outside Dock until explicitly favorited; opacity supports zero", () =>
+    {
+        var store = Store("favorites"); var library = new AppLibraryService(store);
+        var fixture = Registered("favorite-fixture"); var app = launcher.RegisterApp(fixture.Target);
+        True(!app.PinnedToDock); library.Add(app); Equal(0, store.Current.LauncherPins.Count);
+        library.SetPin("dock", "app", app.Id, true); True(library.FindById(app.Id)!.PinnedToDock);
+        library.SetPin("dock", "app", app.Id, false); Equal(0, store.Current.LauncherPins.Count); Equal(1, store.Current.AppEntries.Count);
+        foreach (var value in new[] { 0d, .01, .5, 1d }) Equal(value, SettingsValidator.Normalize(new AppSettings { MiniOpacity = value }).MiniOpacity);
     });
     Check("Five independently registered apps append, persist, and survive deep snapshot mutation", () =>
     {
@@ -449,7 +469,7 @@ AppEntry Registered(string name)
     // Copies this suite's known PE apphost solely for registration and persistence tests; it is never launched.
     var path = Path.Combine(testRoot, name + ".exe");
     File.Copy(Path.Combine(AppContext.BaseDirectory, "DesktopHub.Core.Tests.exe"), path);
-    return launcher.RegisterApp(path);
+    return launcher.RegisterApp(path) with { PinnedToDock = true }; // These fixtures explicitly request a Dock favorite.
 }
 void Sequence<T>(IEnumerable<T> expected, IEnumerable<T> actual)
 {

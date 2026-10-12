@@ -160,7 +160,7 @@ test('successful hotkeys update native display values; native Mini opacity refle
   assert.equal(env.H.state.settings.workspaceShortcut, 'Ctrl+Alt+W');
   assert.equal(env.H.state.settings.dockShortcut, 'Ctrl+Alt+D');
   const markup = env.section('surfaces');
-  assert.match(markup, /value="0.92" selected>92%/);
+  assert.match(markup, /type="range" min="0" max="100" step="1" value="92"/);
   assert.match(markup, /data-action="sys-toggle-setting" data-setting="miniEnabled"/);
 });
 
@@ -201,4 +201,33 @@ test('compact surfaces cannot install native system setting controls', () => {
     assert.equal(env.window.DesktopHubSystem, undefined);
     assert.equal(env.sent.length, 0);
   }
+});
+
+test('Workspace opacity lives in appearance, previews percent and saves independently', async () => {
+  const env = setup();
+  const markup = env.section('appearance');
+  assert.match(markup, /existing appearance/);
+  assert.match(markup, /value="100" aria-label="Workspace 不透明度"/);
+  const output = { textContent: '' }, attributes = {};
+  const slider = { value: '65', parentElement: { querySelector: () => output }, setAttribute: (key, value) => { attributes[key] = value; } };
+  env.H.actions['sys-workspace-opacity-preview'](slider, { type: 'input' });
+  assert.equal(output.textContent, '65%');
+  assert.equal(attributes['aria-valuetext'], '65%');
+  assert.equal(env.sent.length, 0);
+  await env.H.actions['sys-workspace-opacity-preview'](slider, { type: 'change' });
+  assert.deepEqual(env.sent[0], { type: 'settings.save', payload: { settings: { workspaceOpacity: .65 } } });
+  assert.equal(env.state().settings.miniOpacity, .92);
+  assert.match(env.H.pages.settings(), /value="65" aria-label="Workspace 不透明度"/);
+  for (const value of ['0', '100']) await env.H.actions['sys-workspace-opacity-preview']({ value }, { type: 'change' });
+  assert.deepEqual(env.sent.slice(1).map(item => item.payload.settings.workspaceOpacity), [0, 1]);
+  for (const value of ['NaN', '-1', '101']) await env.H.actions['sys-workspace-opacity-preview']({ value }, { type: 'change' });
+  assert.equal(env.sent.length, 3);
+});
+
+test('failed Workspace opacity save shows error and keeps stored percent', async () => {
+  const env = setup({ 'settings.save': async () => { throw new Error('设置写入失败'); } });
+  env.section('appearance');
+  await env.H.actions['sys-workspace-opacity-preview']({ value: '45' }, { type: 'change' });
+  assert.match(env.H.pages.settings(), /设置写入失败/);
+  assert.match(env.H.pages.settings(), /value="100" aria-label="Workspace 不透明度"/);
 });

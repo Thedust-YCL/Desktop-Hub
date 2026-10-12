@@ -12,7 +12,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
 {
     private readonly HashSet<string> pending = new();
     private static readonly HashSet<string> Editable = new(StringComparer.Ordinal)
-    { "theme", "reducedMotion", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
+    { "theme", "reducedMotion", "onboardingCompleted", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
     private static readonly HashSet<string> Pages = new(StringComparer.Ordinal)
     { "home", "scenes", "library", "tags", "favorites", "search", "settings" };
     private bool pickerOpen, launching;
@@ -95,6 +95,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
             case "window.openDock": Empty(payload); await host.OpenDockAsync(); return new { opened = host.Dock?.IsVisible == true };
             case "window.closeDock": Empty(payload); host.CloseDock(); return new { closed = true };
             case "window.resizeSurface": RequireKeys(payload, "width", "height"); window.ResizeSurface(payload.GetProperty("width").GetDouble(), payload.GetProperty("height").GetDouble()); return new { resized = true };
+            case "window.beginResize": RequireWorkspace(); RequireKeys(payload, "edge"); window.BeginNativeResize(String(payload, "edge", 16)); return new { resized = true };
             case "window.drag":
                 Empty(payload);
                 _ = window.Dispatcher.BeginInvoke(window.BeginNativeDrag);

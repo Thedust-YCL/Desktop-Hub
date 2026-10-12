@@ -15,6 +15,8 @@
   const row = (title, description, control) => `<div class="setting-row"><div><strong>${title}</strong><p>${description}</p></div><div class="setting-control">${control}</div></div>`;
   const note = text => `<div class="settings-note">${icon('alert', 16)}<span>${text}</span></div>`;
   const panel = (title, body) => `<section class="panel settings-section"><h2>${title}</h2>${body}</section>`;
+  const opacitySlider = (key, label, value, action) => `<label class="opacity-control"><input type="range" min="0" max="100" step="1" value="${Math.round(value*100)}" aria-label="${label}" aria-valuetext="${Math.round(value*100)}%" data-setting="${key}" data-change="${action}" ${busy || !state() ? 'disabled' : ''}><output>${Math.round(value*100)}%</output></label>`;
+  const workspaceOpacityRow = () => row('Workspace 不透明度', '调整整个工作空间。设为 0% 后，可从托盘打开设置恢复。', opacitySlider('workspaceOpacity', 'Workspace 不透明度', settings().workspaceOpacity ?? 1, 'sys-workspace-opacity-preview'));
   const visualValue = key => H.state.settings[key] ?? settings()[key];
   const toggle = (key, label) => {
     const explicit = key === 'miniEnabled', value = explicit ? settings()[key] : visualValue(key);
@@ -35,6 +37,7 @@
       (startup?.needsRepair ? note(`${e(startup.message || '启动项与当前位置不一致。')} ${btn('sys-startup', '按当前位置修复', 'data-enabled="true"')}`) : '') +
       (startup && !startup.success && !startup.needsRepair ? note(e(startup.message)) : '') +
       row('托盘与完整退出', '关闭 Workspace 后继续常驻。托盘可打开设置、显示 Mini、恢复桌面图标或完整退出。', btn('native-exit', '完整退出'))) +
+      panel('使用帮助', row('首次使用引导', '重新了解导入、日常使用、桌面图标与开机自启。已有内容和设置会保留。', btn('settings-replay-onboarding', '重新引导'))) +
       panel('桌面图标与恢复',
       row('桌面图标', `${iconStatus}。仅改变图标整体可见性，不会删除、移动或修改桌面文件。`,
         `<div class="toolbar">${btn('sys-icons', '显示桌面图标', `data-visible="true" ${!iconKnown ? 'disabled' : ''}`)}${btn('sys-icons', '隐藏桌面图标', `data-visible="false" ${!iconKnown ? 'disabled' : ''}`)}</div>`) +
@@ -68,7 +71,7 @@
       row('位置', '纵向靠左或靠右，顶部为横向工具栏。', select('miniPosition', 'Mini 位置', [['left','左侧'],['right','右侧'],['top','顶部']])) +
       row('尺寸', '调整工具栏和点击区域。', select('miniSize', 'Mini 尺寸', [['small','紧凑'],['normal','标准'],['large','宽松']])) +
       row('显示模式', '仅显示图标，或同时显示入口名称。', select('miniMode', 'Mini 显示模式', [['icons','仅图标'],['labels','图标与名称']])) +
-      row('不透明度', '调整 Mini 窗口的不透明度。', `<select aria-label="Mini 不透明度" data-change="sys-opacity">${[...new Set([0.5,0.65,0.8,0.9,1,opacity])].sort((a,b) => a-b).map(value => `<option value="${value}" ${value === opacity ? 'selected' : ''}>${Math.round(value*100)}%</option>`).join('')}</select>`) +
+      row('不透明度', '从 0% 到 100% 调整 Mini；可用快捷键再次打开工作空间。', opacitySlider('miniOpacity', 'Mini 不透明度', opacity, 'sys-opacity-preview')) +
       `<div class="toolbar">${btn('settings-preview', `${icon('mini')} 查看 Mini`, 'data-surface="mini"')}</div>`) +
       panel('Dock',
       row('位置', '在所选屏幕边缘停留，可展开 Dock。', select('dockPosition', 'Dock 位置', [['left','左侧'],['right','右侧'],['bottom','底部']])) +
@@ -83,8 +86,14 @@
     const old = originalSettings();
     const active = old.match(/data-section="([^\"]+)" aria-current="page"/)?.[1] || section;
     const content = { system: systemPanel, shortcuts: shortcutsPanel, protection: protectionPanel, surfaces: surfacesPanel }[active];
-    let markup = old.replace('M0 · 仅模拟设置', '本地设置');
+    let markup = old.replace('M0 · 仅模拟设置', '本地设置').replace('默认跟随系统，也可以切换主题评审两套界面。', '选择浅色、深色，或与 Windows 保持一致。');
     if (content) markup = markup.slice(0, markup.indexOf('<div class="settings-content">')) + `<div class="settings-content">${content()}</div></div>`;
+    else if (active === 'appearance') {
+      const anchor = '<div class="setting-row"><div><strong>减少动画</strong>';
+      if (markup.includes(anchor)) markup = markup.replace(anchor, workspaceOpacityRow() + anchor);
+      else markup = markup.replace(/<\/div><\/div>$/, `${panel('Workspace', workspaceOpacityRow())}</div></div>`);
+      markup = markup.replace(/<\/div><\/div>$/, `${message()}</div></div>`);
+    }
     return markup;
   };
   function accept(result, type) {
@@ -166,7 +175,25 @@
       H.render();
     },
     'sys-toggle-setting': el => { if (el.dataset.setting === 'miniEnabled') return mutate('settings.save', { settings: { miniEnabled: !settings().miniEnabled } }, '窗口偏好已保存。'); },
-    'sys-opacity': el => { const value = Number(el.value); if (Number.isFinite(value) && value >= 0.5 && value <= 1) return mutate('settings.save', { settings: { miniOpacity: value } }, 'Mini 不透明度已保存。'); }
+    'sys-opacity-preview': (el, event) => {
+      const value = Number(el.value);
+      if (!Number.isFinite(value) || value < 0 || value > 100) return;
+      const output = el.parentElement?.querySelector('output');
+      if (output) output.textContent = `${value}%`;
+      el.setAttribute?.('aria-valuetext', `${value}%`);
+      if (event?.type === 'input') return;
+      return H.actions['sys-opacity']({ value: value / 100 });
+    },
+    'sys-opacity': el => { const value = Number(el.value); if (Number.isFinite(value) && value >= 0 && value <= 1) return mutate('settings.save', { settings: { miniOpacity: value } }, 'Mini 不透明度已保存。'); },
+    'sys-workspace-opacity-preview': (el, event) => {
+      const value = Number(el.value);
+      if (!Number.isFinite(value) || value < 0 || value > 100) return;
+      const output = el.parentElement?.querySelector('output');
+      if (output) output.textContent = `${value}%`;
+      el.setAttribute?.('aria-valuetext', `${value}%`);
+      if (event?.type === 'input') return;
+      return mutate('settings.save', { settings: { workspaceOpacity: value / 100 } }, 'Workspace 不透明度已保存。');
+    }
   });
   // The prototype's local keyboard handler reads these display fields. Native
   // registration remains authoritative and every open request is checked by host.

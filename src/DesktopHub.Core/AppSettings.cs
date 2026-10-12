@@ -6,6 +6,7 @@ public sealed record AppSettings
     public int SchemaVersion { get; set; } = 4;
     public string Theme { get; set; } = "system";
     public bool ReducedMotion { get; set; }
+    public bool OnboardingCompleted { get; set; }
     public bool Transparency { get; set; } = true;
     public string MiniPosition { get; set; } = "left";
     public string MiniSize { get; set; } = "normal";
@@ -18,6 +19,7 @@ public sealed record AppSettings
     public bool AllowForeground { get; set; } = true;
     public bool MiniEnabled { get; set; } = true;
     public double MiniOpacity { get; set; } = .92;
+    public double WorkspaceOpacity { get; set; } = 1;
     public string DockHotkey { get; set; } = "Ctrl+Alt+D";
     public string WorkspaceHotkey { get; set; } = "Ctrl+Alt+W";
     public List<string> ForegroundBlocklist { get; set; } = [];
@@ -25,7 +27,8 @@ public sealed record AppSettings
     public string? StartupCommand { get; set; }
     public string? StartupPendingCommand { get; set; }
     public DesktopIconSettings DesktopIcons { get; set; } = new();
-    public WindowBounds WorkspaceBounds { get; set; } = new() { Left = 100, Top = 80, Width = 1100, Height = 720 };
+    public WindowBounds WorkspaceBounds { get; set; } = new() { Left = 100, Top = 80, Width = 960, Height = 640 };
+    public int WorkspaceLayoutVersion { get; set; }
     public WindowBounds MiniBounds { get; set; } = new() { Left = 18, Top = 300, Width = 56, Height = 260 };
     public WindowBounds DockBounds { get; set; } = new() { Left = 18, Top = 260, Width = 370, Height = 540 };
     public LaunchTarget? LaunchTarget { get; set; }

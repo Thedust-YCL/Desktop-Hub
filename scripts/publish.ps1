@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$SkipTests, [switch]$Offline)
+param([switch]$SkipTests, [switch]$Offline, [string]$OutputDirectory)
 
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
@@ -7,7 +7,7 @@ $taskRoot = Split-Path -Parent $PSScriptRoot
 $taskEnvironmentState = Enter-ToolchainEnvironment $taskRoot
 $taskDotnet = Join-Path $taskRoot '.tools/dotnet/dotnet.exe'
 $taskProject = Join-Path $taskRoot 'src/DesktopHub.Windows/DesktopHub.Windows.csproj'
-$taskOutput = Join-Path $taskRoot 'artifacts/win-x64'
+$taskOutput = if ($OutputDirectory) { [System.IO.Path]::GetFullPath((Join-Path $taskRoot $OutputDirectory)) } else { Join-Path $taskRoot 'artifacts/win-x64' }
 try {
     & (Join-Path $PSScriptRoot 'build.ps1') -SkipTests:$SkipTests -Offline:$Offline
     # PlatformTarget is x64 and the pinned SDK is win-x64. An explicit RID restore

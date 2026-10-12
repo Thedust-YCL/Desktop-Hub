@@ -24,7 +24,7 @@ test('M0 resources are cleared, compact surfaces do not initialize or request na
 test('list, type-icon grid and tag views share native paged data without content image URLs',async()=>{
   const env=setup();await env.window.DesktopHubResources.reload();const list=env.H.pages.library();assert.match(list,/课程.txt/);assert.match(list,/nr-list/);
   env.H.actions['nr-view']({dataset:{view:'grid'}});const grid=env.H.pages.library();assert.match(grid,/nr-grid/);assert.doesNotMatch(grid,/<img|file:\/\/|Demo/);
-  env.H.actions['nr-view']({dataset:{view:'tags'}});assert.match(env.H.pages.library(),/nr-tag-navigation/);assert.equal(env.window.DesktopHubResources.getState().result.items.length,1);
+  env.H.actions['nr-view']({dataset:{view:'tags'}});assert.match(env.H.pages.library(),/nr-category-filter/);assert.equal(env.window.DesktopHubResources.getState().result.items.length,1);
 });
 test('filename/tag search, conjunctive tag filters and favorites send the same query contract',async()=>{
   const env=setup();await env.window.DesktopHubResources.reload();env.H.actions['nr-filter-tag'](click('tag'));await env.window.DesktopHubResources.reload();assert.deepEqual(env.sent.at(-1).payload.tagIds,['tag']);

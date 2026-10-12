@@ -84,7 +84,8 @@ public static class SettingsValidator
         return settings with
         {
             SchemaVersion = 4,
-            MiniOpacity = FiniteClamp(settings.MiniOpacity, .92, .3, 1),
+            MiniOpacity = FiniteClamp(settings.MiniOpacity, .92, 0, 1),
+            WorkspaceOpacity = FiniteClamp(settings.WorkspaceOpacity, 1, 0, 1),
             ForegroundBlocklist = blocklist,
             DesktopIcons = desktopIcons with { },
             HoverDelay = Math.Clamp(settings.HoverDelay, 100, 3000),

@@ -216,17 +216,18 @@ test('a newer user edit survives a delayed save reply and is subsequently persis
 
 test('debounced appearance saves cannot overwrite explicitly saved native system preferences', async () => {
   const env = setup();
-  Object.assign(env.state.settings, { miniEnabled: true, miniOpacity: .92, foregroundBlocklist: ['game.exe'], dockHotkey: 'Ctrl+Alt+D', workspaceHotkey: 'Ctrl+Alt+W' });
+  Object.assign(env.state.settings, { miniEnabled: true, miniOpacity: .92, workspaceOpacity: .65, foregroundBlocklist: ['game.exe'], dockHotkey: 'Ctrl+Alt+D', workspaceHotkey: 'Ctrl+Alt+W' });
   await env.initialize();
   env.H.state.settings.theme = 'dark';
-  Object.assign(env.H.state.settings, { miniEnabled: false, miniOpacity: .5, foregroundBlocklist: [], dockHotkey: 'unregistered' });
+  Object.assign(env.H.state.settings, { miniEnabled: false, miniOpacity: .5, workspaceOpacity: 1, foregroundBlocklist: [], dockHotkey: 'unregistered' });
   env.H.save();
   await env.flushTimers();
   const patch = env.sent.find(item => item.type === 'settings.save').payload.settings;
   assert.equal(patch.theme, 'dark');
-  for (const key of ['miniEnabled', 'miniOpacity', 'foregroundBlocklist', 'dockHotkey', 'workspaceHotkey']) assert.equal(key in patch, false);
+  for (const key of ['miniEnabled', 'miniOpacity', 'workspaceOpacity', 'foregroundBlocklist', 'dockHotkey', 'workspaceHotkey']) assert.equal(key in patch, false);
   assert.equal(env.state.settings.miniEnabled, true);
   assert.equal(env.state.settings.miniOpacity, .92);
+  assert.equal(env.state.settings.workspaceOpacity, .65);
   assert.deepEqual(env.state.settings.foregroundBlocklist, ['game.exe']);
 });
 
