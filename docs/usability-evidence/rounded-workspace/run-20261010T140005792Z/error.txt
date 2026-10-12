@@ -1,0 +1,4 @@
+System.Exception: Tags start with categories rather than a flat wall of time labels
+   at DesktopHub.Windows.ResourceSmokeTests.Check(String name, Boolean passed) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 295
+   at DesktopHub.Windows.ResourceSmokeTests.VerifyUsabilityAsync(HubApplication host, HubWindow window) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 156
+   at DesktopHub.Windows.ResourceSmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 139

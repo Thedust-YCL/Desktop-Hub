@@ -1,0 +1,11 @@
+System.ArgumentException: 应用自身的数据目录不能成为索引来源。
+   at DesktopHub.Core.ResourceLibraryService.<>c__DisplayClass30_0.<PreviewAsync>b__0(CancellationToken token) in E:\桌软工作台\src\DesktopHub.Core\ResourceLibraryService.cs:line 54
+   at DesktopHub.Core.ResourceLibraryService.<>c__DisplayClass29_0`1.<Operation>b__0() in E:\桌软工作台\src\DesktopHub.Core\ResourceLibraryService.cs:line 45
+   at System.Threading.Tasks.Task`1.InnerInvoke()
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at DesktopHub.Core.ResourceLibraryService.Operation[T](String id, Func`2 action) in E:\桌软工作台\src\DesktopHub.Core\ResourceLibraryService.cs:line 45
+   at DesktopHub.Windows.SystemSmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\SystemSmokeTests.cs:line 121

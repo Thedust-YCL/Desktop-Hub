@@ -70,7 +70,7 @@ await Test("Enabling time tags for an existing library preserves manual tags and
 {
     using var service = Service(); var folder = Fixture(1); await Import(service, folder);
     var item = service.Store.Snapshot().Resources.Single(); await service.FavoriteAsync(item.Id, true);
-    await service.SaveTagAsync(null, "手动标签", "custom"); var tag = service.Store.Snapshot().Tags.Single(); await service.BindTagAsync(item.Id, tag.Id, true);
+    await service.SaveTagAsync(null, "手动标签", "custom", "custom"); var tag = service.Store.Snapshot().Tags.Single(); await service.BindTagAsync(item.Id, tag.Id, true);
     var preview = await service.PreviewAsync(Fixture(1), "custom", false, Id()); await service.ConfirmAsync(preview.Token, true);
     var data = service.Store.Snapshot(); Equal(3, data.ResourceTags.Count); True(data.Resources.Single(r => r.Id == item.Id).Favorite); True(data.ResourceTags.Contains(new(item.Id, tag.Id)));
 });
@@ -119,7 +119,7 @@ await Test("Healthy overlapping source wins when another source becomes unavaila
 });
 await Test("Manual repair merges existing duplicate into original id and retains both tag/favorite relations", async () =>
 {
-    using var service=Service();var folder=Fixture(2);await Import(service,folder);var data=service.Store.Snapshot();var a=data.Resources.Single(x=>x.DisplayName=="0.txt");var b=data.Resources.Single(x=>x.DisplayName=="1.txt");await service.FavoriteAsync(a.Id,true);await service.SaveTagAsync(null,"修复标签","custom");var tag=service.Store.Snapshot().Tags.Single();await service.BindTagAsync(a.Id,tag.Id,true);
+    using var service=Service();var folder=Fixture(2);await Import(service,folder);var data=service.Store.Snapshot();var a=data.Resources.Single(x=>x.DisplayName=="0.txt");var b=data.Resources.Single(x=>x.DisplayName=="1.txt");await service.FavoriteAsync(a.Id,true);await service.SaveTagAsync(null,"修复标签", "custom", "custom");var tag=service.Store.Snapshot().Tags.Single();await service.BindTagAsync(a.Id,tag.Id,true);
     File.Delete(a.CanonicalPath);await service.RefreshAsync();await service.BeginRepairAsync(a.Id);Equal("PendingRepair",service.Store.Snapshot().Resources.Single(x=>x.Id==a.Id).Status);await service.RepairAsync(a.Id,b.CanonicalPath);data=service.Store.Snapshot();Equal(1,data.Resources.Count);Equal(a.Id,data.Resources.Single().Id);True(data.Resources.Single().Favorite);True(data.ResourceTags.Contains(new(a.Id,tag.Id)));True(File.Exists(b.CanonicalPath));
 });
 await Test("Repair outside source authorizes only a single target, survives refresh, never scans its siblings", async () =>
@@ -128,7 +128,7 @@ await Test("Repair outside source authorizes only a single target, survives refr
 });
 await Test("Theme/period/custom tags bind multiple per resource; combined filename/tag/favorite filters work", async () =>
 {
-    using var service=Service();await Import(service,Fixture(2));var a=service.Store.Snapshot().Resources[0];foreach(var kind in new[]{"theme","period","custom"})await service.SaveTagAsync(null,kind,kind);var tags=service.Store.Snapshot().Tags;foreach(var tag in tags)await service.BindTagAsync(a.Id,tag.Id,true);await service.FavoriteAsync(a.Id,true);
+    using var service=Service();await Import(service,Fixture(2));var a=service.Store.Snapshot().Resources[0];foreach(var kind in new[]{"theme","period","custom"})await service.SaveTagAsync(null,kind,kind,kind);var tags=service.Store.Snapshot().Tags;foreach(var tag in tags)await service.BindTagAsync(a.Id,tag.Id,true);await service.FavoriteAsync(a.Id,true);
     Equal(1,service.Query(new("theme",tags.Select(x=>x.Id).ToList(),true)).Total);await service.SaveTagAsync(tags[0].Id,"更名","theme");Equal(1,service.Query(new("更名")).Total);await service.DeleteTagAsync(tags[0].Id,true);Equal(2,service.Store.Snapshot().ResourceTags.Count);Equal(2,service.Query(new()).Total);
 });
 await Test("Suggestions have metadata explanations; accepted/edited only become tags, rejections persist", async () =>
@@ -138,7 +138,7 @@ await Test("Suggestions have metadata explanations; accepted/edited only become 
 });
 await Test("Restart restores authorized sources, stable resources, favorites, tags and source relationships", async () =>
 {
-    var directory=NewDirectory("data");var folder=Fixture(2);using(var first=new ResourceLibraryService(directory)){await Import(first,folder);var item=first.Store.Snapshot().Resources[0];await first.FavoriteAsync(item.Id,true);await first.SaveTagAsync(null,"保存","custom");await first.BindTagAsync(item.Id,first.Store.Snapshot().Tags[0].Id,true);}
+    var directory=NewDirectory("data");var folder=Fixture(2);using(var first=new ResourceLibraryService(directory)){await Import(first,folder);var item=first.Store.Snapshot().Resources[0];await first.FavoriteAsync(item.Id,true);await first.SaveTagAsync(null,"保存", "custom", "custom");await first.BindTagAsync(item.Id,first.Store.Snapshot().Tags[0].Id,true);}
     var before=new ResourceStore(directory).Snapshot();using var restart=new ResourceLibraryService(directory);await restart.StartAsync();var after=restart.Store.Snapshot();Equal(before.Resources.Select(x=>x.Id).Order().ToArray(),after.Resources.Select(x=>x.Id).Order().ToArray());Equal(before.ResourceTags,after.ResourceTags);True(after.Resources.Any(r=>r.Favorite));Equal(1,restart.WatcherCount);
 });
 await Test("Atomic replacement failure leaves previous metadata and apps/scenes configuration bytes intact", async () =>
@@ -179,7 +179,32 @@ await Test("Scanning locked files reads metadata only, and cloud-placeholder tar
 });
 await Test("Resource store snapshots are isolated and metadata-only operations need no network", async () =>
 {
-    using var service=Service();await Import(service,Fixture(1));var copy=service.Store.Snapshot();copy.Resources[0].Favorite=true;copy.Resources.Clear();Equal(1,service.Query(new()).Total);True(!service.Store.Snapshot().Resources[0].Favorite);await service.SaveTagAsync(null,"离线","custom");Equal(1,service.Store.Snapshot().Tags.Count);
+    using var service=Service();await Import(service,Fixture(1));var copy=service.Store.Snapshot();copy.Resources[0].Favorite=true;copy.Resources.Clear();Equal(1,service.Query(new()).Total);True(!service.Store.Snapshot().Resources[0].Favorite);await service.SaveTagAsync(null,"离线", "custom", "custom");Equal(1,service.Store.Snapshot().Tags.Count);
+});
+await Test("Extension grouping/filtering applies before pagination and custom categories persist", async () =>
+{
+    var directory = NewDirectory("categories"); var folder = Fixture(63);
+    File.WriteAllText(Path.Combine(folder, "a.PDF"), "owned"); File.WriteAllText(Path.Combine(folder, "z.pdf"), "owned");
+    File.WriteAllText(Path.Combine(folder, "no-extension"), "owned"); Directory.CreateDirectory(Path.Combine(folder, "sub"));
+    string categoryId, tagId;
+    using (var service = new ResourceLibraryService(directory))
+    {
+        await Import(service, folder);
+        var page = service.Query(new()); Equal("folder", page.Items[0].Resource.ResourceType);
+        var pdfs = service.Query(new(Extension: ".PDF")); Equal(2, pdfs.Total); True(pdfs.Items.All(x => x.Resource.Extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase)));
+        Equal(63, service.Query(new(Extension: ".txt")).Total); Equal(3, service.Query(new(Extension: ".txt", Page: 1)).Items.Count);
+        Equal(1, service.Query(new(Extension: "__none")).Total); Equal(1, service.Query(new(Extension: "__folders")).Total);
+        True(pdfs.Extensions!.Contains(".txt")); True(page.Items.Select(x => x.Resource.Extension.ToLowerInvariant()).Skip(1).SequenceEqual(page.Items.Skip(1).Select(x => x.Resource.Extension.ToLowerInvariant()).Order(StringComparer.OrdinalIgnoreCase)));
+        await ThrowsAsync(() => service.SaveTagAsync(null, "missing category", "custom"));
+        await service.SaveCategoryAsync("项目"); categoryId = service.Store.Snapshot().TagCategories.Single(c => c.Name == "项目").Id;
+        await ThrowsAsync(() => service.SaveCategoryAsync("项目")); await ThrowsAsync(() => service.SaveCategoryAsync(" "));
+        await service.SaveTagAsync(null, "项目 A", "custom", categoryId); tagId = service.Store.Snapshot().Tags.Single().Id;
+        await service.BindTagAsync(pdfs.Items[0].Resource.Id, tagId, true); Equal(1, service.Query(new(TagIds: [tagId], Extension: ".pdf")).Total);
+        var copy = service.Store.Snapshot(); copy.TagCategories.Clear(); Equal(4, service.Store.Snapshot().TagCategories.Count);
+    }
+    using var restarted = new ResourceLibraryService(directory);
+    Equal(categoryId, restarted.Store.Snapshot().Tags.Single(t => t.Id == tagId).CategoryId);
+    True(restarted.Query(new()).TagCategories!.Any(c => c.Id == categoryId));
 });
 Console.WriteLine($"RESOURCE RESULT {passed} passed; {failed} failed. Fixtures retained at {root}");
 File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(results,new JsonSerializerOptions{WriteIndented=true}));

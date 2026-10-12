@@ -187,9 +187,11 @@ internal static class SmokeTests
             host.SceneLibrary.Save(pinScene); host.SettingsChanged();
             var sceneId = pinScene.Id;
             await RequireRequest(workspace, "launcher.setPins", new { surface = "mini", pins = new[] { new { itemType = "app", itemId = registered[0], enabled = true }, new { itemType = "scene", itemId = sceneId, enabled = true } } });
+            host.CloseWorkspace();
             await WaitJs(host.Mini, "document.querySelectorAll('.launcher-pin').length === 2");
             Check("Mini mixes two application/scene pins without duplicating AppEntry", (await Js(host.Mini, "document.querySelectorAll('.launcher-pin[data-action=app-launch]').length === 1")).GetBoolean() && AppEntries(host).Length == 6);
-            await Request(workspace, "window.openDock", new { });
+            await Capture(host.Mini, "mini-mixed-pins.png");
+            await Request(host.Mini, "window.openDock", new { });
             await WaitJs(host.Dock, "document.querySelectorAll('.dock-app-grid [data-action=app-launch]').length === 5");
             var dockIds = (await Js(host.Dock, "Array.from(document.querySelectorAll('.dock-app-grid [data-action=app-launch]'),button=>button.dataset.id)"))
                 .EnumerateArray().Select(app => app.GetString()).ToArray();
@@ -202,8 +204,8 @@ internal static class SmokeTests
             await WaitJs(host.Dock, "window.DesktopHubDesktop.getState().hostState.settings.dockIconSize === 'compact'");
             Check("Dock icon size preference is saved", Text(Settings(host), "dockIconSize") == "compact");
             await Capture(host.Dock, "dock-five-apps.png");
-            await Capture(host.Mini, "mini-mixed-pins.png");
             host.CloseDock();
+            await host.OpenWorkspaceAsync("home");
             var forbidden = await Request(workspace, "settings.save", new { settings = new { appEntries = new[] { new { target = @"C:\Windows\System32\cmd.exe" } } } });
             Check("Frontend path injection rejected", !forbidden.GetProperty("ok").GetBoolean() && forbidden.GetProperty("error").GetProperty("code").GetString() == "FORBIDDEN_SETTING", forbidden);
             var invalidLaunch = await Request(workspace, "apps.launch", new { appId = "" });
@@ -464,7 +466,7 @@ internal static class SmokeTests
         Check("Restarted Dock renders five saved application launch entries", host.Dock!.IsVisible);
         await Capture(host.Dock, "restart-dock.png");
         host.CloseDock();
-        await Request(host.Mini, "window.openWorkspace", new { page = "home" });
+        await Request(host.Dock!, "window.openWorkspace", new { page = "home" });
         await WaitJs(host.Workspace!, "Boolean(window.DesktopHubDesktop?.getState().hostState) && document.querySelectorAll('.launcher-grid [data-action=app-launch]').length === 6");
         Check("Restarted Workspace renders the complete saved application library", host.Workspace!.IsVisible);
         await Capture(host.Workspace, "restart-workspace.png");

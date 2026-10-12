@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Compile Include="../../src/DesktopHub.Windows/GlobalHotkeyService.cs" Link="GlobalHotkeyService.cs" />
+    <Compile Include="../../src/DesktopHub.Windows/ForegroundProtectionService.cs" Link="ForegroundProtectionService.cs" />
+    <Compile Include="../../src/DesktopHub.Windows/SingleInstanceService.cs" Link="SingleInstanceService.cs" />
+    <Compile Include="../../src/DesktopHub.Windows/TrayLifecycleService.cs" Link="TrayLifecycleService.cs" />
+    <Compile Include="../../src/DesktopHub.Windows/NativeMethods.cs" Link="NativeMethods.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "startedUtc": "2026-10-10T14:03:07.3039147Z",
+  "completedUtc": "2026-10-10T14:03:32.5560222Z",
+  "phases": [
+    {
+      "flag": "--index-smoke",
+      "processId": 16352,
+      "exitCode": 0,
+      "startedUtc": "2026-10-10T14:03:07.3169273Z"
+    },
+    {
+      "flag": "--index-smoke-restart",
+      "processId": 43084,
+      "exitCode": 0,
+      "startedUtc": "2026-10-10T14:03:28.8946705Z"
+    }
+  ],
+  "evidence": "docs\\usability-evidence\\rounded-workspace\\run-20261010T140307303Z"
+}

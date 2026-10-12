@@ -75,7 +75,7 @@ public sealed class SettingsStore
                 }
                 _current = SettingsValidator.Normalize(parsed, out var migrationWarning);
                 RecoveryWarning = JoinWarning(RecoveryWarning, migrationWarning ?? "");
-                if (parsed.SchemaVersion < 3 && RecoveryWarning is null)
+                if (parsed.SchemaVersion < 4 && RecoveryWarning is null)
                 {
                     try { Save(_current); }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SettingsValidationException)
@@ -106,6 +106,8 @@ public sealed class SettingsStore
         WorkspaceBounds = settings.WorkspaceBounds with { },
         MiniBounds = settings.MiniBounds with { },
         DockBounds = settings.DockBounds with { },
+        DesktopIcons = settings.DesktopIcons with { },
+        ForegroundBlocklist = [.. settings.ForegroundBlocklist],
         LaunchTarget = settings.LaunchTarget is { } target ? target with { } : null,
         AppEntries = settings.AppEntries.Select(entry => entry with { }).ToList(),
         LauncherPins = settings.LauncherPins.Select(pin => pin with { }).ToList(),

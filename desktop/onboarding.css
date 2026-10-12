@@ -1,0 +1,35 @@
+.native-guide { display: grid; gap: 20px; }
+.guide-progress { display: flex; justify-content: space-between; gap: 8px; list-style: none; padding: 0; margin: 0; }
+.guide-progress li { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.guide-progress li > span { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 50%; font-size: 10px; }
+.guide-progress .current { color: var(--accent); font-weight: 600; }
+.guide-progress .current > span { border-color: var(--accent); background: var(--raised); }
+.guide-progress .done > span { color: var(--accent); }
+.guide-content { display: grid; gap: 18px; }
+.guide-welcome { text-align: center; padding: 6px 12px; }
+.guide-mark { display: grid; place-items: center; width: 68px; height: 68px; border-radius: 18px; color: var(--accent); background: var(--raised); margin: 0 auto 20px; }
+.guide-welcome h3 { font-size: 21px; margin-bottom: 12px; }
+.guide-welcome p, .guide-lesson p { color: var(--muted); font-size: 13px; line-height: 1.8; }
+.guide-overview { display: flex; justify-content: center; gap: 24px; color: var(--muted); font-size: 12px; }
+.guide-overview > span { display: flex; align-items: center; gap: 8px; }
+.guide-lesson { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; }
+.guide-symbol { color: var(--accent); padding-top: 2px; }
+.guide-lesson h3 { font-size: 14px; margin: 0 0 6px; }
+.guide-lesson .button { margin-top: 10px; }
+.guide-hint { font-size: 12px; line-height: 1.8; color: var(--muted); overflow-wrap: anywhere; }
+.guide-actions, .guide-import-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.guide-import-actions { padding-left: 48px; }
+.guide-policy { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.guide-policy legend { font-size: 12px; padding: 0 6px; }
+.guide-policy .check-row { padding: 8px 0; font-size: 12px; }
+.guide-shortcuts { display: flex; flex-wrap: wrap; gap: 10px 18px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.8; }
+.guide-feedback { color: var(--accent); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.guide-feedback.form-error { color: var(--bad); }
+@media (max-width: 600px) {
+  .native-guide { gap: 16px; }
+  .guide-progress { flex-wrap: wrap; justify-content: flex-start; gap: 8px 12px; }
+  .guide-progress li { font-size: 10px; }
+  .guide-overview { flex-wrap: wrap; gap: 12px; }
+  .guide-import-actions { padding-left: 0; }
+  .guide-welcome h3 { font-size: 18px; }
+}

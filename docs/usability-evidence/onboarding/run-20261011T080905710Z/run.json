@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "startedUtc": "2026-10-11T08:09:05.7106428Z",
+  "completedUtc": "2026-10-11T08:09:41.8714615Z",
+  "phases": [
+    {
+      "flag": "--index-smoke",
+      "processId": 51768,
+      "exitCode": 0,
+      "startedUtc": "2026-10-11T08:09:05.7278220Z"
+    },
+    {
+      "flag": "--index-smoke-restart",
+      "processId": 31080,
+      "exitCode": 0,
+      "startedUtc": "2026-10-11T08:09:38.0428560Z"
+    }
+  ],
+  "evidence": "E:\\桌软工作台\\docs\\usability-evidence\\onboarding\\run-20261011T080905710Z"
+}

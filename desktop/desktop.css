@@ -3,9 +3,9 @@ html[data-desktop-host] body { background: transparent; }
 html[data-desktop-host] .desktop-stage,
 html[data-desktop-host] .demo-bar,
 html[data-desktop-host] .edge-trigger { display: none; }
-html[data-desktop-host] .workspace { inset: 0; border-radius: 0; box-shadow: none; }
-/* Keep every host surface opaque while metadata and controls are refreshed. */
-html[data-desktop-host][data-surface=workspace] body { background: var(--bg); }
+html[data-desktop-host] .workspace { inset: 0; border-radius: 18px; box-shadow: none; }
+/* Let the desktop show through outside the rounded native workspace. */
+html[data-desktop-host][data-surface=workspace] body { background: transparent; }
 html[data-desktop-host] .workspace,
 html[data-desktop-host] .mini-bar,
 html[data-desktop-host] .dock-panel { animation: none; }
