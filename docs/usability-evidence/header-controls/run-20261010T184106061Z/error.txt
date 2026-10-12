@@ -1,0 +1,4 @@
+System.Exception: Appearance settings retain all three theme choices
+   at DesktopHub.Windows.ResourceSmokeTests.Check(String name, Boolean passed) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 323
+   at DesktopHub.Windows.ResourceSmokeTests.VerifyWorkspaceHeaderAsync(HubApplication host, HubWindow window) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 158
+   at DesktopHub.Windows.ResourceSmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 41

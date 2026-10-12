@@ -1,0 +1,90 @@
+{
+  "environment": "Microsoft Windows 10.0.26200",
+  "framework": ".NET 8.0.31",
+  "processors": 16,
+  "method": "2 s settle \u002B 5 s sample; host plus GetProcessInfos WebView processes; private committed memory, machine-normalized CPU; excludes crashpad/GPU-memory; short observation only",
+  "samples": [
+    {
+      "scenario": "mini-visible",
+      "seconds": 5.2192576,
+      "sampleCount": 6,
+      "meanPrivateMiB": 372.5227864583333,
+      "cpuMachinePercent": 0.5049440192518904,
+      "processGroupStable": true,
+      "windows": [
+        {
+          "surface": "mini",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        }
+      ]
+    },
+    {
+      "scenario": "quiet-resident-all-hidden",
+      "seconds": 5.2798618,
+      "sampleCount": 6,
+      "meanPrivateMiB": 372.4088541666667,
+      "cpuMachinePercent": 0.5733577245006422,
+      "processGroupStable": true,
+      "windows": [
+        {
+          "surface": "mini",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        }
+      ]
+    },
+    {
+      "scenario": "dock-visible",
+      "seconds": 5.2251132,
+      "sampleCount": 6,
+      "meanPrivateMiB": 539.619140625,
+      "cpuMachinePercent": 0.2803448119060769,
+      "processGroupStable": true,
+      "windows": [
+        {
+          "surface": "mini",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        },
+        {
+          "surface": "dock",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        }
+      ]
+    },
+    {
+      "scenario": "workspace-visible",
+      "seconds": 5.2528231,
+      "sampleCount": 6,
+      "meanPrivateMiB": 770.0052083333334,
+      "cpuMachinePercent": 0.6506890675565159,
+      "processGroupStable": true,
+      "windows": [
+        {
+          "surface": "mini",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        },
+        {
+          "surface": "dock",
+          "isVisible": false,
+          "topmost": false,
+          "suspended": true
+        },
+        {
+          "surface": "workspace",
+          "isVisible": true,
+          "topmost": false,
+          "suspended": false
+        }
+      ]
+    }
+  ]
+}

@@ -70,7 +70,9 @@ internal static class SceneSmokeTests
             Check("Scene editor saves to shared native store", host.Store.Current.Scenes.Single(scene => scene.Id == sceneId).Actions.Count == 5);
             host.AppLibrary.SetPins("mini", [new() { ItemType = "app", ItemId = apps[0].Id }, new() { ItemType = "scene", ItemId = sceneId }]);
             host.AppLibrary.SetPin("dock", "scene", sceneId, true); host.SettingsChanged();
+            host.CloseWorkspace();
             await WaitJs(host.Mini, "document.querySelectorAll('.launcher-pin').length === 2");
+            await host.OpenWorkspaceAsync("scenes");
             var first = await ClickScene(host, workspace, sceneId);
             Check("Workspace really starts five application requests and observes their windows", first.Actions.All(action => action.Status is "Success" or "Skipped" && action.SatisfiesDependencies), first);
             foreach (var action in first.Actions.Where(action => action.Code == "window_appeared" && action.ProcessId is not null))
@@ -85,14 +87,20 @@ internal static class SceneSmokeTests
             await host.OpenDockAsync(); await WaitJs(host.Dock!, "Boolean(window.DesktopHubScenes)");
             var second = await ClickScene(host, host.Dock!, sceneId);
             Check("Dock repeat skips all five running apps by target path", second.Actions.All(action => action.Status == "Skipped" && action.Code == "window_appeared"), second);
+            Check("Execution completion keeps Dock visible with Workspace safely hidden", host.Dock!.IsVisible && !workspace.IsVisible);
+            await Capture(host.Dock!, "dock-results.png");
+            host.CloseDock();
             var third = await ClickScene(host, host.Mini, sceneId);
             Check("Mini mixed entry triggers its own new execution", third.Id != second.Id && third.Actions.All(action => action.Status == "Skipped"), third);
+            await Capture(host.Mini, "mini-mixed-results.png");
+            var miniStatus = (await Js(host.Mini, $"window.DesktopHubScenes.getExecutions().find(run=>run.id==={J(third.Id)}).status")).GetString();
+            await host.OpenDockAsync();
             await WaitJs(host.Dock!, $"window.DesktopHubScenes.getExecutions().some(run=>run.id==={J(third.Id)} && run.finishedAt)");
+            var dockStatus = (await Js(host.Dock!, $"window.DesktopHubScenes.getExecutions().find(run=>run.id==={J(third.Id)}).status")).GetString();
+            await host.OpenWorkspaceAsync("scenes");
             await WaitJs(workspace, $"window.DesktopHubScenes.getExecutions().some(run=>run.id==={J(third.Id)} && run.finishedAt)");
-            Check("All three surfaces share the same final execution state", (await Js(host.Mini, $"window.DesktopHubScenes.getExecutions().find(run=>run.id==={J(third.Id)}).status")).GetString() == third.Status
-                && (await Js(host.Dock!, $"window.DesktopHubScenes.getExecutions().find(run=>run.id==={J(third.Id)}).status")).GetString() == third.Status);
-            Check("Execution completion keeps Dock and Workspace visible", host.Dock!.IsVisible && workspace.IsVisible);
-            await Capture(host.Mini, "mini-mixed-results.png"); await Capture(host.Dock!, "dock-results.png");
+            Check("All three surfaces share the same final execution state when resumed", miniStatus == third.Status && dockStatus == third.Status
+                && (await Js(workspace, $"window.DesktopHubScenes.getExecutions().find(run=>run.id==={J(third.Id)}).status")).GetString() == third.Status);
             foreach (var pid in owned.Keys.ToArray()) CloseOwned(pid);
             host.CloseDock();
 

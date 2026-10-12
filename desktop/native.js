@@ -4,8 +4,9 @@
   const version = 1;
   const allowedTypes = new Set([
     'app.getState', 'app.exit', 'settings.get', 'settings.save',
+    'system.getState', 'system.setDesktopIcons', 'system.setIconExitPolicy', 'system.setStartup', 'system.setHotkeys',
     'window.openWorkspace', 'window.closeWorkspace', 'window.openDock',
-    'window.closeDock', 'window.drag', 'window.resizeSurface',
+    'window.closeDock', 'window.drag', 'window.resizeSurface', 'window.beginResize',
     'apps.add', 'apps.update', 'apps.replaceTarget', 'apps.remove',
     'apps.reorder', 'apps.launch', 'launcher.setPins',
     'scenes.save', 'scenes.remove', 'scenes.reorder', 'scenes.run', 'scenes.pickTarget',
@@ -13,7 +14,7 @@
     'resources.confirm', 'resources.refresh', 'resources.removeSource', 'resources.favorite',
     'resources.beginRepair', 'resources.repair', 'resources.clean', 'resources.saveTag',
     'resources.deleteTag', 'resources.bindTag', 'resources.suggestion', 'resources.browse',
-    'resources.addBrowsed', 'resources.open'
+    'resources.addBrowsed', 'resources.open', 'resources.saveCategory'
   ]);
 
   class NativeBridgeError extends Error {
@@ -51,7 +52,7 @@
         else request.reject(new NativeBridgeError(message.error.code, message.error.message));
         return;
       }
-      if (!['state.changed', 'window.navigate', 'scene.executions', 'resources.changed', 'resources.progress'].includes(message.type)) return;
+      if (!['state.changed', 'window.navigate', 'window.historyNavigate', 'scene.executions', 'resources.changed', 'resources.progress'].includes(message.type)) return;
       if (!message.payload || typeof message.payload !== 'object' || Array.isArray(message.payload)) return;
       for (const callback of subscribers.get(message.type) || []) {
         try { callback(message.payload); } catch (error) { options.onEventError?.(error); }

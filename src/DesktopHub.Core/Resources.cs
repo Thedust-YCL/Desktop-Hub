@@ -41,8 +41,10 @@ public sealed record Tag
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "";
     public string TagType { get; set; } = "custom";
+    public string CategoryId { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+public sealed record TagCategory(string Id, string Name);
 public sealed record ResourceTag(string ResourceId, string TagId);
 public sealed record TagSuggestion
 {
@@ -62,6 +64,7 @@ public sealed record ResourceLibrary
     public List<Resource> Resources { get; set; } = [];
     public List<ResourceSource> ResourceSources { get; set; } = [];
     public List<Tag> Tags { get; set; } = [];
+    public List<TagCategory> TagCategories { get; set; } = [new("theme", "主题"), new("period", "时期"), new("custom", "自定义")];
     public List<ResourceTag> ResourceTags { get; set; } = [];
     public List<TagSuggestion> Suggestions { get; set; } = [];
 }
@@ -81,7 +84,7 @@ public sealed class ResourceStore
     private static ResourceLibrary Clone(ResourceLibrary value) => value with
     {
         Sources = value.Sources.Select(x => x with { }).ToList(), Resources = value.Resources.Select(x => x with { }).ToList(),
-        Tags = value.Tags.Select(x => x with { }).ToList(), Suggestions = value.Suggestions.Select(x => x with { }).ToList(),
+        Tags = value.Tags.Select(x => x with { }).ToList(), TagCategories = [.. value.TagCategories], Suggestions = value.Suggestions.Select(x => x with { }).ToList(),
         ResourceSources = [.. value.ResourceSources], ResourceTags = [.. value.ResourceTags]
     };
     private void Load()
@@ -139,12 +142,27 @@ public sealed class ResourceStore
         if (value.ResourceSources.DistinctBy(x => (x.ResourceId, x.SourceRootId)).Count() != value.ResourceSources.Count || value.ResourceTags.Distinct().Count() != value.ResourceTags.Count) throw new InvalidDataException("重复关系。");
         foreach (var relation in value.ResourceSources) if (!resources.Contains(relation.ResourceId) || !sources.Contains(relation.SourceRootId)) throw new InvalidDataException("失效来源关系。");
         foreach (var relation in value.ResourceTags) if (!resources.Contains(relation.ResourceId) || !tags.Contains(relation.TagId)) throw new InvalidDataException("失效标签关系。");
-        foreach (var tag in value.Tags) ValidateTag(tag.Name, tag.TagType);
+        if (value.TagCategories is null || value.TagCategories.Any(c => c is null ||
+            (c.Id is not ("theme" or "period" or "custom") && !Guid.TryParse(c.Id, out _)))) throw new InvalidDataException("标签分类编号无效。");
+        foreach (var category in value.TagCategories) ValidateCategoryName(category.Name);
+        if (value.TagCategories.Select(c => c.Id).Distinct().Count() != value.TagCategories.Count ||
+            value.TagCategories.Select(c => c.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != value.TagCategories.Count ||
+            new[] { "theme", "period", "custom" }.Any(id => !value.TagCategories.Any(c => c.Id == id))) throw new InvalidDataException("标签分类缺失或重复。");
+        foreach (var tag in value.Tags)
+        {
+            ValidateTag(tag.Name, tag.TagType);
+            if (string.IsNullOrEmpty(tag.CategoryId)) tag.CategoryId = tag.TagType; // Existing libraries keep all tag relationships.
+            if (!value.TagCategories.Any(c => c.Id == tag.CategoryId)) throw new InvalidDataException("标签分类不存在。");
+        }
         if (value.Tags.DistinctBy(x => x.Name, StringComparer.OrdinalIgnoreCase).Count() != value.Tags.Count) throw new InvalidDataException("标签名称重复。");
         foreach (var suggestion in value.Suggestions) if (!resources.Contains(suggestion.ResourceId) || suggestion.Status is not ("Pending" or "Accepted" or "Rejected")) throw new InvalidDataException("建议关系无效。");
     }
     public static void ValidateTag(string name, string kind)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > 80 || name.Any(char.IsControl) || kind is not ("theme" or "period" or "custom")) throw new ArgumentException("标签名称最多 80 字，类型为主题、时期或自定义。");
+    }
+    public static void ValidateCategoryName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 40 || name.Any(char.IsControl)) throw new ArgumentException("分类名称必填，最多 40 字。");
     }
 }

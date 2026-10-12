@@ -7,9 +7,12 @@
   const requestedSurface = new URLSearchParams(location.search).get('surface');
   const surface = surfaces.has(requestedSurface) ? requestedSurface : 'workspace';
   const editableSettings = [
-    'theme', 'reducedMotion', 'transparency', 'miniPosition', 'miniSize', 'miniMode',
-    'dockPosition', 'dockSize', 'dockIconSize', 'hoverEnabled', 'hoverDelay', 'allowForeground'
+    'theme', 'reducedMotion', 'transparency', 'miniPosition', 'miniSize', 'miniMode', 'miniEnabled', 'miniOpacity', 'workspaceOpacity',
+    'dockPosition', 'dockSize', 'dockIconSize', 'hoverEnabled', 'hoverDelay', 'allowForeground', 'foregroundBlocklist'
   ];
+  // These preferences use their own explicit saves. Including them in the
+  // debounced appearance snapshot could overwrite a newer system-setting reply.
+  const dedicatedSettings = new Set(['miniEnabled', 'miniOpacity', 'workspaceOpacity', 'foregroundBlocklist']);
   const pages = new Set(['home', 'scenes', 'library', 'tags', 'favorites', 'search', 'settings']);
   const prototypeStorageKey = 'desktop-hub-m0-v07';
   const originalRender = H.render;
@@ -44,7 +47,7 @@
   const icon = (name, size = 20) => H.icon(name, size);
   const button = (action, text, primary = false, disabled = false) => `<button class="button ${primary ? 'primary' : 'quiet'}" data-action="${action}" ${disabled ? 'disabled' : ''}>${text}</button>`;
   function visualSettings(settings) {
-    return Object.fromEntries(editableSettings.filter(key => settings[key] !== undefined).map(key => [key, settings[key]]));
+    return Object.fromEntries(editableSettings.filter(key => !dedicatedSettings.has(key) && settings[key] !== undefined).map(key => [key, settings[key]]));
   }
   function apps() { return [...(hostState?.settings?.appEntries || [])].sort((a, b) => a.displayOrder - b.displayOrder); }
   function appById(id) { return apps().find(app => app.id === id); }
@@ -167,13 +170,13 @@
   }
   function appTile(app, index, count) {
     const state = appLaunches.get(app.id);
-    return `<div class="launcher-tile" data-app-id="${e(app.id)}"><button class="launcher-app" data-action="app-launch" data-id="${e(app.id)}" data-status="${e(state?.status || 'idle')}" aria-label="启动 ${e(app.name)}" title="${e(state?.message || app.name)}" ${isPending(app.id) || !hostState ? 'disabled' : ''}><span class="launcher-icon">${appIcon(app)}</span><strong>${e(app.name)}</strong>${isPending(app.id) ? '<span class="launcher-app-state">启动中…</span>' : ''}</button>${managingApps ? `<div class="launcher-tile-tools"><button class="icon-button small" data-action="app-move" data-id="${e(app.id)}" data-direction="-1" aria-label="向前移动 ${e(app.name)}" ${index === 0 || appQuery || mutationInFlight ? 'disabled' : ''}>${icon('arrow-left', 14)}</button><button class="icon-button small" data-action="app-edit" data-id="${e(app.id)}" aria-label="编辑 ${e(app.name)}">${icon('edit', 15)}</button><button class="icon-button small" data-action="app-move" data-id="${e(app.id)}" data-direction="1" aria-label="向后移动 ${e(app.name)}" ${index === count - 1 || appQuery || mutationInFlight ? 'disabled' : ''}>${icon('arrow-right', 14)}</button></div>` : ''}</div>`;
+    return `<div class="launcher-tile" data-app-id="${e(app.id)}"><button class="launcher-app" data-action="app-launch" data-id="${e(app.id)}" data-status="${e(state?.status || 'idle')}" aria-label="启动 ${e(app.name)}" title="${e(state?.message || app.name)}" ${isPending(app.id) || !hostState ? 'disabled' : ''}><span class="launcher-icon">${appIcon(app)}</span><strong>${e(app.name)}</strong>${isPending(app.id) ? '<span class="launcher-app-state">启动中…</span>' : ''}</button><button class="icon-button small app-favorite ${app.pinnedToDock ? 'is-favorite' : ''}" data-action="app-favorite" data-id="${e(app.id)}" aria-label="${app.pinnedToDock ? '取消收藏' : '收藏应用'} ${e(app.name)}" title="${app.pinnedToDock ? '取消收藏并从 Dock 移除' : '收藏应用并加入 Dock'}" aria-pressed="${!!app.pinnedToDock}" ${mutationInFlight ? 'disabled' : ''}>${icon('star', 16)}</button>${managingApps ? `<div class="launcher-tile-tools"><button class="icon-button small" data-action="app-move" data-id="${e(app.id)}" data-direction="-1" aria-label="向前移动 ${e(app.name)}" ${index === 0 || appQuery || mutationInFlight ? 'disabled' : ''}>${icon('arrow-left', 14)}</button><button class="icon-button small" data-action="app-edit" data-id="${e(app.id)}" aria-label="编辑 ${e(app.name)}">${icon('edit', 15)}</button><button class="icon-button small" data-action="app-move" data-id="${e(app.id)}" data-direction="1" aria-label="向后移动 ${e(app.name)}" ${index === count - 1 || appQuery || mutationInFlight ? 'disabled' : ''}>${icon('arrow-right', 14)}</button></div>` : ''}</div>`;
   }
   function launcherMarkup() {
     const entries = apps();
     const query = appQuery.trim().toLocaleLowerCase();
     const visible = entries.filter(app => !query || app.name.toLocaleLowerCase().includes(query) || app.target.toLocaleLowerCase().includes(query));
-    return `<section class="application-launcher" aria-labelledby="launcher-title"><div class="launcher-heading"><div><h2 id="launcher-title">我的应用 <span>${entries.length}</span></h2><p>常用软件，点击即启动。</p></div><div class="toolbar"><button class="button quiet" data-action="launcher-manage" data-surface="mini">${icon('pin', 16)} 固定入口</button><button class="button quiet" data-action="apps-manage" aria-pressed="${managingApps}">${icon('edit', 16)} ${managingApps ? '完成管理' : '管理应用'}</button>${button('app-add', `${icon('plus', 17)} ${adding ? '等待选择…' : '添加应用'}`, true, !hostState || adding || mutationInFlight)}</div></div>${entries.length ? `<label class="launcher-search">${icon('search', 17)}<input id="app-query" type="search" data-change="apps-search" value="${e(appQuery)}" placeholder="查找应用" aria-label="查找应用"><span>${visible.length} 个应用</span></label><div class="launcher-grid">${visible.map((app, index) => appTile(app, index, visible.length)).join('')}</div>${!visible.length ? `<div class="launcher-empty"><p>没有找到“${e(appQuery)}”</p><button class="text-button" data-action="apps-clear-search">清除搜索</button></div>` : ''}` : `<div class="launcher-empty"><span class="launcher-empty-icon">${icon('app', 32)}</span><h3>把常用软件放在这里</h3><p>选择电脑上的 EXE 或 Windows 快捷方式，每个应用会独立保存。</p>${button('app-add', `${icon('plus', 16)} 添加第一个应用`, false, !hostState || adding || mutationInFlight)}</div>`}${managingApps && entries.length ? `<p class="launcher-hint">${appQuery ? '清除搜索后可调整应用顺序。' : '用图标下方的箭头排序；编辑中可设置启动参数与固定位置。'}</p>` : ''}${statusMarkup()}</section>`;
+    return `<section class="application-launcher" aria-labelledby="launcher-title"><div class="launcher-heading"><div><h2 id="launcher-title">我的应用 <span>${entries.length}</span></h2><p>点击启动应用，收藏的应用会显示在 Dock。</p></div><div class="toolbar"><button class="button quiet" data-action="launcher-manage" data-surface="mini">${icon('pin', 16)} 固定入口</button><button class="button quiet" data-action="apps-manage" aria-pressed="${managingApps}">${icon('edit', 16)} ${managingApps ? '完成管理' : '管理应用'}</button>${button('app-add', `${icon('plus', 17)} ${adding ? '等待选择…' : '添加应用'}`, true, !hostState || adding || mutationInFlight)}</div></div>${entries.length ? `<label class="launcher-search">${icon('search', 17)}<input id="app-query" type="search" data-change="apps-search" value="${e(appQuery)}" placeholder="查找应用" aria-label="查找应用"><span>${visible.length} 个应用</span></label><div class="launcher-grid">${visible.map((app, index) => appTile(app, index, visible.length)).join('')}</div>${!visible.length ? `<div class="launcher-empty"><p>没有找到“${e(appQuery)}”</p><button class="text-button" data-action="apps-clear-search">清除搜索</button></div>` : ''}` : `<div class="launcher-empty"><span class="launcher-empty-icon">${icon('app', 32)}</span><h3>把常用软件放在这里</h3><p>选择电脑上的 EXE 或 Windows 快捷方式，每个应用会独立保存。</p>${button('app-add', `${icon('plus', 16)} 添加第一个应用`, false, !hostState || adding || mutationInFlight)}</div>`}${managingApps && entries.length ? `<p class="launcher-hint">${appQuery ? '清除搜索后可调整应用顺序。' : '用图标下方的箭头排序；编辑中可设置启动参数与固定位置。'}</p>` : ''}${statusMarkup()}</section>`;
   }
   function dockLaunch() {
     const entries = pins('dock').filter(pin => pin.itemType === 'app');
@@ -191,7 +194,7 @@
   function showAppEditor(app, draft = app) {
     if (surface !== 'workspace' || !app) return;
     const miniFull = pins('mini').filter(pin => !(pin.itemType === 'app' && pin.itemId === app.id)).length >= 4;
-    H.showModal('编辑应用', `<div class="app-editor-identity"><span class="launcher-icon">${appIcon(app, 32)}</span><div><strong>${e(app.name)}</strong><p>每个应用单独保存与启动。</p></div></div><div class="stack"><label class="field"><span>显示名称</span><input id="app-name" type="text" value="${e(draft.name)}" maxlength="120" required autofocus></label><div class="field"><span>程序或快捷方式</span><div class="app-target-row"><p title="${e(app.target)}">${e(app.target)}</p><button class="button small" data-action="app-replace-target" data-id="${e(app.id)}">${icon('folder', 15)} 更换文件</button></div></div><label class="field"><span>启动参数（可选）</span><input id="app-arguments" type="text" value="${e(draft.arguments || '')}" maxlength="4096" placeholder="例如 --new-window"><small>参数传给所选程序，由 Desktop Hub 校验后启动。</small></label><label class="field"><span>工作目录（可选）</span><input id="app-working-directory" type="text" value="${e(draft.workingDirectory || '')}" maxlength="1024" placeholder="留空使用程序默认目录"></label><div class="app-pin-options"><label class="check-row"><input id="app-pin-dock" type="checkbox" ${draft.pinnedToDock ? 'checked' : ''}><span>固定到 Dock</span></label><label class="check-row"><input id="app-pin-mini" type="checkbox" ${draft.pinnedToMini ? 'checked' : ''} ${miniFull && !draft.pinnedToMini ? 'disabled' : ''}><span>固定到 Mini ${miniFull && !draft.pinnedToMini ? '（已有 4 个入口）' : ''}</span></label></div><p class="page-note">固定只添加启动入口。各位置的显示顺序可在“固定入口”中调整。</p><p id="app-edit-error" class="form-error" role="alert"></p></div>`, `<button class="button danger app-remove-button" data-action="app-remove" data-id="${e(app.id)}">${icon('trash', 16)} 从应用库移除</button><button class="button" data-action="close-modal">取消</button><button class="button primary" data-action="app-save" data-id="${e(app.id)}">保存应用</button>`, { wide: false });
+    H.showModal('编辑应用', `<div class="app-editor-identity"><span class="launcher-icon">${appIcon(app, 32)}</span><div><strong>${e(app.name)}</strong><p>每个应用单独保存与启动。</p></div></div><div class="stack"><label class="field"><span>显示名称</span><input id="app-name" type="text" value="${e(draft.name)}" maxlength="120" required autofocus></label><div class="field"><span>程序或快捷方式</span><div class="app-target-row"><p title="${e(app.target)}">${e(app.target)}</p><button class="button small" data-action="app-replace-target" data-id="${e(app.id)}">${icon('folder', 15)} 更换文件</button></div></div><label class="field"><span>启动参数（可选）</span><input id="app-arguments" type="text" value="${e(draft.arguments || '')}" maxlength="4096" placeholder="例如 --new-window"><small>参数传给所选程序，由 Desktop Hub 校验后启动。</small></label><label class="field"><span>工作目录（可选）</span><input id="app-working-directory" type="text" value="${e(draft.workingDirectory || '')}" maxlength="1024" placeholder="留空使用程序默认目录"></label><div class="app-pin-options"><label class="check-row"><input id="app-pin-dock" type="checkbox" ${draft.pinnedToDock ? 'checked' : ''}><span>收藏应用 · 显示在 Dock</span></label><label class="check-row"><input id="app-pin-mini" type="checkbox" ${draft.pinnedToMini ? 'checked' : ''} ${miniFull && !draft.pinnedToMini ? 'disabled' : ''}><span>固定到 Mini ${miniFull && !draft.pinnedToMini ? '（已有 4 个入口）' : ''}</span></label></div><p class="page-note">固定只添加启动入口。各位置的显示顺序可在“固定入口”中调整。</p><p id="app-edit-error" class="form-error" role="alert"></p></div>`, `<button class="button danger app-remove-button" data-action="app-remove" data-id="${e(app.id)}">${icon('trash', 16)} 从应用库移除</button><button class="button" data-action="close-modal">取消</button><button class="button primary" data-action="app-save" data-id="${e(app.id)}">保存应用</button>`, { wide: false });
   }
   function readAppDraft(app) {
     return { ...app, name: document.querySelector('#app-name')?.value?.trim() || '', arguments: document.querySelector('#app-arguments')?.value || '', workingDirectory: document.querySelector('#app-working-directory')?.value?.trim() || '', pinnedToDock: !!document.querySelector('#app-pin-dock')?.checked, pinnedToMini: !!document.querySelector('#app-pin-mini')?.checked };
@@ -308,7 +311,7 @@
     }
     if (H.ui.page === 'settings') {
       const badge = document.querySelector('.page-heading > .badge');
-      if (badge) badge.textContent = '外观与窗口偏好保存到本地';
+      if (badge) badge.textContent = '本地设置';
       for (const control of document.querySelectorAll('[data-setting]')) {
         if (!editableSettings.includes(control.dataset.setting)) {
           control.disabled = true;
@@ -319,7 +322,7 @@
         'settings-save-shortcuts', 'settings-default-shortcuts', 'settings-add-source',
         'settings-confirm-source', 'settings-remove-source', 'settings-add-exclusion',
         'settings-remove-exclusion', 'settings-restore-policy', 'settings-restore-icons',
-        'settings-replay-onboarding', 'settings-reset'
+        'settings-reset'
       ];
       for (const action of unsupportedActions) {
         document.querySelectorAll(`[data-action="${action}"]`).forEach(el => {
@@ -343,8 +346,10 @@
     document.querySelector('.demo-bar')?.remove();
     document.querySelector('.edge-trigger')?.remove();
     if (surface === 'workspace') {
-      const actions = document.querySelector('.header-actions');
-      actions?.insertAdjacentHTML('beforeend', `<button class="icon-button" data-action="native-exit" aria-label="退出 Desktop Hub" title="退出 Desktop Hub">${icon('logout', 19)}</button>`);
+      const themeButton = document.querySelector('.header-actions [data-action="cycle-theme"]');
+      const themeLabel = document.documentElement.dataset.theme === 'dark' ? '切换为浅色' : '切换为深色';
+      themeButton?.setAttribute('aria-label', themeLabel);
+      themeButton?.setAttribute('title', themeLabel);
       const heading = document.querySelector('.home-content .quick-heading:not(.launcher-modules-heading) h2');
       if (heading) heading.textContent = '快捷场景';
     } else if (surface === 'dock') {
@@ -381,6 +386,12 @@
   Object.assign(H.actions, {
     'native-open-launch': () => H.navigate('home'),
     'native-exit': () => route('app.exit', {}),
+    'cycle-theme': () => {
+      if (!hostState) return;
+      H.state.settings.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      H.save(); H.applyTheme(); H.render();
+      H.toast(`主题：${H.state.settings.theme === 'dark' ? '深色' : '浅色'}`);
+    },
     'apps-manage': () => { managingApps = !managingApps; H.render(); },
     'apps-search': el => { appQuery = el.value; H.render(); },
     'apps-clear-search': () => { appQuery = ''; H.render(); document.querySelector('#app-query')?.focus(); },
@@ -428,6 +439,14 @@
       H.render();
     },
     'launch-dismiss': () => { launch = { status: 'idle', message: '', code: '', appId: '' }; H.render(); },
+    'app-favorite': async el => {
+      const app = appById(el.dataset.id); if (!app) return;
+      const entries = pins('dock').map(pin => ({ itemType: pin.itemType, itemId: pin.itemId, enabled: true }));
+      const index = entries.findIndex(pin => pin.itemType === 'app' && pin.itemId === app.id);
+      if (index >= 0) entries.splice(index, 1);
+      else entries.push({ itemType: 'app', itemId: app.id, enabled: true });
+      await mutate('launcher.setPins', { surface: 'dock', pins: entries });
+    },
     'app-edit': el => showAppEditor(appById(el.dataset.id)),
     'app-save': async el => {
       const app = appById(el.dataset.id);

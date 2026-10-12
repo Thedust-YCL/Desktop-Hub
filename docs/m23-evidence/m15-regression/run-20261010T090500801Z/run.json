@@ -1,0 +1,25 @@
+{
+  "startedUtc": "2026-10-10T09:05:00.8014234Z",
+  "completedUtc": "2026-10-10T09:05:44.1746294Z",
+  "passed": true,
+  "phases": [
+    {
+      "name": "management-and-launch",
+      "processId": 35836,
+      "flag": "--smoke-test",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedSeconds": 39.3289683
+    },
+    {
+      "name": "actual-host-restart",
+      "processId": 38560,
+      "flag": "--smoke-test-restart",
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedSeconds": 3.3819195
+    }
+  ],
+  "failure": null,
+  "archive": "E:\\桌软工作台\\docs\\m23-evidence\\m15-regression\\run-20261010T090500801Z"
+}

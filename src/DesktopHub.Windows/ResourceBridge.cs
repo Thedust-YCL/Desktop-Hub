@@ -16,8 +16,8 @@ internal sealed class ResourceBridge(HubApplication host, HubWindow window)
         switch (type)
         {
             case "resources.query":
-                Keys(payload, "query", "tagIds", "favoritesOnly", "invalidOnly", "status", "page");
-                return await Task.Run(() => service.Query(new(Text(payload, "query", 200, "")!, Strings(payload, "tagIds"), Bool(payload, "favoritesOnly"), Bool(payload, "invalidOnly"), Text(payload, "status", 30, null), Number(payload, "page"))));
+                Keys(payload, "query", "tagIds", "favoritesOnly", "invalidOnly", "status", "page", "extension");
+                return await Task.Run(() => service.Query(new(Text(payload, "query", 200, "")!, Strings(payload, "tagIds"), Bool(payload, "favoritesOnly"), Bool(payload, "invalidOnly"), Text(payload, "status", 30, null), Number(payload, "page"), Text(payload, "extension", 260, null))));
             case "resources.discover":
                 Keys(payload); return await Task.Run(() => new { desktop = ResourceScanner.DesktopPath(), cloudPath = ResourceScanner.CloudPath(ResourceScanner.DesktopPath()), publicDesktopAvailable = true });
             case "resources.preview":
@@ -74,7 +74,11 @@ internal sealed class ResourceBridge(HubApplication host, HubWindow window)
                 finally { pickerOpen = false; }
                 break;
             case "resources.clean": Keys(payload, "resourceIds", "confirmed"); await service.CleanAsync(Strings(payload, "resourceIds"), Bool(payload, "confirmed")); break;
-            case "resources.saveTag": Keys(payload, "tagId", "name", "kind"); await service.SaveTagAsync(Text(payload, "tagId", 96, null), Required(payload, "name", 80), Required(payload, "kind")); break;
+            case "resources.saveTag": Keys(payload, "tagId", "name", "kind", "categoryId"); await service.SaveTagAsync(Text(payload, "tagId", 96, null), Required(payload, "name", 80), Required(payload, "kind"), Required(payload, "categoryId")); break;
+            case "resources.saveCategory":
+                Keys(payload, "name"); var categoryName = Required(payload, "name", 40).Trim();
+                await service.SaveCategoryAsync(categoryName);
+                return new { saved = true, category = service.Store.Snapshot().TagCategories.Single(c => c.Name == categoryName) };
             case "resources.deleteTag": Keys(payload, "tagId", "confirmed"); await service.DeleteTagAsync(Required(payload, "tagId"), Bool(payload, "confirmed")); break;
             case "resources.bindTag": Keys(payload, "resourceId", "tagId", "bind"); await service.BindTagAsync(Required(payload, "resourceId"), Required(payload, "tagId"), Bool(payload, "bind")); break;
             case "resources.suggestion": Keys(payload, "suggestionId", "accept", "editedName"); await service.SuggestionAsync(Required(payload, "suggestionId"), Bool(payload, "accept"), Text(payload, "editedName", 80, null)); break;

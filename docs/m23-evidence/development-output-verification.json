@@ -1,0 +1,36 @@
+{
+  "version": "0.2.3+fe072d96673aaaa5737886bdc63ac596324a11be",
+  "shortcutTarget": "E:\\桌软工作台\\artifacts\\win-x64\\DesktopHub.Windows.exe",
+  "verifiedFiles": [
+    {
+      "file": "DesktopHub.Windows.exe",
+      "sourceSha256": "4514EACA466996C7EF64A00CEB53F51ED11830A9A12EBFEEEEC14D55225FA4FC",
+      "outputSha256": "4514EACA466996C7EF64A00CEB53F51ED11830A9A12EBFEEEEC14D55225FA4FC",
+      "equal": true
+    },
+    {
+      "file": "DesktopHub.Windows.dll",
+      "sourceSha256": "B4E674E0E1F7B2B563190FA702D2B001DD0D4B13FEA5B6E97C1C09A1ECF1F3C1",
+      "outputSha256": "B4E674E0E1F7B2B563190FA702D2B001DD0D4B13FEA5B6E97C1C09A1ECF1F3C1",
+      "equal": true
+    },
+    {
+      "file": "DesktopHub.Core.dll",
+      "sourceSha256": "CD40842A6AAC81889A2E846A89DEB3166890D6939F982CDFEAA78E9BA1B808EB",
+      "outputSha256": "CD40842A6AAC81889A2E846A89DEB3166890D6939F982CDFEAA78E9BA1B808EB",
+      "equal": true
+    },
+    {
+      "file": "UI/desktop/system.js",
+      "sourceSha256": "BD93D774742B70ED26652A5B3916B14701E97960C712072DCEE3DFBFA2D76F5F",
+      "outputSha256": "BD93D774742B70ED26652A5B3916B14701E97960C712072DCEE3DFBFA2D76F5F",
+      "equal": true
+    },
+    {
+      "file": "UI/desktop/desktop.js",
+      "sourceSha256": "59C799587CF9CB120674F170A0ED4E0A6D5EF33D13DF57A4D94388CC2DA8E556",
+      "outputSha256": "59C799587CF9CB120674F170A0ED4E0A6D5EF33D13DF57A4D94388CC2DA8E556",
+      "equal": true
+    }
+  ]
+}

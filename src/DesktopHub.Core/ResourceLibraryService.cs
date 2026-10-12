@@ -2,9 +2,9 @@ using System.Collections.Concurrent;
 
 namespace DesktopHub.Core;
 
-public sealed record ResourceQuery(string Query = "", List<string>? TagIds = null, bool FavoritesOnly = false, bool InvalidOnly = false, string? Status = null, int Page = 0);
+public sealed record ResourceQuery(string Query = "", List<string>? TagIds = null, bool FavoritesOnly = false, bool InvalidOnly = false, string? Status = null, int Page = 0, string? Extension = null);
 public sealed record ResourceItem(Resource Resource, List<Tag> Tags, List<TagSuggestion> Suggestions);
-public sealed record ResourcePage(List<ResourceItem> Items, int Total, int Page, int PageSize, List<SourceRoot> Sources, List<Tag> Tags, string? Warning, bool? AutoTagByModificationTime = null);
+public sealed record ResourcePage(List<ResourceItem> Items, int Total, int Page, int PageSize, List<SourceRoot> Sources, List<Tag> Tags, string? Warning, bool? AutoTagByModificationTime = null, List<TagCategory>? TagCategories = null, List<string>? Extensions = null);
 
 public sealed class ResourceLibraryService : IDisposable
 {
@@ -242,13 +242,18 @@ public sealed class ResourceLibraryService : IDisposable
         if (query.Page < 0 || query.Page > 100000 || query.Query.Length > 200 || tags.Any(id => !data.Tags.Any(t => t.Id == id))) throw new ArgumentException("搜索条件无效。");
         var byResource = data.ResourceTags.ToLookup(x => x.ResourceId, x => x.TagId);
         var matchingTags = data.Tags.Where(t => t.Name.Contains(query.Query, StringComparison.OrdinalIgnoreCase)).Select(t => t.Id).ToHashSet();
-        var all = data.Resources.Where(r => (!query.FavoritesOnly || r.Favorite) && (!query.InvalidOnly || r.Status != "Active") && (query.Status is null || r.Status == query.Status) &&
+        var candidates = data.Resources.Where(r => (!query.FavoritesOnly || r.Favorite) && (!query.InvalidOnly || r.Status != "Active") && (query.Status is null || r.Status == query.Status) &&
             (string.IsNullOrEmpty(query.Query) || r.DisplayName.Contains(query.Query, StringComparison.OrdinalIgnoreCase) || byResource[r.Id].Any(matchingTags.Contains)) && tags.All(id => byResource[r.Id].Contains(id)))
-            .OrderBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase).ThenBy(r => r.Id).ToArray();
+            .ToArray();
+        static string ExtensionKey(Resource resource) => resource.ResourceType == "folder" ? "__folders" : string.IsNullOrEmpty(resource.Extension) ? "__none" : resource.Extension.ToLowerInvariant();
+        if (query.Extension is { Length: > 260 } || query.Extension?.Any(char.IsControl) == true) throw new ArgumentException("扩展名筛选无效。");
+        var all = candidates.Where(r => string.IsNullOrEmpty(query.Extension) || ExtensionKey(r).Equals(query.Extension, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(r => r.ResourceType == "folder" ? 0 : 1).ThenBy(r => r.Extension, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase).ThenBy(r => r.Id).ToArray();
         var page = Math.Min(query.Page, Math.Max(0, (all.Length - 1) / 60));
         var suggestions = data.Suggestions.Where(x => x.Status == "Pending").ToLookup(x => x.ResourceId);
         var byTag = data.Tags.ToDictionary(t => t.Id);
-        return new ResourcePage(all.Skip(page * 60).Take(60).Select(r => new ResourceItem(r with { }, byResource[r.Id].Select(id => byTag[id] with { }).ToList(), suggestions[r.Id].Select(s => s with { }).ToList())).ToList(), all.Length, page, 60, data.Sources.Select(s => s with { }).ToList(), data.Tags.Select(t => t with { }).ToList(), Store.RecoveryWarning, data.AutoTagByModificationTime);
+        return new ResourcePage(all.Skip(page * 60).Take(60).Select(r => new ResourceItem(r with { }, byResource[r.Id].Select(id => byTag[id] with { }).ToList(), suggestions[r.Id].Select(s => s with { }).ToList())).ToList(), all.Length, page, 60, data.Sources.Select(s => s with { }).ToList(), data.Tags.Select(t => t with { }).ToList(), Store.RecoveryWarning, data.AutoTagByModificationTime, [.. data.TagCategories], candidates.Select(ExtensionKey).Distinct().Order(StringComparer.OrdinalIgnoreCase).ToList());
         });
     }
     public async Task MutateAsync(Action<ResourceLibrary> mutation)
@@ -296,12 +301,20 @@ public sealed class ResourceLibraryService : IDisposable
         await MutateAsync(data => { if (data.Sources.RemoveAll(x => x.Id == id) == 0) throw new ArgumentException("来源不存在。"); data.ResourceSources.RemoveAll(x => x.SourceRootId == id); RemoveOrphans(data); });
         await RefreshAsync(); SetupWatchers();
     }
-    public Task SaveTagAsync(string? id, string name, string kind) => MutateAsync(data =>
+    public Task SaveCategoryAsync(string name) => MutateAsync(data =>
+    {
+        name = name.Trim(); ResourceStore.ValidateCategoryName(name);
+        if (data.TagCategories.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) throw new ArgumentException("已有同名分类。");
+        data.TagCategories.Add(new(Guid.NewGuid().ToString("N"), name));
+    });
+    public Task SaveTagAsync(string? id, string name, string kind, string? categoryId = null) => MutateAsync(data =>
     {
         name = name.Trim(); ResourceStore.ValidateTag(name, kind);
+        categoryId ??= kind is "theme" or "period" ? kind : null;
+        if (string.IsNullOrWhiteSpace(categoryId) || !data.TagCategories.Any(c => c.Id == categoryId)) throw new ArgumentException("请为标签选择分类，或先新建分类。");
         if (data.Tags.Any(x => x.Id != id && x.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) throw new ArgumentException("已有同名标签。");
         var tag = id is null ? new Tag() : data.Tags.SingleOrDefault(x => x.Id == id) ?? throw new ArgumentException("标签不存在。");
-        tag.Name = name; tag.TagType = kind; if (id is null) data.Tags.Add(tag);
+        tag.Name = name; tag.TagType = kind; tag.CategoryId = categoryId; if (id is null) data.Tags.Add(tag);
     });
     public Task DeleteTagAsync(string id, bool confirmed) => MutateAsync(data => { if (!confirmed) throw new ArgumentException("请确认删除标签。"); data.Tags.RemoveAll(x => x.Id == id); data.ResourceTags.RemoveAll(x => x.TagId == id); });
     public Task BindTagAsync(string id, string tagId, bool bind) => MutateAsync(data =>
@@ -342,7 +355,7 @@ public sealed class ResourceLibraryService : IDisposable
             var scan = ResourceScanner.Scan(path, false, excluded, token); if (!scan.Available) throw new IOException(scan.Error);
             var key = Guid.NewGuid().ToString("N");
             lock (browses) { foreach (var old in browses.Where(x => x.Value.Expires < DateTimeOffset.UtcNow).Select(x => x.Key).ToArray()) browses.Remove(old); if (browses.Count >= 64) browses.Clear(); browses[key] = (path, sourceId, DateTimeOffset.UtcNow.AddMinutes(15)); }
-            var sorted = scan.Items.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase).ToArray(); page = Math.Clamp(page, 0, Math.Max(0, (sorted.Length - 1) / 60));
+            var sorted = scan.Items.OrderBy(x => x.ResourceType == "folder" ? 0 : 1).ThenBy(x => x.Extension, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase).ToArray(); page = Math.Clamp(page, 0, Math.Max(0, (sorted.Length - 1) / 60));
             return new FolderPage(key, path, sorted.Skip(page * 60).Take(60).ToList(), sorted.Length, page, scan.Warnings);
         });
     }

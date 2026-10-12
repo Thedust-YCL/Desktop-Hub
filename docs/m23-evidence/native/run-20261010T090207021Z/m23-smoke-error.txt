@@ -1,0 +1,5 @@
+System.IO.IOException: 无法删除要被替换的文件。
+   at System.IO.FileSystem.ReplaceFile(String sourceFullPath, String destFullPath, String destBackupFullPath, Boolean ignoreMetadataErrors)
+   at DesktopHub.Core.SettingsStore.Save(AppSettings settings) in E:\桌软工作台\src\DesktopHub.Core\SettingsStore.cs:line 136
+   at DesktopHub.Windows.SystemSmokeTests.Prepare(String directory) in E:\桌软工作台\src\DesktopHub.Windows\SystemSmokeTests.cs:line 22
+   at DesktopHub.Windows.Program.<>c__DisplayClass0_0.<<Main>b__1>d.MoveNext() in E:\桌软工作台\src\DesktopHub.Windows\Program.cs:line 48

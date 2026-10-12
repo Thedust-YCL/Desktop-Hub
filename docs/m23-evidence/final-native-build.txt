@@ -1,0 +1,11 @@
+Ready: .NET SDK 8.0.425; WebView2 SDK 1.0.4258.31; Windows SDK .NET Ref 10.0.17763.56; workspace-local cache.
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+  DesktopHub.Core -> E:\桌软工作台\src\DesktopHub.Core\bin\Release\net8.0\DesktopHub.Core.dll
+  DesktopHub.Windows -> E:\桌软工作台\src\DesktopHub.Windows\bin\Release\net8.0-windows\DesktopHub.Windows.dll
+
+已成功生成。
+    0 个警告
+    0 个错误
+
+已用时间 00:00:01.03

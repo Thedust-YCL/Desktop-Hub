@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$SkipBuild, [ValidateRange(30, 600)][int]$TimeoutSeconds = 180)
+param([switch]$SkipBuild, [ValidateRange(30, 600)][int]$TimeoutSeconds = 180, [string]$EvidenceDirectory)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Offline }
@@ -7,7 +7,8 @@ $taskApplication = Join-Path $taskRoot 'src/DesktopHub.Windows/bin/Release/net8.
 $taskApplicationDirectory = Split-Path -Parent $taskApplication
 $taskEvidence = Join-Path $taskApplicationDirectory 'm22-smoke-evidence'
 $taskStarted = [DateTime]::UtcNow
-$taskDestination = Join-Path $taskRoot ('docs/m22-evidence/native/run-' + $taskStarted.ToString('yyyyMMddTHHmmssfffZ'))
+$taskEvidenceRoot = if ($EvidenceDirectory) { $EvidenceDirectory } else { Join-Path $taskRoot 'docs/m22-evidence/native' }
+$taskDestination = Join-Path $taskEvidenceRoot ('run-' + $taskStarted.ToString('yyyyMMddTHHmmssfffZ'))
 New-Item -ItemType Directory -Path $taskDestination -Force | Out-Null
 $taskOldDotnet = $env:DOTNET_ROOT
 $taskOldDotnetX64 = $env:DOTNET_ROOT_X64

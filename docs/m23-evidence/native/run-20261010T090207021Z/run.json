@@ -1,0 +1,14 @@
+{
+  "passed": false,
+  "startedUtc": "2026-10-10T09:02:07.0215778Z",
+  "completedUtc": "2026-10-10T09:02:07.4350221Z",
+  "phases": [
+    {
+      "flag": "--system-smoke",
+      "pid": 41820,
+      "exitCode": 1,
+      "startedUtc": "2026-10-10T09:02:07.0327254Z"
+    }
+  ],
+  "evidence": "E:\\桌软工作台\\docs\\m23-evidence\\native\\run-20261010T090207021Z"
+}

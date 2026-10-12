@@ -25,7 +25,7 @@ public sealed class NativeLaunchService(IShortcutResolver? shortcutResolver = nu
             Id = Guid.NewGuid().ToString("D"), Target = selected, EntryKind = kind,
             Name = Path.GetFileNameWithoutExtension(selected), Arguments = resolved.Arguments,
             WorkingDirectory = string.IsNullOrEmpty(workingDirectory) ? Path.GetDirectoryName(resolved.Target)! : workingDirectory,
-            Icon = "default", PinnedToDock = true
+            Icon = "default", PinnedToDock = false
         };
     }
 

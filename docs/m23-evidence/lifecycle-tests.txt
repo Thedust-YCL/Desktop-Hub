@@ -1,0 +1,24 @@
+2026-10-10 M2.3 Windows lifecycle service checks
+Command: .tools/dotnet/dotnet.exe run --project tests/DesktopHub.Windows.Lifecycle.Tests/DesktopHub.Windows.Lifecycle.Tests.csproj -c Release --no-restore
+Result: exit 0, 8 groups passed, 0 failed.
+
+PASS hotkey parse normalizes safe independent combos
+PASS hotkey rejects invalid or reserved combos
+PASS hotkey apply is transactional and retains old registrations on conflict
+PASS hotkey repeated config, swapping and disposal do not leak registrations
+PASS foreground blocklist matches executable names without broad substring matching
+PASS foreground monitor geometry covers fullscreen and rejects ordinary or invalid bounds
+PASS single instance fixed-command IPC rejects malformed requests and survives disconnect
+PASS single instance identity remains stable across working directories and scope labels
+
+Safety scope: mocked hotkey registration; isolated GUID mutex/CurrentUserOnly pipe; no desktop-icon operation, no registry startup write, no real tray icon, no Explorer restart.
+Initial sandbox run: 7 passed, 1 failed because restricted token could not connect to a CurrentUserOnly pipe (Access denied). The same test passed under approved unsandboxed execution without changing the pipe security setting.
+Actual NotifyIcon operation, TaskbarCreated reconstruction and real RegisterHotKey system conflict are separate native smoke/manual checks, not claimed by these mock tests.
+
+Official implementation references:
+https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey
+https://learn.microsoft.com/dotnet/api/system.io.pipes.pipeoptions
+https://learn.microsoft.com/en-us/windows/win32/shell/taskbar
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getnamedpipeserverprocessid
+https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-allowsetforegroundwindow
+IPC lifecycle tests read and validate the authenticated server process ID; foreground grants are disabled in this isolated test harness. The production client requests a Windows foreground grant solely for this same-user pipe peer before asking it to open Workspace; success remains subject to the documented Windows activation restrictions.

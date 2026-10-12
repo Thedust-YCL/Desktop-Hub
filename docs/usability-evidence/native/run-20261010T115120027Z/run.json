@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "startedUtc": "2026-10-10T11:51:20.0270592Z",
+  "completedUtc": "2026-10-10T11:51:42.8667555Z",
+  "phases": [
+    {
+      "flag": "--index-smoke",
+      "processId": 37456,
+      "exitCode": 0,
+      "startedUtc": "2026-10-10T11:51:20.0417476Z"
+    },
+    {
+      "flag": "--index-smoke-restart",
+      "processId": 14124,
+      "exitCode": 0,
+      "startedUtc": "2026-10-10T11:51:39.8599295Z"
+    }
+  ],
+  "evidence": "docs\\usability-evidence\\native\\run-20261010T115120027Z"
+}

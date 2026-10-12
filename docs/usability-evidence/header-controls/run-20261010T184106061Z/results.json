@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Workspace header keeps one Close button and removes full exit",
+    "passed": true
+  },
+  {
+    "name": "Appearance settings retain all three theme choices",
+    "passed": false
+  }
+]
