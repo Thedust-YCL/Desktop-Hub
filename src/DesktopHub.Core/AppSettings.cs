@@ -3,7 +3,10 @@ namespace DesktopHub.Core;
 /// <summary>Versioned local settings shared by all three surfaces. Runtime focus handles are never persisted.</summary>
 public sealed record AppSettings
 {
-    public int SchemaVersion { get; set; } = 4;
+    public int SchemaVersion { get; set; } = 5;
+    public string UiDensity { get; set; } = "compact";
+    public string PerformanceMode { get; set; } = "quick";
+    public bool AutoCloseDock { get; set; }
     public string Theme { get; set; } = "system";
     public bool ReducedMotion { get; set; }
     public bool OnboardingCompleted { get; set; }
@@ -34,6 +37,7 @@ public sealed record AppSettings
     public WindowBounds DockBounds { get; set; } = new() { Left = 18, Top = 260, Width = 370, Height = 540 };
     public LaunchTarget? LaunchTarget { get; set; }
     public List<AppEntry> AppEntries { get; set; } = [];
+    public List<AppGroup> AppGroups { get; set; } = [];
     public List<LauncherPin> LauncherPins { get; set; } = [];
     public List<Scene> Scenes { get; set; } = [];
 }
@@ -51,6 +55,8 @@ public sealed record AppEntry
     public int DisplayOrder { get; set; }
     public bool PinnedToMini { get; set; }
     public bool PinnedToDock { get; set; }
+    public bool Favorite { get; set; }
+    public string? GroupId { get; set; }
 }
 
 /// <summary>Canonical layout reference; application paths are never copied into surface layouts.</summary>

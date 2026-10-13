@@ -10,13 +10,85 @@ var failed = 0;
 var launcher = new NativeLaunchService();
 try
 {
+    Check("Schema four migration preserves Dock pins, dependencies and preferences and derives favorites once", () =>
+    {
+        var store = Store("schema-four"); var pinned = Registered("migrate-pinned"); var unpinned = Registered("migrate-unpinned");
+        unpinned.PinnedToDock = false;
+        var a = Guid.NewGuid().ToString("D"); var b = Guid.NewGuid().ToString("D");
+        var pinId = Guid.NewGuid().ToString("D");
+        Write(store, JsonSerializer.Serialize(new AppSettings { SchemaVersion = 4, OnboardingCompleted = true, SuppressDesktopLocationNotice = true,
+            AppEntries = [pinned, unpinned], LauncherPins = [new() { Id = pinId, Surface = "dock", ItemId = pinned.Id }],
+            Scenes = [new() { Id = Guid.NewGuid().ToString("D"), Name = "Legacy", Actions = [new() { Id = a, Name = "A", AppEntryId = pinned.Id }, new() { Id = b, Name = "B", AppEntryId = unpinned.Id }],
+                Dependencies = [new() { ActionId = b, DependsOnActionId = a, Condition = "process" }] }] }, SettingsStore.JsonOptions));
+        var loaded = store.Load(); Equal(5, loaded.SchemaVersion); True(store.RecoveryWarning is null);
+        True(loaded.OnboardingCompleted && loaded.SuppressDesktopLocationNotice); Equal(pinId, loaded.LauncherPins.Single().Id);
+        Equal("process", loaded.Scenes.Single().Dependencies.Single().Condition);
+        using var saved = JsonDocument.Parse(File.ReadAllText(store.SettingsPath));
+        var apps = saved.RootElement.GetProperty("appEntries"); True(apps[0].GetProperty("favorite").GetBoolean()); True(!apps[1].GetProperty("favorite").GetBoolean());
+        Equal("advanced", saved.RootElement.GetProperty("scenes")[0].GetProperty("editorMode").GetString());
+        var bytes = File.ReadAllText(store.SettingsPath); store.Load(); Equal(bytes, File.ReadAllText(store.SettingsPath));
+    });
+    Check("Unknown settings schema preserves the original filename and bytes and blocks every write", () =>
+    {
+        var store = Store("future-schema"); var original = "{\"schemaVersion\":99,\"futureData\":{\"secret\":42}}";
+        Write(store, original); store.Load(); True(store.RecoveryWarning is not null); True(File.Exists(store.SettingsPath));
+        Equal(original, File.ReadAllText(store.SettingsPath));
+        Throws<InvalidOperationException>(() => store.Save(new())); Throws<InvalidOperationException>(() => store.Update(s => s with { Theme = "dark" }));
+        Equal(original, File.ReadAllText(store.SettingsPath));
+    });
+    Check("A future settings schema cannot be overwritten by saving before Load", () =>
+    {
+        var store = Store("future-before-load"); var original = "{\"schemaVersion\":6,\"nextVersionOnly\":true}"; Write(store, original);
+        Throws<InvalidOperationException>(() => store.Save(new())); Equal(original, File.ReadAllText(store.SettingsPath));
+    });
+    Check("Favorite mutations and pin mutations are independent across all four combinations", () =>
+    {
+        var store = Store("favorites"); var library = new AppLibraryService(store); var app = Registered("favorite-app"); library.Add(app);
+        foreach (var favorite in new[] { true, false }) foreach (var pinned in new[] { false, true })
+        {
+            library.SetFavorite(app.Id, favorite); library.SetPin("dock", "app", app.Id, pinned); store.Load();
+            using var saved = JsonDocument.Parse(File.ReadAllText(store.SettingsPath));
+            Equal(favorite, saved.RootElement.GetProperty("appEntries")[0].GetProperty("favorite").GetBoolean()); Equal(pinned, store.Current.AppEntries[0].PinnedToDock);
+        }
+    });
+    Check("Groups rename without changing identity and removal clears membership without deleting applications", () =>
+    {
+        var store = Store("groups"); var library = new AppLibraryService(store); var app = Registered("grouped-app"); library.Add(app);
+        library.SaveGroup(null, "Work");
+        using var saved = JsonDocument.Parse(File.ReadAllText(store.SettingsPath)); var id = saved.RootElement.GetProperty("appGroups")[0].GetProperty("id").GetString()!;
+        library.MoveToGroup(app.Id, id); library.SaveGroup(id, "Renamed");
+        var isolated = store.Current; isolated.AppGroups.Clear();
+        store.Load(); using var renamed = JsonDocument.Parse(File.ReadAllText(store.SettingsPath)); Equal("Renamed", renamed.RootElement.GetProperty("appGroups")[0].GetProperty("name").GetString());
+        Equal(id, renamed.RootElement.GetProperty("appEntries")[0].GetProperty("groupId").GetString());
+        var bytes = File.ReadAllText(store.SettingsPath); Throws<SettingsValidationException>(() => library.MoveToGroup(app.Id, Guid.NewGuid().ToString("D"))); Equal(bytes, File.ReadAllText(store.SettingsPath));
+        library.SaveGroup(null, "Second");
+        using var two = JsonDocument.Parse(File.ReadAllText(store.SettingsPath)); var secondId = two.RootElement.GetProperty("appGroups")[1].GetProperty("id").GetString()!;
+        library.ReorderGroups(new[] { secondId, id }); store.Load();
+        using var ordered = JsonDocument.Parse(File.ReadAllText(store.SettingsPath)); Equal(secondId, ordered.RootElement.GetProperty("appGroups")[0].GetProperty("id").GetString());
+        bytes = File.ReadAllText(store.SettingsPath); Throws<SettingsValidationException>(() => library.ReorderGroups(new[] { id, id })); Equal(bytes, File.ReadAllText(store.SettingsPath));
+        library.RemoveGroup(id); Equal(1, store.Load().AppEntries.Count); True(File.Exists(app.Target));
+        using var removed = JsonDocument.Parse(File.ReadAllText(store.SettingsPath)); Equal(JsonValueKind.Null, removed.RootElement.GetProperty("appEntries")[0].GetProperty("groupId").ValueKind);
+    });
+    Check("Schema five scene layout snapshots isolate nested bounds and reject invalid mode choices", () =>
+    {
+        var store = Store("scene-layout"); var app = Registered("layout-app");
+        var json = JsonSerializer.Serialize(new AppSettings { AppEntries = [app], Scenes = [new() { Id = Guid.NewGuid().ToString("D"), Name = "Layout" }] }, SettingsStore.JsonOptions);
+        var node = System.Text.Json.Nodes.JsonNode.Parse(json)!; node["schemaVersion"] = 5; node["uiDensity"] = "comfortable"; node["performanceMode"] = "lightweight"; node["autoCloseDock"] = true;
+        node["scenes"]![0]!["editorMode"] = "simple"; node["scenes"]![0]!["executionMode"] = "sequential";
+        node["scenes"]![0]!["windowLayout"] = System.Text.Json.Nodes.JsonNode.Parse("{\"restoreAfterRun\":true,\"waitTimeoutMs\":15000,\"windows\":[{\"appEntryId\":\"" + app.Id + "\",\"executablePath\":\"\",\"titleContains\":\"Editor\",\"monitorId\":\"screen\",\"bounds\":{\"left\":10,\"top\":20,\"width\":400,\"height\":300},\"state\":\"normal\",\"dpi\":96}]}");
+        store.Save(node.Deserialize<AppSettings>(SettingsStore.JsonOptions)!); var copy = store.Current;
+        copy.Scenes[0].WindowLayout!.Windows[0].Bounds.Width = 1;
+        True(JsonSerializer.Serialize(store.Current, SettingsStore.JsonOptions).Contains("\"width\": 400"));
+        node["uiDensity"] = "tiny"; Throws<SettingsValidationException>(() => store.Save(node.Deserialize<AppSettings>(SettingsStore.JsonOptions)!));
+        node["uiDensity"] = "compact"; node["scenes"]![0]!["executionMode"] = "unknown"; Throws<SettingsValidationException>(() => store.Save(node.Deserialize<AppSettings>(SettingsStore.JsonOptions)!));
+    });
     Check("Missing configuration uses defaults", () =>
     {
         var store = Store("missing");
         var settings = store.Load();
         Equal("system", settings.Theme);
         Equal(500, settings.HoverDelay);
-        Equal(4, settings.SchemaVersion);
+        Equal(5, settings.SchemaVersion);
         Equal(1d, settings.WorkspaceOpacity);
         True(!settings.OnboardingCompleted);
         True(settings.LaunchTarget is null && store.RecoveryWarning is null);
@@ -444,7 +516,7 @@ try
         var legacy = new LaunchTarget { Id = Guid.NewGuid().ToString("D"), Path = Path.Combine(testRoot, "old-stale.exe"), DisplayName = "old" };
         Write(store, JsonSerializer.Serialize(new AppSettings { SchemaVersion = 1, AppEntries = [existing], LaunchTarget = legacy }, SettingsStore.JsonOptions));
         var loaded = store.Load();
-        Equal(4, loaded.SchemaVersion);
+        Equal(5, loaded.SchemaVersion);
         Equal(2, loaded.AppEntries.Count);
         Equal(existing.Id, loaded.AppEntries[0].Id);
         Equal(legacy.Id, loaded.AppEntries[1].Id);
@@ -471,7 +543,7 @@ try
             Equal(original, File.ReadAllText(store.SettingsPath));
         }
         Equal(1, store.Load().AppEntries.Count);
-        Equal(4, JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(store.SettingsPath), SettingsStore.JsonOptions)!.SchemaVersion);
+        Equal(5, JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(store.SettingsPath), SettingsStore.JsonOptions)!.SchemaVersion);
     });
     Check("Local persistence supports libraries beyond the M1 file budget and concurrent additive writes", () =>
     {

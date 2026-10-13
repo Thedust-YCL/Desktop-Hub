@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace DesktopHub.Core;
 
-public sealed record ResourceQuery(string Query = "", List<string>? TagIds = null, bool FavoritesOnly = false, bool InvalidOnly = false, string? Status = null, int Page = 0, string? Extension = null);
+public sealed record ResourceQuery(string Query = "", List<string>? TagIds = null, bool FavoritesOnly = false, bool InvalidOnly = false, string? Status = null, int Page = 0, string? Extension = null, string Sort = "type");
 public sealed record ResourceItem(Resource Resource, List<Tag> Tags, List<TagSuggestion> Suggestions);
 public sealed record ResourcePage(List<ResourceItem> Items, int Total, int Page, int PageSize, List<SourceRoot> Sources, List<Tag> Tags, string? Warning, bool? AutoTagByModificationTime = null, List<TagCategory>? TagCategories = null, List<string>? Extensions = null);
 
@@ -247,9 +247,16 @@ public sealed class ResourceLibraryService : IDisposable
             .ToArray();
         static string ExtensionKey(Resource resource) => resource.ResourceType == "folder" ? "__folders" : string.IsNullOrEmpty(resource.Extension) ? "__none" : resource.Extension.ToLowerInvariant();
         if (query.Extension is { Length: > 260 } || query.Extension?.Any(char.IsControl) == true) throw new ArgumentException("扩展名筛选无效。");
-        var all = candidates.Where(r => string.IsNullOrEmpty(query.Extension) || ExtensionKey(r).Equals(query.Extension, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(r => r.ResourceType == "folder" ? 0 : 1).ThenBy(r => r.Extension, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase).ThenBy(r => r.Id).ToArray();
+        var filtered = candidates.Where(r => string.IsNullOrEmpty(query.Extension) || ExtensionKey(r).Equals(query.Extension, StringComparison.OrdinalIgnoreCase));
+        IOrderedEnumerable<Resource> ordered = query.Sort switch
+        {
+            "type" => filtered.OrderBy(r => r.ResourceType == "folder" ? 0 : 1).ThenBy(r => r.Extension, StringComparer.OrdinalIgnoreCase).ThenBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase),
+            "name" => filtered.OrderBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase),
+            "modifiedAsc" => filtered.OrderBy(r => r.ModificationTime),
+            "modifiedDesc" => filtered.OrderByDescending(r => r.ModificationTime),
+            _ => throw new ArgumentException("资源排序无效。")
+        };
+        var all = ordered.ThenBy(r => r.Id).ToArray();
         var page = Math.Min(query.Page, Math.Max(0, (all.Length - 1) / 60));
         var suggestions = data.Suggestions.Where(x => x.Status == "Pending").ToLookup(x => x.ResourceId);
         var byTag = data.Tags.ToDictionary(t => t.Id);
@@ -263,6 +270,109 @@ public sealed class ResourceLibraryService : IDisposable
         finally { serial.Release(); }
     }
     public Task FavoriteAsync(string id, bool favorite) => MutateAsync(data => Find(data, id).Favorite = favorite);
+
+    /// <summary>Operations: addTags/removeTags use label IDs; favorite/unfavorite use no values;
+    /// acceptSuggestions uses one pending suggestion ID per resource, all with identical name and type.</summary>
+    public Task BatchAsync(IReadOnlyList<string> resourceIds, string operation, IReadOnlyList<string> values)
+    {
+        ArgumentNullException.ThrowIfNull(resourceIds); ArgumentNullException.ThrowIfNull(values);
+        var ids = resourceIds.ToArray(); var requested = values.ToArray();
+        return MutateAsync(data => ApplyBatch(data, ids, operation, requested));
+    }
+
+    public Task BatchAcceptSuggestionsAsync(IReadOnlyList<string> resourceIds, string suggestionName, string suggestionType)
+    {
+        ArgumentNullException.ThrowIfNull(resourceIds);
+        var ids = resourceIds.ToArray();
+        return MutateAsync(data =>
+        {
+            ResourceStore.ValidateTag(suggestionName, suggestionType);
+            var wanted = ids.ToHashSet(StringComparer.Ordinal);
+            var suggestions = data.Suggestions.Where(s => wanted.Contains(s.ResourceId) && s.Status == "Pending" && s.TagType == suggestionType &&
+                s.SuggestedName.Trim().Equals(suggestionName.Trim(), StringComparison.OrdinalIgnoreCase)).Select(s => s.Id).ToArray();
+            ApplyBatch(data, ids, "acceptSuggestions", suggestions);
+        });
+    }
+
+    private static void ApplyBatch(ResourceLibrary data, IReadOnlyList<string> ids, string operation, IReadOnlyList<string> values)
+    {
+        if (ids.Count is < 1 or > 500 || ids.Distinct(StringComparer.Ordinal).Count() != ids.Count || values.Count > 500 || values.Distinct(StringComparer.Ordinal).Count() != values.Count)
+            throw new ArgumentException("批量操作需要 1–500 个不同资源，条件不能重复或超过 500 项。");
+        var resources = ids.Select(id => Find(data, id)).ToArray();
+        if (resources.Any(resource => resource.Status != "Active")) throw new ArgumentException("批量整理仅支持正常资源，请将失效索引清理与整理分开。");
+        var wanted = ids.ToHashSet(StringComparer.Ordinal);
+        switch (operation)
+        {
+            case "favorite":
+            case "unfavorite":
+                if (values.Count != 0) throw new ArgumentException("收藏操作不接受附加条件。");
+                foreach (var resource in resources) resource.Favorite = operation == "favorite";
+                break;
+            case "addTags":
+            case "removeTags":
+                if (values.Count == 0 || values.Any(id => !data.Tags.Any(tag => tag.Id == id))) throw new ArgumentException("请选择有效标签。");
+                var tags = values.ToHashSet(StringComparer.Ordinal);
+                if (operation == "removeTags") data.ResourceTags.RemoveAll(link => wanted.Contains(link.ResourceId) && tags.Contains(link.TagId));
+                else
+                {
+                    var links = data.ResourceTags.ToHashSet();
+                    foreach (var resource in resources) foreach (var tagId in values)
+                    { var link = new ResourceTag(resource.Id, tagId); if (links.Add(link)) data.ResourceTags.Add(link); }
+                }
+                break;
+            case "acceptSuggestions":
+                if (values.Count != ids.Count) throw new ArgumentException("每个资源必须选择一条同名同类型建议。");
+                var selected = values.Select(id => data.Suggestions.SingleOrDefault(s => s.Id == id && s.Status == "Pending") ?? throw new ArgumentException("建议不存在或已处理。")).ToArray();
+                var name = selected[0].SuggestedName.Trim(); var kind = selected[0].TagType;
+                ResourceStore.ValidateTag(name, kind);
+                if (selected.Select(s => s.ResourceId).Distinct().Count() != ids.Count || selected.Any(s => !wanted.Contains(s.ResourceId) || s.TagType != kind || !s.SuggestedName.Trim().Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    throw new ArgumentException("所选建议必须覆盖全部资源且同名同类型。");
+                var tag = data.Tags.SingleOrDefault(t => t.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                if (tag is not null && tag.TagType != kind) throw new ArgumentException("已有同名标签类型不同，请编辑建议。");
+                if (tag is null) { tag = new() { Name = name, TagType = kind, CategoryId = kind }; data.Tags.Add(tag); }
+                foreach (var suggestion in selected)
+                {
+                    var link = new ResourceTag(suggestion.ResourceId, tag.Id); if (!data.ResourceTags.Contains(link)) data.ResourceTags.Add(link);
+                    suggestion.Status = "Accepted";
+                }
+                break;
+            default: throw new ArgumentException("批量操作类型无效。");
+        }
+    }
+
+    public Task SaveFilterAsync(SavedResourceFilter filter)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        var requested = filter with { TagIds = filter.TagIds is null ? null! : [.. filter.TagIds] };
+        return MutateAsync(data =>
+        {
+            ResourceStore.ValidateFilter(requested);
+            if (requested.TagIds.Any(id => !data.Tags.Any(tag => tag.Id == id))) throw new ArgumentException("保存筛选引用的标签不存在。");
+            var index = data.SavedFilters.FindIndex(existing => existing.Id == requested.Id);
+            if (index < 0) data.SavedFilters.Add(ResourceStore.CloneFilter(requested));
+            else data.SavedFilters[index] = ResourceStore.CloneFilter(requested);
+        });
+    }
+
+    public Task DeleteFilterAsync(string filterId) => MutateAsync(data =>
+    {
+        if (data.SavedFilters.RemoveAll(filter => filter.Id == filterId) == 0) throw new ArgumentException("保存筛选不存在。");
+    });
+
+    public SavedResourceFilterStatus ResolveFilter(string filterId) => Store.Read(data =>
+    {
+        var filter = data.SavedFilters.SingleOrDefault(filter => filter.Id == filterId) ?? throw new ArgumentException("保存筛选不存在。");
+        var tags = data.Tags.Select(tag => tag.Id).ToHashSet(StringComparer.Ordinal);
+        return new SavedResourceFilterStatus(ResourceStore.CloneFilter(filter), filter.TagIds.Where(id => !tags.Contains(id)).ToList());
+    });
+
+    public ResourcePage QueryFilter(string filterId, int page = 0)
+    {
+        var resolved = ResolveFilter(filterId);
+        if (!resolved.Valid) throw new ArgumentException("保存筛选的标签条件已失效，请编辑后使用。");
+        var filter = resolved.Filter;
+        return Query(new(filter.Query, filter.TagIds, filter.FavoritesOnly, Page: page, Extension: filter.Extension, Sort: filter.Sort));
+    }
     public Task BeginRepairAsync(string id) => MutateAsync(data => { var item = Find(data, id); if (item.Status == "Active") throw new ArgumentException("正常资源无需修复。"); item.Status = "PendingRepair"; });
     public async Task RepairAsync(string id, string path)
     {

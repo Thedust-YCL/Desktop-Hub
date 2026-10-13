@@ -11,9 +11,11 @@ public static class SettingsValidator
     {
         ArgumentNullException.ThrowIfNull(settings);
         migrationWarning = null;
-        if (settings.SchemaVersion is not (1 or 2 or 3 or 4))
+        if (settings.SchemaVersion is not (1 or 2 or 3 or 4 or 5))
             throw new SettingsValidationException("不支持此配置版本。请保留配置文件后升级应用。");
         CheckChoice(settings.Theme, ["system", "dark", "light"], "theme");
+        CheckChoice(settings.UiDensity, ["compact", "comfortable"], "uiDensity");
+        CheckChoice(settings.PerformanceMode, ["quick", "lightweight"], "performanceMode");
         CheckChoice(settings.MiniPosition, Positions, "miniPosition");
         CheckChoice(settings.DockPosition, Positions, "dockPosition");
         CheckChoice(settings.MiniSize, Sizes, "miniSize");
@@ -41,6 +43,17 @@ public static class SettingsValidator
         var entries = (settings.AppEntries ?? []).Select(NormalizeEntry).OrderBy(entry => entry.DisplayOrder).ToList();
         if (entries.Select(entry => entry.Id).Distinct(StringComparer.Ordinal).Count() != entries.Count)
             throw new SettingsValidationException("应用 ID 重复，不能覆盖原有记录。");
+        var groups = (settings.AppGroups ?? []).Select(group =>
+        {
+            if (group is null || !Guid.TryParseExact(group.Id, "D", out var id) || id == Guid.Empty)
+                throw new SettingsValidationException("应用分组 ID 无效。");
+            var name = group.Name?.Trim();
+            if (string.IsNullOrEmpty(name) || name.Length > 80 || name.Any(char.IsControl)) throw new SettingsValidationException("分组名称必填，最多 80 字。");
+            return group with { Id = id.ToString("D"), Name = name };
+        }).OrderBy(group => group.DisplayOrder).Select((group, index) => group with { DisplayOrder = index }).ToList();
+        if (groups.Select(group => group.Id).Distinct().Count() != groups.Count || groups.Select(group => group.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != groups.Count)
+            throw new SettingsValidationException("分组 ID 或名称重复。");
+        if (entries.Any(entry => entry.GroupId is not null && groups.All(group => group.Id != entry.GroupId))) throw new SettingsValidationException("应用引用的分组不存在。");
         var pins = (settings.LauncherPins ?? []).Select(pin => pin is not null ? pin with { } :
             throw new SettingsValidationException("固定入口不能为空。")).ToList();
         // Migration runs once on schema 1 only. The retained legacy record is never used as the app library.
@@ -71,19 +84,29 @@ public static class SettingsValidator
             }
         }
         for (var index = 0; index < entries.Count; index++) entries[index] = entries[index] with { DisplayOrder = index };
+        if (settings.SchemaVersion < 5)
+        {
+            foreach (var entry in entries)
+            {
+                entry.Favorite = entry.PinnedToDock || pins.Any(pin => pin.Enabled && pin.Surface == "dock" && pin.ItemType == "app" && pin.ItemId == entry.Id);
+                foreach (var surface in new[] { "mini", "dock" })
+                    if ((surface == "mini" ? entry.PinnedToMini : entry.PinnedToDock) && !pins.Any(pin => pin.Surface == surface && pin.ItemType == "app" && pin.ItemId == entry.Id))
+                        pins.Add(new() { Id = Guid.NewGuid().ToString("D"), Surface = surface, ItemId = entry.Id, DisplayOrder = pins.Count(pin => pin.Surface == surface) });
+            }
+        }
         pins = NormalizePins(pins, entries);
         foreach (var entry in entries)
         {
             entry.PinnedToMini = pins.Any(pin => pin.Enabled && pin.Surface == "mini" && pin.ItemType == "app" && pin.ItemId == entry.Id);
             entry.PinnedToDock = pins.Any(pin => pin.Enabled && pin.Surface == "dock" && pin.ItemType == "app" && pin.ItemId == entry.Id);
         }
-        var scenes = (settings.Scenes ?? []).Select(SceneValidator.Normalize).OrderBy(scene => scene.DisplayOrder).ToList();
+        var scenes = (settings.Scenes ?? []).Select(scene => SceneValidator.Normalize(scene is not null && settings.SchemaVersion < 5 ? scene with { EditorMode = "advanced" } : scene!)).OrderBy(scene => scene.DisplayOrder).ToList();
         if (scenes.Select(scene => scene.Id).Distinct().Count() != scenes.Count) throw new SettingsValidationException("场景 ID 重复。");
         foreach (var action in scenes.SelectMany(scene => scene.Actions))
             action.ReferenceInvalid = action.AppEntryId is { } id && entries.All(entry => entry.Id != id);
         return settings with
         {
-            SchemaVersion = 4,
+            SchemaVersion = 5,
             MiniOpacity = FiniteClamp(settings.MiniOpacity, .92, 0, 1),
             WorkspaceOpacity = FiniteClamp(settings.WorkspaceOpacity, 1, 0, 1),
             ForegroundBlocklist = blocklist,
@@ -94,6 +117,7 @@ public static class SettingsValidator
             DockBounds = NormalizeBounds(settings.DockBounds, defaults.DockBounds, 200, 200),
             LaunchTarget = settings.LaunchTarget is { } legacy ? legacy with { } : null,
             AppEntries = entries,
+            AppGroups = groups,
             LauncherPins = pins,
             Scenes = scenes
         };

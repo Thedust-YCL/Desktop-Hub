@@ -7,6 +7,9 @@ public sealed record Scene
     public string Icon { get; set; } = "scenes";
     public int DisplayOrder { get; set; }
     public bool Enabled { get; set; } = true;
+    public string EditorMode { get; set; } = "simple";
+    public string ExecutionMode { get; set; } = "simultaneous";
+    public SceneWindowLayout? WindowLayout { get; set; }
     public List<SceneAction> Actions { get; set; } = [];
     public List<ActionDependency> Dependencies { get; set; } = [];
 }
@@ -75,13 +78,29 @@ public static class SceneValidator
     public static Scene Clone(Scene scene) => scene with
     {
         Actions = scene.Actions.Select(action => action with { ArgumentList = [.. action.ArgumentList] }).ToList(),
-        Dependencies = scene.Dependencies.Select(edge => edge with { }).ToList()
+        Dependencies = scene.Dependencies.Select(edge => edge with { }).ToList(),
+        WindowLayout = scene.WindowLayout is { } layout ? layout with { Windows = layout.Windows.Select(window => window with { Bounds = window.Bounds with { } }).ToList() } : null
     };
 
     public static Scene Normalize(Scene scene)
     {
         if (scene is null) throw new SettingsValidationException("场景不能为空。");
         Id(scene.Id); Text(scene.Name, 200, false); Text(scene.Icon, 40, false);
+        Choice(scene.EditorMode, "simple", "advanced"); Choice(scene.ExecutionMode, "simultaneous", "sequential");
+        if (scene.WindowLayout is { } layout)
+        {
+            Range(layout.WaitTimeoutMs, 1, 600000);
+            if (layout.Windows is null || layout.Windows.Any(window => window is null || window.Bounds is null)) throw new SettingsValidationException("窗口布局包含空记录。");
+            foreach (var window in layout.Windows)
+            {
+                Id(window.AppEntryId); Text(window.TitleContains, 200, true); Text(window.MonitorId, 200, true); Choice(window.State, "normal", "maximized");
+                Text(window.ExecutablePath, 32767, true);
+                if (window.ExecutablePath.Length > 0) NativeLaunchService.ValidatePath(window.ExecutablePath, checkDrive: false);
+                if (!double.IsFinite(window.Dpi) || window.Dpi is < 48 or > 768 || !double.IsFinite(window.Bounds.Left) || !double.IsFinite(window.Bounds.Top) ||
+                    !double.IsFinite(window.Bounds.Width) || !double.IsFinite(window.Bounds.Height) || window.Bounds.Width <= 0 || window.Bounds.Height <= 0)
+                    throw new SettingsValidationException("窗口布局位置、尺寸或 DPI 无效。");
+            }
+        }
         if ((scene.Actions ?? []).Any(action => action is null) || (scene.Dependencies ?? []).Any(edge => edge is null))
             throw new SettingsValidationException("动作或依赖不能为空。");
         var copy = Clone(scene with { Actions = (scene.Actions ?? []).Select(action => action with { ArgumentList = action.ArgumentList ?? [] }).ToList(), Dependencies = scene.Dependencies ?? [] });

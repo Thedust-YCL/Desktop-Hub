@@ -6,6 +6,72 @@ using DesktopHub.Core;
 var root = Path.Combine(AppContext.BaseDirectory, "m22-owned-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
 var results = new List<object>(); var passed = 0; var failed = 0;
+await Test("Batch changes at most 500 active resources and rejects the whole invalid request without partial writes", async () =>
+{
+    using var service = Service(); var folder = Fixture(0);
+    service.Store.Update(data => data.Resources = Enumerable.Range(0, 501).Select(i => new Resource { Id = Id(), CanonicalPath = Path.Combine(folder, i + ".txt"), DisplayName = i + ".txt", ManualTarget = true }).ToList());
+    var ids = service.Store.Snapshot().Resources.Select(r => r.Id).ToArray();
+    await service.BatchAsync(ids.Take(500).ToArray(), "favorite", Array.Empty<string>());
+    Equal(500, service.Store.Snapshot().Resources.Count(r => r.Favorite)); var before = File.ReadAllText(service.Store.FilePath);
+    await ThrowsAsync(() => service.BatchAsync(ids, "unfavorite", Array.Empty<string>()));
+    await ThrowsAsync(() => service.BatchAsync(new[] { ids[0], Id() }, "unfavorite", Array.Empty<string>()));
+    await ThrowsAsync(() => service.BatchAsync(new[] { ids[0], ids[0] }, "unfavorite", Array.Empty<string>()));
+    await ThrowsAsync(() => service.BatchAsync(Array.Empty<string>(), "favorite", Array.Empty<string>()));
+    await ThrowsAsync(() => service.BatchAsync(new[] { ids[0] }, "delete", Array.Empty<string>()));
+    await ThrowsAsync(() => service.BatchAsync(new[] { ids[0] }, "favorite", new[] { Id() }));
+    Equal(before, File.ReadAllText(service.Store.FilePath)); Equal(500, service.Store.Snapshot().Resources.Count(r => r.Favorite));
+    service.Store.Update(data => data.Resources[1].Status = "Missing"); before = File.ReadAllText(service.Store.FilePath);
+    await ThrowsAsync(() => service.BatchAsync(ids.Take(2).ToArray(), "unfavorite", Array.Empty<string>())); Equal(before, File.ReadAllText(service.Store.FilePath));
+});
+await Test("Batch tags are incremental and a failed disk replacement leaves all relationships unchanged", async () =>
+{
+    using var service = Service(); var folder = Fixture(0); var id = Id(); var first = Id(); var second = Id();
+    service.Store.Update(data => { data.Resources.Add(new Resource { Id = id, CanonicalPath = Path.Combine(folder, "item.txt"), ManualTarget = true }); data.Tags.AddRange([new() { Id = first, Name = "Existing", CategoryId = "custom" }, new() { Id = second, Name = "Added", CategoryId = "custom" }]); data.ResourceTags.Add(new(id, first)); });
+    await service.BatchAsync(new[] { id }, "addTags", new[] { second });
+    Equal(2, service.Store.Snapshot().ResourceTags.Count); await service.BatchAsync(new[] { id }, "removeTags", new[] { second }); Equal(new List<ResourceTag> { new(id, first) }, service.Store.Snapshot().ResourceTags);
+    var before = File.ReadAllText(service.Store.FilePath);
+    await ThrowsAsync(() => service.BatchAsync(new[] { id }, "addTags", new[] { second, Id() })); Equal(before, File.ReadAllText(service.Store.FilePath));
+    using (var locked = new FileStream(service.Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read)) await ThrowsAsync(() => service.BatchAsync(new[] { id }, "addTags", new[] { second }));
+    Equal(before, File.ReadAllText(service.Store.FilePath)); Equal(1, service.Store.Snapshot().ResourceTags.Count);
+});
+await Test("Batch suggestion acceptance requires same name and type for every selected resource", async () =>
+{
+    using var service = Service(); var folder = Fixture(0); var first = Id(); var second = Id(); var s1 = Id(); var s2 = Id(); var wrong = Id();
+    service.Store.Update(data => { data.Resources.AddRange([new() { Id = first, CanonicalPath = Path.Combine(folder, "a.txt"), ManualTarget = true }, new() { Id = second, CanonicalPath = Path.Combine(folder, "b.txt"), ManualTarget = true }]);
+        data.Suggestions.AddRange([new() { Id = s1, ResourceId = first, SuggestedName = "Shared", TagType = "theme" }, new() { Id = s2, ResourceId = second, SuggestedName = "Shared", TagType = "theme" }, new() { Id = wrong, ResourceId = second, SuggestedName = "Shared", TagType = "period" }]); });
+    var before = File.ReadAllText(service.Store.FilePath);
+    await ThrowsAsync(() => service.BatchAsync(new[] { first, second }, "acceptSuggestions", new[] { s1, wrong })); Equal(before, File.ReadAllText(service.Store.FilePath));
+    await service.BatchAsync(new[] { first, second }, "acceptSuggestions", new[] { s1, s2 });
+    var after = service.Store.Snapshot(); Equal(1, after.Tags.Count); Equal(2, after.ResourceTags.Count); Equal(2, after.Suggestions.Count(s => s.Status == "Accepted")); Equal("Pending", after.Suggestions.Single(s => s.Id == wrong).Status);
+});
+await Test("Resource schema one migrates without losing relationships and saved filters survive restart with explicit missing-tag status", async () =>
+{
+    var directory = NewDirectory("filter-migration"); var folder = Fixture(0); var tagId = Id(); var resourceId = Id();
+    var legacy = new ResourceLibrary { SchemaVersion = 1, AutoTagByModificationTime = false, Resources = [new() { Id = resourceId, CanonicalPath = Path.Combine(folder, "a.txt"), DisplayName = "a.txt", Extension = ".txt", Favorite = true, ManualTarget = true }], Tags = [new() { Id = tagId, Name = "Old", CategoryId = "custom" }], ResourceTags = [new(resourceId, tagId)] };
+    File.WriteAllText(Path.Combine(directory, "resources.json"), JsonSerializer.Serialize(legacy, ResourceStore.Json)); var filterId = Id();
+    using (var service = new ResourceLibraryService(directory))
+    {
+        Equal(2, service.Store.Snapshot().SchemaVersion); Equal(legacy.ResourceTags, service.Store.Snapshot().ResourceTags); Equal(false, service.Store.Snapshot().AutoTagByModificationTime);
+        var filter = JsonSerializer.Deserialize<SavedResourceFilter>(JsonSerializer.Serialize(new { id = filterId, name = "My filter", query = "a", tagIds = new[] { tagId }, extension = ".txt", favoritesOnly = true, sort = "name" }), ResourceStore.Json)!;
+        await service.SaveFilterAsync(filter);
+        Equal(1, ((ResourcePage)service.QueryFilter(filterId, 0)!).Total);
+        var isolated = service.Store.Snapshot(); isolated.SavedFilters[0].TagIds.Clear();
+        Equal(1, ((ResourcePage)service.QueryFilter(filterId, 0)!).Total);
+        var emptyFilter = JsonSerializer.Deserialize<SavedResourceFilter>(JsonSerializer.Serialize(new { id = Id(), name = "Text only", query = "a", tagIds = Array.Empty<string>(), sort = "name" }), ResourceStore.Json)!;
+        await service.SaveFilterAsync(emptyFilter);
+        var emptyId = emptyFilter.Id;
+        True(JsonSerializer.SerializeToElement(service.ResolveFilter(emptyId), ResourceStore.Json).GetProperty("valid").GetBoolean());
+        var original = File.ReadAllText(service.Store.FilePath);
+        var badFilter = JsonSerializer.Deserialize<SavedResourceFilter>(JsonSerializer.Serialize(new { id = Id(), name = "Invalid", tagIds = new[] { Id() }, sort = "name" }), ResourceStore.Json)!;
+        await ThrowsAsync(() => service.SaveFilterAsync(badFilter)); Equal(original, File.ReadAllText(service.Store.FilePath));
+        await service.DeleteFilterAsync(emptyId); await service.DeleteTagAsync(tagId, true);
+    }
+    using var restart = new ResourceLibraryService(directory); var data = restart.Store.Snapshot();
+    using var json = JsonDocument.Parse(JsonSerializer.Serialize(data, ResourceStore.Json)); var saved = json.RootElement.GetProperty("savedFilters")[0]; Equal(tagId, saved.GetProperty("tagIds")[0].GetString());
+    var status = restart.ResolveFilter(filterId)!; var statusJson = JsonSerializer.SerializeToElement(status, ResourceStore.Json); True(!statusJson.GetProperty("valid").GetBoolean()); Equal(tagId, statusJson.GetProperty("missingTagIds")[0].GetString());
+    await ThrowsAsync(() => Task.Run(() => restart.QueryFilter(filterId, 0)));
+    await restart.DeleteFilterAsync(filterId); using var deleted = JsonDocument.Parse(JsonSerializer.Serialize(new ResourceStore(directory).Snapshot(), ResourceStore.Json)); Equal(0, deleted.RootElement.GetProperty("savedFilters").GetArrayLength());
+});
 await Test("Known-folder desktop discovery creates no index or watcher", async () =>
 {
     using var service = Service(); await service.StartAsync();

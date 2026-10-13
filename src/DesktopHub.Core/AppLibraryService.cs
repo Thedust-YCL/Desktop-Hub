@@ -6,6 +6,54 @@ public sealed class AppLibraryService(SettingsStore store)
     /// <summary>Reusable stable-ID lookup for later scene references; returns an isolated snapshot.</summary>
     public AppEntry? FindById(string appId) => store.Current.AppEntries.FirstOrDefault(entry => entry.Id == appId);
 
+    public AppSettings SetFavorite(string appId, bool favorite) => store.Update(settings =>
+    {
+        var index = FindEntry(settings, appId);
+        settings.AppEntries[index] = settings.AppEntries[index] with { Favorite = favorite };
+        return settings;
+    });
+
+    public AppSettings SaveGroup(string? groupId, string name) => store.Update(settings =>
+    {
+        if (groupId is null) settings.AppGroups.Add(new(Guid.NewGuid().ToString("D"), name, settings.AppGroups.Count));
+        else
+        {
+            var index = FindGroup(settings, groupId);
+            settings.AppGroups[index] = settings.AppGroups[index] with { Name = name };
+        }
+        return settings;
+    });
+
+    public AppSettings RemoveGroup(string groupId) => store.Update(settings =>
+    {
+        settings.AppGroups.RemoveAt(FindGroup(settings, groupId));
+        foreach (var entry in settings.AppEntries.Where(entry => entry.GroupId == groupId)) entry.GroupId = null;
+        return settings;
+    });
+
+    public AppSettings MoveToGroup(string appId, string? groupId) => store.Update(settings =>
+    {
+        var index = FindEntry(settings, appId);
+        if (groupId is not null) FindGroup(settings, groupId);
+        settings.AppEntries[index] = settings.AppEntries[index] with { GroupId = groupId };
+        return settings;
+    });
+
+    public AppSettings ReorderGroups(IReadOnlyList<string> groupIds) => store.Update(settings =>
+    {
+        RequirePermutation(groupIds, settings.AppGroups.Select(group => group.Id).ToList());
+        var byId = settings.AppGroups.ToDictionary(group => group.Id, StringComparer.Ordinal);
+        settings.AppGroups = groupIds.Select((id, order) => byId[id] with { DisplayOrder = order }).ToList();
+        return settings;
+    });
+
+    private static int FindGroup(AppSettings settings, string groupId)
+    {
+        var index = settings.AppGroups.FindIndex(group => group.Id == groupId);
+        if (index < 0) throw new SettingsValidationException("应用分组不存在。");
+        return index;
+    }
+
     public AppSettings Add(AppEntry nativeRegisteredEntry) => store.Update(settings =>
     {
         var entry = SettingsValidator.NormalizeEntry(nativeRegisteredEntry);
