@@ -137,8 +137,10 @@ internal static class ResourceUsageProbe
 
     private static void VerifyWindows(HubApplication host, bool dock, bool workspace)
     {
-        if (!host.Mini.IsVisible || (host.Dock?.IsVisible == true) != dock || (host.Workspace?.IsVisible == true) != workspace)
-            throw new InvalidOperationException("Window visibility changed during measurement.");
+        // The current host deliberately hides Mini while either expanded surface is visible.
+        var mini = host.Store.Current.MiniEnabled && !dock && !workspace;
+        if (host.Mini.IsVisible != mini || (host.Dock?.IsVisible == true) != dock || (host.Workspace?.IsVisible == true) != workspace)
+            throw new InvalidOperationException($"Window visibility changed during measurement: expected Mini={mini}, Dock={dock}, Workspace={workspace}; actual Mini={host.Mini.IsVisible}, Dock={host.Dock?.IsVisible == true}, Workspace={host.Workspace?.IsVisible == true}.");
         foreach (var window in host.Windows)
             if (!NativeMethods.IsWindow(window.Handle)) throw new InvalidOperationException("Missing native HWND: " + window.Surface);
     }
