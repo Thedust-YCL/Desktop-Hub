@@ -18,6 +18,22 @@ public sealed class AppLibraryService(SettingsStore store)
         return settings;
     });
 
+    public AppSettings AddMany(IReadOnlyList<AppEntry> nativeRegisteredEntries) => store.Update(settings =>
+    {
+        if (nativeRegisteredEntries.Count is < 1 or > 100)
+            throw new SettingsValidationException("每次可添加 1–100 个应用。");
+        var entries = nativeRegisteredEntries.Select(SettingsValidator.NormalizeEntry).ToArray();
+        var ids = settings.AppEntries.Select(entry => entry.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var entry in entries)
+        {
+            if (!ids.Add(entry.Id)) throw new SettingsValidationException("应用 ID 已存在，新增不能覆盖已有应用。");
+            settings.AppEntries.Add(entry with { DisplayOrder = settings.AppEntries.Count });
+            if (entry.PinnedToDock) AddPin(settings, "dock", "app", entry.Id);
+            if (entry.PinnedToMini) AddPin(settings, "mini", "app", entry.Id);
+        }
+        return settings;
+    });
+
     public AppSettings Update(string appId, string name, string arguments, string workingDirectory,
         bool pinnedToMini, bool pinnedToDock) => store.Update(settings =>
     {

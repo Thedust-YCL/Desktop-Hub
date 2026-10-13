@@ -21,6 +21,107 @@ try
         True(!settings.OnboardingCompleted);
         True(settings.LaunchTarget is null && store.RecoveryWarning is null);
     });
+    Check("Desktop notice suppression loads and survives later unrelated saves", () =>
+    {
+        var store = Store("desktop-notice");
+        Write(store, "{\"schemaVersion\":4,\"suppressDesktopLocationNotice\":true}");
+        store.Load();
+        True(store.RecoveryWarning is null);
+        store.Update(settings => settings with { Theme = "light" });
+        using var saved = JsonDocument.Parse(File.ReadAllText(store.SettingsPath));
+        True(saved.RootElement.GetProperty("suppressDesktopLocationNotice").GetBoolean());
+        var restart = new SettingsStore(Path.GetDirectoryName(store.SettingsPath)!);
+        restart.Load();
+        True(restart.RecoveryWarning is null);
+    });
+    Check("Application discovery merges desktop roots, filters extensions and requires recursion", () =>
+    {
+        var personal = Path.Combine(testRoot, "personal-desktop");
+        var common = Path.Combine(testRoot, "public-desktop");
+        Directory.CreateDirectory(Path.Combine(personal, "nested")); Directory.CreateDirectory(common);
+        File.WriteAllText(Path.Combine(personal, "工具.EXE"), "metadata only");
+        File.WriteAllText(Path.Combine(personal, "readme.txt"), "ignored");
+        File.WriteAllText(Path.Combine(common, "微信.lnk"), "metadata only");
+        File.WriteAllText(Path.Combine(personal, "nested", "inside.exe"), "metadata only");
+        var store = Store("discovery-settings");
+        var imports = new ApplicationImportService(store, launcher);
+        var flat = imports.Scan([new(personal, "个人桌面"), new(common, "公共桌面")], false);
+        Sequence(new[] { "微信", "工具" }, flat.Candidates.Select(candidate => candidate.Name));
+        Equal("公共桌面", flat.Candidates[0].Source);
+        Equal(0, store.Current.AppEntries.Count); True(!File.Exists(store.SettingsPath));
+        var recursive = imports.Rescan(flat.ScanId, true);
+        Equal(3, recursive.Candidates.Count);
+        True(recursive.Candidates.Any(candidate => candidate.Name == "inside"));
+        Throws<TargetValidationException>(() => imports.Import(flat.ScanId, [flat.Candidates[0].Id]));
+    });
+    Check("Application imports reject forged IDs, revalidate files and consume successful previews", () =>
+    {
+        var folder = Path.Combine(testRoot, "application-imports"); Directory.CreateDirectory(folder);
+        var valid = Path.Combine(folder, "valid.exe");
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "DesktopHub.Core.Tests.exe"), valid);
+        File.WriteAllText(Path.Combine(folder, "fake.exe"), "not executable");
+        var store = Store("import-settings"); var imports = new ApplicationImportService(store, launcher);
+        var preview = imports.Scan([new(folder, "所选文件夹")], false);
+        Throws<TargetValidationException>(() => imports.Import(preview.ScanId, ["forged"]));
+        Equal(0, store.Current.AppEntries.Count);
+        var result = imports.Import(preview.ScanId, preview.Candidates.Select(candidate => candidate.Id).ToArray());
+        Equal(1, result.Added.Count); Equal(1, result.Skipped.Count);
+        Equal(valid, store.Current.AppEntries.Single().Target);
+        Throws<TargetValidationException>(() => imports.Import(preview.ScanId, [preview.Candidates[0].Id]));
+        var again = imports.Scan([new(folder, "所选文件夹")], false);
+        var duplicates = imports.Import(again.ScanId, [again.Candidates.Single(candidate => candidate.Name == "valid").Id]);
+        Equal(0, duplicates.Added.Count); Equal("duplicate", duplicates.Skipped.Single().Code);
+        Equal(1, store.Current.AppEntries.Count);
+        var missing = imports.Scan([new(folder, "所选文件夹")], false);
+        File.Delete(valid);
+        var stale = imports.Import(missing.ScanId, [missing.Candidates.Single(candidate => candidate.Name == "valid").Id]);
+        Equal(0, stale.Added.Count); Equal(1, stale.Skipped.Count);
+    });
+    Check("Bulk additions are atomic and preserve existing application identities", () =>
+    {
+        var store = Store("atomic-app-import"); var library = new AppLibraryService(store);
+        var original = Registered("atomic-original"); library.Add(original);
+        var before = File.ReadAllBytes(store.SettingsPath);
+        var next = Registered("atomic-next");
+        Throws<SettingsValidationException>(() => library.AddMany([next, original]));
+        Sequence(before, File.ReadAllBytes(store.SettingsPath));
+        var saved = library.AddMany([next, Registered("atomic-third")]);
+        Equal(3, saved.AppEntries.Count); Equal(original.Id, saved.AppEntries[0].Id);
+        Sequence(new[] { 0, 1, 2 }, saved.AppEntries.Select(entry => entry.DisplayOrder));
+    });
+    Check("Import duplicates compare effective default working directories", () =>
+    {
+        var folder = Path.Combine(testRoot, "default-directory-duplicate"); Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "original.exe"); File.Copy(Path.Combine(AppContext.BaseDirectory, "DesktopHub.Core.Tests.exe"), path);
+        var store = Store("default-directory-settings"); var library = new AppLibraryService(store);
+        library.Add(launcher.RegisterApp(path) with { WorkingDirectory = "" });
+        var imports = new ApplicationImportService(store, launcher); var scan = imports.Scan([new(folder, "文件夹")], false);
+        var result = imports.Import(scan.ScanId, [scan.Candidates.Single().Id]);
+        Equal(0, result.Added.Count); Equal("duplicate", result.Skipped.Single().Code);
+        Equal(1, store.Current.AppEntries.Count);
+    });
+    Check("One overlong application name does not prevent valid items from importing", () =>
+    {
+        var folder = Path.Combine(testRoot, "long-name-import"); Directory.CreateDirectory(folder);
+        var exe = Path.Combine(AppContext.BaseDirectory, "DesktopHub.Core.Tests.exe");
+        File.Copy(exe, Path.Combine(folder, new string('a', 201) + ".exe"));
+        File.Copy(exe, Path.Combine(folder, "valid.exe"));
+        var store = Store("long-name-settings"); var imports = new ApplicationImportService(store, launcher);
+        var scan = imports.Scan([new(folder, "文件夹")], false);
+        var result = imports.Import(scan.ScanId, scan.Candidates.Select(candidate => candidate.Id).ToArray());
+        Equal(1, result.Added.Count); Equal(1, result.Skipped.Count);
+        Equal("valid", store.Current.AppEntries.Single().Name);
+    });
+    Check("An unsupported personal desktop does not hide a readable public desktop", () =>
+    {
+        var folder = Path.Combine(testRoot, "readable-public-desktop"); Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "微信.lnk"), "metadata only");
+        var imports = new ApplicationImportService(Store("mixed-desktop-roots"), launcher);
+        var scan = imports.Scan([new(@"\\server\desktop", "个人桌面"), new(folder, "公共桌面")], false);
+        Equal(1, scan.Candidates.Count); Equal("微信", scan.Candidates.Single().Name); Equal(1, scan.Warnings.Count);
+        Equal(scan.Candidates.Single(), imports.GetCandidates(scan.ScanId, [scan.Candidates.Single().Id]).Single());
+        Throws<TargetValidationException>(() => imports.GetCandidates(scan.ScanId, ["forged"]));
+    });
     Check("Camel-case JSON round trip persists theme, geometry and target", () =>
     {
         var store = Store("roundtrip");

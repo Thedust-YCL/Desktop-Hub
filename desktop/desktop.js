@@ -38,6 +38,9 @@
   let managingApps = false;
   let pinDraft = null;
   let warningShown = false;
+  let importDraft = null;
+  const originalCloseModal = H.closeModal;
+  H.closeModal = function () { importDraft = null; return originalCloseModal.call(H); };
 
   H.state.onboardingComplete = true;
   H.ui.surface = surface;
@@ -383,7 +386,134 @@
     H.restoreViewport?.();
   };
 
+  function showDesktopNotice() {
+    const draft = importDraft;
+    if (!draft) return;
+    H.showModal('桌面上的应用存放在哪里？', `<div class="app-desktop-notice"><p>Windows 桌面会同时显示两个文件夹中的内容：</p><dl><div><dt>个人桌面</dt><dd>当前用户的桌面文件，仅属于你的账户。</dd></div><div><dt>公共桌面</dt><dd>所有用户共用的桌面文件。微信等软件的快捷方式可能放在这里。</dd></div></dl><p>只打开个人桌面文件夹时，可能找不到桌面上看得到的应用。这里会自动查找两个桌面的 EXE 程序和 LNK 快捷方式。</p><label class="check-row"><input id="app-desktop-notice-suppress" type="checkbox" ${draft.suppress ? 'checked' : ''} ${draft.busy ? 'disabled' : ''}><span>不再提醒</span></label><p class="page-note">不勾选时，每次进入“添加应用”都会显示此提示。</p><p class="form-error" role="alert">${e(draft.error)}</p></div>`, `<button class="button" data-action="close-modal" ${draft.busy ? 'disabled' : ''}>取消</button><button class="button primary" data-action="app-import-continue" ${draft.busy ? 'disabled' : ''}>${draft.busy ? '正在保存…' : '继续添加'}</button>`, { locked: draft.busy });
+  }
+
+  function importMatches() {
+    const query = importDraft?.query.trim().toLocaleLowerCase() || '';
+    return (importDraft?.scan?.candidates || []).filter(candidate => !query || `${candidate.name} ${candidate.path} ${candidate.source}`.toLocaleLowerCase().includes(query));
+  }
+
+  function importCandidateIcon(candidate) {
+    const source = importDraft?.icons?.[candidate.id];
+    return source && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(source)
+      ? `<img src="${e(source)}" width="24" height="24" alt="">` : icon(candidate.entryKind === 'lnk' ? 'app' : 'file', 24);
+  }
+
+  async function loadImportIcons() {
+    const draft = importDraft;
+    if (!draft?.scan || draft.busy || draft.iconLoading) return;
+    const ids = importMatches().filter(candidate => !draft.iconLoaded.has(candidate.id)).slice(0, 40).map(candidate => candidate.id);
+    if (!ids.length) return;
+    const scanId = draft.scan.scanId;
+    draft.iconLoading = true; ids.forEach(id => draft.iconLoaded.add(id));
+    try {
+      const result = await bridge.request('apps.icons', { scanId, candidateIds: ids });
+      if (importDraft !== draft || draft.scan?.scanId !== scanId) return;
+      Object.assign(draft.icons, result?.icons || {});
+      for (const candidate of draft.scan.candidates.filter(candidate => ids.includes(candidate.id))) {
+        const slot = document.querySelector(`#app-icon-${candidate.id}`);
+        if (slot) slot.innerHTML = importCandidateIcon(candidate);
+      }
+    } catch { /* Keep the shared type icon when native extraction is unavailable. */ }
+    finally { if (importDraft === draft && draft.scan?.scanId === scanId) { draft.iconLoading = false; void loadImportIcons(); } }
+  }
+
+  function showAppImporter() {
+    const draft = importDraft;
+    if (!draft) return;
+    const visible = importMatches(), scan = draft.scan;
+    const scroll = document.querySelector('.app-discovery-list')?.scrollTop || 0;
+    const focusId = document.activeElement?.id;
+    const selection = document.activeElement?.selectionStart;
+    H.showModal('添加应用', `<div class="app-import-toolbar"><button class="button ${scan?.roots?.some(root => root.name === '公共桌面') ? 'primary' : ''}" data-action="app-import-desktop" ${draft.busy ? 'disabled' : ''}>${icon('app', 16)} 桌面应用</button><button class="button" data-action="app-import-folder" ${draft.busy ? 'disabled' : ''}>${icon('folder', 16)} 选择文件夹</button><button class="button quiet" data-action="app-import-file" ${draft.busy ? 'disabled' : ''}>手动选文件</button></div><label class="check-row app-import-recursive"><input id="app-import-recursive" type="checkbox" data-change="app-import-recursive" ${draft.recursive ? 'checked' : ''} ${draft.busy ? 'disabled' : ''}><span>包含子文件夹</span></label>${scan ? `<p class="app-import-source">${scan.roots.map(root => `<span title="${e(root.path)}">${e(root.name)} · ${e(root.path)}</span>`).join('')}</p>` : ''}<label class="launcher-search"><span>${icon('search', 17)}</span><input id="app-import-query" type="search" data-change="app-import-query" placeholder="查找名称或路径" aria-label="查找待添加应用" value="${e(draft.query)}" ${draft.busy ? 'disabled' : ''}><span>${visible.length} 项</span></label><div class="app-import-selection"><button class="text-button" data-action="app-import-select-visible" ${draft.busy || !visible.length ? 'disabled' : ''}>选择搜索结果</button><button class="text-button" data-action="app-import-clear" ${draft.busy || !draft.selected.size ? 'disabled' : ''}>清除选择</button><span aria-live="polite">已选 ${draft.selected.size} / 100</span></div><div class="app-discovery-list" aria-busy="${draft.busy}">${draft.busy ? '<p class="app-import-empty" role="status">正在查找程序与快捷方式…</p>' : visible.map(candidate => `<label class="app-discovery-row"><input id="app-candidate-${e(candidate.id)}" type="checkbox" data-change="app-import-select" data-id="${e(candidate.id)}" ${draft.selected.has(candidate.id) ? 'checked' : ''}><span id="app-icon-${e(candidate.id)}" class="app-discovery-icon">${importCandidateIcon(candidate)}</span><span class="app-discovery-copy"><strong>${e(candidate.name)}</strong><small title="${e(candidate.path)}">${e(candidate.path)}</small></span><span class="app-discovery-kind">${e(candidate.source)}<small>${candidate.entryKind === 'lnk' ? '快捷方式' : 'EXE 程序'}</small></span></label>`).join('') || `<p class="app-import-empty">${scan?.candidates.length ? '没有匹配的应用，请换个关键词。' : '未找到 EXE 或 LNK。可以包含子文件夹、选择其他文件夹，或手动选文件。'}</p>`}</div>${scan?.truncated ? '<p class="page-note" role="status">文件较多，本次只显示部分结果。请选择更具体的文件夹继续查找。</p>' : ''}${scan?.warnings?.length ? `<details class="app-import-warnings"><summary>有 ${scan.warnings.length} 条目录未读取提示</summary>${scan.warnings.map(warning => `<p>${e(warning)}</p>`).join('')}</details>` : ''}<p class="form-error" role="alert">${e(draft.error)}</p>`, `<button class="button" data-action="close-modal" ${draft.committing ? 'disabled' : ''}>取消</button><button class="button primary" data-action="app-import-confirm" ${draft.busy || !draft.selected.size ? 'disabled' : ''}>添加所选应用${draft.selected.size ? `（${draft.selected.size}）` : ''}</button>`, { wide: true, locked: !!draft.committing });
+    const list = document.querySelector('.app-discovery-list'); if (list) list.scrollTop = scroll;
+    void loadImportIcons();
+    if (focusId) setTimeout(() => {
+      if (importDraft !== draft) return;
+      const node = document.querySelector(`#${focusId}`);
+      node?.focus({ preventScroll: true });
+      if (node?.type === 'search' && selection !== null && selection !== undefined) node.setSelectionRange?.(selection, selection);
+    }, 0);
+  }
+
+  async function scanApplications(source) {
+    const draft = importDraft;
+    if (!draft || draft.busy) return;
+    draft.busy = true; draft.error = ''; showAppImporter();
+    try {
+      const result = await bridge.request('apps.scan', { source, recursive: draft.recursive, scanId: draft.scan?.scanId || '' }, { timeoutMs: 120000 });
+      if (importDraft !== draft) return;
+      if (!result?.cancelled) {
+        if (!result?.scan?.scanId || !Array.isArray(result.scan.candidates)) throw new Error('未收到应用列表，请重新扫描。');
+        draft.scan = result.scan; draft.recursive = result.scan.recursive; draft.selected.clear(); draft.query = '';
+        draft.icons = {}; draft.iconLoaded = new Set(); draft.iconLoading = false;
+      }
+    } catch (error) { if (importDraft === draft) draft.error = `查找失败：${error.message}`; }
+    finally { if (importDraft === draft) { draft.busy = false; showAppImporter(); } }
+  }
+
   Object.assign(H.actions, {
+    'app-add': async () => {
+      if (surface !== 'workspace') { H.navigate('home'); return; }
+      if (!hostState || adding || mutationInFlight || H.ui.modal?.locked) return;
+      importDraft = { query: '', selected: new Set(), recursive: false, scan: null, busy: false, suppress: false, error: '', icons: {}, iconLoaded: new Set(), iconLoading: false };
+      if (!hostState.settings.suppressDesktopLocationNotice) showDesktopNotice();
+      else await scanApplications('desktop');
+    },
+    'app-import-continue': async () => {
+      const draft = importDraft; if (!draft || draft.busy) return;
+      draft.suppress = !!document.querySelector('#app-desktop-notice-suppress')?.checked;
+      if (draft.suppress) {
+        draft.busy = true; draft.error = ''; showDesktopNotice();
+        try {
+          const result = await bridge.request('settings.save', { settings: { suppressDesktopLocationNotice: true } });
+          if (!result?.settings?.suppressDesktopLocationNotice) throw new Error('提醒偏好未保存，请重试。');
+          applyHostState(result, false);
+        } catch (error) { draft.error = `无法保存“不再提醒”：${error.message}`; draft.busy = false; showDesktopNotice(); return; }
+        draft.busy = false;
+      }
+      await scanApplications('desktop');
+    },
+    'app-import-desktop': () => scanApplications('desktop'),
+    'app-import-folder': () => scanApplications('folder'),
+    'app-import-recursive': async el => {
+      if (!importDraft || importDraft.busy) return;
+      importDraft.recursive = el.checked;
+      if (importDraft.scan) await scanApplications('current');
+    },
+    'app-import-query': (el, event) => { if (importDraft && !importDraft.busy && !event?.isComposing) { importDraft.query = el.value; showAppImporter(); } },
+    'app-import-select': el => {
+      const draft = importDraft; if (!draft || draft.busy) return;
+      if (!draft.scan?.candidates.some(candidate => candidate.id === el.dataset.id)) return;
+      if (!el.checked) draft.selected.delete(el.dataset.id);
+      else if (draft.selected.size < 100) draft.selected.add(el.dataset.id);
+      else draft.error = '每次最多添加 100 个应用，请先添加已选项。';
+      showAppImporter();
+    },
+    'app-import-select-visible': () => {
+      if (!importDraft || importDraft.busy) return;
+      for (const candidate of importMatches()) { if (importDraft.selected.size >= 100) break; importDraft.selected.add(candidate.id); }
+      showAppImporter();
+    },
+    'app-import-clear': () => { if (importDraft && !importDraft.busy) { importDraft.selected.clear(); importDraft.error = ''; showAppImporter(); } },
+    'app-import-confirm': async () => {
+      const draft = importDraft; if (!draft?.scan || draft.busy || !draft.selected.size) return;
+      draft.busy = true; draft.committing = true; draft.error = ''; showAppImporter();
+      try {
+        const result = await bridge.request('apps.import', { scanId: draft.scan.scanId, candidateIds: [...draft.selected] }, { timeoutMs: 120000 });
+        if (importDraft !== draft) return;
+        if (!result?.settings || !Array.isArray(result.added) || !Array.isArray(result.skipped)) throw new Error('未收到添加结果，请刷新应用库后重试。');
+        applyHostState(result, false); appQuery = ''; H.closeModal(); H.render();
+        launch = { status: 'idle', message: `已添加 ${result.added.length} 个应用${result.skipped.length ? `，跳过 ${result.skipped.length} 项` : ''}。`, code: '', appId: '' };
+        if (result.skipped.length) H.showModal('应用添加结果', `<p>已添加 ${result.added.length} 个应用，以下 ${result.skipped.length} 项未添加：</p><div class="app-import-results">${result.skipped.map(item => `<div><strong>${e(item.name)}</strong><p>${e(item.message)}</p></div>`).join('')}</div>`, '<button class="button primary" data-action="close-modal">完成</button>');
+        else H.toast(launch.message);
+        H.render();
+      } catch (error) { if (importDraft === draft) { draft.busy = false; draft.committing = false; draft.error = `添加失败：${error.message}`; showAppImporter(); } }
+    },
     'native-open-launch': () => H.navigate('home'),
     'native-exit': () => route('app.exit', {}),
     'cycle-theme': () => {
@@ -395,10 +525,12 @@
     'apps-manage': () => { managingApps = !managingApps; H.render(); },
     'apps-search': el => { appQuery = el.value; H.render(); },
     'apps-clear-search': () => { appQuery = ''; H.render(); document.querySelector('#app-query')?.focus(); },
-    'app-add': async () => {
+    'app-import-file': async () => {
       if (surface !== 'workspace') { H.navigate('home'); return; }
       if (!hostState || adding || mutationInFlight) return;
       adding = true;
+      const draft = importDraft;
+      if (draft) { draft.busy = true; draft.committing = true; showAppImporter(); }
       launch = { status: 'pending', message: '等待选择应用文件…', code: '', appId: '' };
       H.render();
       try {
@@ -407,13 +539,16 @@
           launch = { status: 'idle', message: '已取消添加，已有应用仍然保留。', code: '', appId: '' };
         } else if (result?.app?.id && result.settings) {
           applyHostState(result, false);
+          H.closeModal();
           appQuery = '';
           launch = { status: 'idle', message: `已添加 ${result.app.name}。`, code: '', appId: result.app.id };
         } else throw new window.DesktopHubNative.NativeBridgeError('INVALID_RESPONSE', '未收到有效应用信息，请重新选择。');
       } catch (error) {
         launch = { status: 'error', message: `添加失败：${error.message}`, code: error.code || 'ADD_FAILED', appId: '' };
+        if (importDraft === draft && draft) draft.error = launch.message;
       } finally {
         adding = false;
+        if (importDraft === draft && draft) { draft.busy = false; draft.committing = false; showAppImporter(); }
       }
       H.render();
     },

@@ -9,8 +9,9 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        var smokeRestart = args.Contains("--smoke-test-restart");
-        var smoke = args.Contains("--smoke-test") || smokeRestart;
+        var importSmoke = args.Contains("--application-import-smoke") || args.Contains("--application-import-smoke-restart");
+        var smokeRestart = args.Contains("--smoke-test-restart") || args.Contains("--application-import-smoke-restart");
+        var smoke = args.Contains("--smoke-test") || smokeRestart || importSmoke;
         var sceneRestart = args.Contains("--scene-smoke-restart");
         var sceneSmoke = args.Contains("--scene-smoke") || sceneRestart;
         var indexRestart = args.Contains("--index-smoke-restart");
@@ -49,7 +50,7 @@ public static class Program
                 host = new HubApplication(directory, diagnostic, systemSmoke);
                 await host.StartAsync(loginStartup: args.Contains("--startup"));
                 instance.StartListening(() => _ = app.Dispatcher.BeginInvoke(() => _ = host.OpenFromSystemAsync("activation")));
-                if (smoke) await SmokeTests.RunAsync(host, smokeRestart);
+                if (smoke) await SmokeTests.RunAsync(host, smokeRestart, importSmoke);
                 else if (sceneSmoke) await SceneSmokeTests.RunAsync(host, sceneRestart);
                 else if (indexSmoke) await ResourceSmokeTests.RunAsync(host, indexRestart);
                 else if (systemSmoke) await SystemSmokeTests.RunAsync(host, systemRestart);

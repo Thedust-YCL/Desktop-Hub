@@ -7,6 +7,7 @@ public sealed record AppSettings
     public string Theme { get; set; } = "system";
     public bool ReducedMotion { get; set; }
     public bool OnboardingCompleted { get; set; }
+    public bool SuppressDesktopLocationNotice { get; set; }
     public bool Transparency { get; set; } = true;
     public string MiniPosition { get; set; } = "left";
     public string MiniSize { get; set; } = "normal";

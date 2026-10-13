@@ -7,7 +7,7 @@
     'system.getState', 'system.setDesktopIcons', 'system.setIconExitPolicy', 'system.setStartup', 'system.setHotkeys',
     'window.openWorkspace', 'window.closeWorkspace', 'window.openDock',
     'window.closeDock', 'window.drag', 'window.resizeSurface', 'window.beginResize',
-    'apps.add', 'apps.update', 'apps.replaceTarget', 'apps.remove',
+    'apps.add', 'apps.scan', 'apps.icons', 'apps.import', 'apps.update', 'apps.replaceTarget', 'apps.remove',
     'apps.reorder', 'apps.launch', 'launcher.setPins',
     'scenes.save', 'scenes.remove', 'scenes.reorder', 'scenes.run', 'scenes.pickTarget',
     'resources.query', 'resources.discover', 'resources.preview', 'resources.cancel',

@@ -105,6 +105,126 @@ test('settings writes include only editable fields and never application records
 const appEntry = (id, displayOrder = 0) => ({ id, name: `应用 ${id}`, target: `C:\\Tools\\${id}.exe`, arguments: '', workingDirectory: '', icon: null, displayOrder, pinnedToMini: false, pinnedToDock: true });
 const click = (id, more = {}) => ({ dataset: { id, ...more } });
 
+const discovery = () => ({ scanId: 'scan-1', roots: [{ path: 'C:\\Users\\Public\\Desktop', name: '公共桌面' }], recursive: false, warnings: [], truncated: false,
+  candidates: [{ id: 'wechat', name: '微信', path: 'C:\\Users\\Public\\Desktop\\微信.lnk', source: '公共桌面', entryKind: 'lnk' }] });
+
+test('desktop notice returns on every entry unless explicitly suppressed', async () => {
+  const env = setup('workspace', { 'apps.scan': async () => ({ scan: discovery() }) });
+  await env.initialize();
+  await env.H.actions['app-add']();
+  assert.ok(env.H.ui.modal, 'Entering Add application must show the desktop notice');
+  assert.match(env.H.ui.modal.body, /个人桌面/);
+  assert.match(env.H.ui.modal.body, /公共桌面/);
+  assert.equal(env.sent.some(item => item.type === 'apps.scan'), false);
+  await env.H.actions['app-import-continue']();
+  assert.match(env.H.ui.modal.body, /微信/);
+  env.H.closeModal();
+  await env.H.actions['app-add']();
+  assert.match(env.H.ui.modal.body, /不再提醒/);
+  assert.equal(env.sent.some(item => item.type === 'settings.save'), false);
+});
+
+test('suppressing the notice saves only that preference and survives a new UI session', async () => {
+  const env = setup('workspace', { 'apps.scan': async () => ({ scan: discovery() }) });
+  await env.initialize();
+  await env.H.actions['app-add']();
+  assert.equal(typeof env.H.actions['app-import-continue'], 'function', 'The desktop notice must offer Continue');
+  env.nodes.set('#app-desktop-notice-suppress', { checked: true });
+  await env.H.actions['app-import-continue']();
+  assert.deepEqual(env.sent.find(item => item.type === 'settings.save').payload, { settings: { suppressDesktopLocationNotice: true } });
+  const restarted = setup('workspace', { 'app.getState': async () => structuredClone(env.state), 'apps.scan': async () => ({ scan: discovery() }) });
+  await restarted.initialize();
+  await restarted.H.actions['app-add']();
+  assert.match(restarted.H.ui.modal.body, /微信/);
+  assert.doesNotMatch(restarted.H.ui.modal.body, /不再提醒/);
+});
+
+test('discovered selections import by token and IDs without sending paths', async () => {
+  const env = setup('workspace', {
+    'apps.scan': async () => ({ scan: discovery() }),
+    'apps.import': async (_, state) => {
+      state.settings.appEntries.push(appEntry('wechat-saved'));
+      return { added: [appEntry('wechat-saved')], skipped: [], settings: structuredClone(state.settings) };
+    }
+  });
+  env.state.settings.suppressDesktopLocationNotice = true;
+  await env.initialize();
+  await env.H.actions['app-add']();
+  assert.ok(env.H.ui.modal, 'Suppressed notices must open the discovered application list');
+  assert.match(env.H.ui.modal.body, /公共桌面/);
+  env.H.actions['app-import-select']({ dataset: { id: 'wechat' }, checked: true });
+  await env.H.actions['app-import-confirm']();
+  assert.deepEqual(env.sent.find(item => item.type === 'apps.import').payload, { scanId: 'scan-1', candidateIds: ['wechat'] });
+  assert.equal(env.window.DesktopHubDesktop.getState().hostState.settings.appEntries.length, 1);
+});
+
+test('closing a scan ignores its delayed response and cannot reopen the modal', async () => {
+  let finish;
+  const env = setup('workspace', { 'apps.scan': () => new Promise(resolve => { finish = resolve; }) });
+  env.state.settings.suppressDesktopLocationNotice = true;
+  await env.initialize();
+  const pending = env.H.actions['app-add']();
+  env.H.closeModal();
+  assert.equal(typeof finish, 'function', 'Entering Add application must request a desktop scan');
+  finish({ scan: discovery() });
+  await pending;
+  assert.equal(env.H.ui.modal, null);
+});
+
+test('folder and recursive scans use native selection or the existing scan token', async () => {
+  const env = setup('workspace', { 'apps.scan': async ({ source, recursive }) => ({ scan: { ...discovery(), recursive,
+    roots: source === 'desktop' ? discovery().roots : [{ name: '所选文件夹', path: 'D:\\Apps' }] } }) });
+  env.state.settings.suppressDesktopLocationNotice = true;
+  await env.initialize(); await env.H.actions['app-add']();
+  await env.H.actions['app-import-folder']();
+  assert.deepEqual(env.sent.filter(item => item.type === 'apps.scan').at(-1).payload, { source: 'folder', recursive: false, scanId: 'scan-1' });
+  await env.H.actions['app-import-recursive']({ checked: true });
+  assert.deepEqual(env.sent.filter(item => item.type === 'apps.scan').at(-1).payload, { source: 'current', recursive: true, scanId: 'scan-1' });
+  assert.match(env.H.ui.modal.body, /D:\\Apps/);
+});
+
+test('failed suppression saves keep the notice recoverable without pretending it is remembered', async () => {
+  const env = setup('workspace', { 'settings.save': async () => { throw new Error('磁盘不可写'); } });
+  await env.initialize(); await env.H.actions['app-add']();
+  env.nodes.set('#app-desktop-notice-suppress', { checked: true });
+  await env.H.actions['app-import-continue']();
+  assert.match(env.H.ui.modal.body, /磁盘不可写/);
+  assert.equal(env.sent.some(item => item.type === 'apps.scan'), false);
+  env.H.closeModal(); await env.H.actions['app-add']();
+  assert.match(env.H.ui.modal.body, /不再提醒/);
+});
+
+test('failed imports retain checked items and skipped results explain each missing application', async () => {
+  let failed = true;
+  const env = setup('workspace', { 'apps.scan': async () => ({ scan: discovery() }), 'apps.import': async (_, state) => {
+    if (failed) throw new Error('文件正在使用');
+    return { added: [], skipped: [{ name: '微信', code: 'target_missing', message: '快捷方式已不存在' }], settings: structuredClone(state.settings) };
+  } });
+  env.state.settings.suppressDesktopLocationNotice = true;
+  await env.initialize(); await env.H.actions['app-add']();
+  env.H.actions['app-import-select']({ dataset: { id: 'wechat' }, checked: true });
+  await env.H.actions['app-import-confirm']();
+  assert.match(env.H.ui.modal.body, /文件正在使用/);
+  assert.match(env.H.ui.modal.footer, /添加所选应用（1）/);
+  failed = false; await env.H.actions['app-import-confirm']();
+  assert.match(env.H.ui.modal.body, /快捷方式已不存在/);
+  assert.equal(env.window.DesktopHubDesktop.getState().hostState.settings.appEntries.length, 0);
+});
+
+test('preview icons accept only native PNG data and Chinese composition does not rebuild the input', async () => {
+  const env = setup('workspace', { 'apps.scan': async () => ({ scan: discovery() }),
+    'apps.icons': async () => ({ scanId: 'scan-1', icons: { wechat: 'data:image/png;base64,AAAA' } }) });
+  env.state.settings.suppressDesktopLocationNotice = true;
+  await env.initialize(); await env.H.actions['app-add']();
+  await Promise.resolve();
+  const before = env.H.ui.modal.body;
+  env.H.actions['app-import-query']({ value: '微信' }, { isComposing: true });
+  assert.equal(env.H.ui.modal.body, before);
+  env.H.actions['app-import-query']({ value: '微信' }, { isComposing: false });
+  assert.match(env.H.ui.modal.body, /data:image\/png;base64,AAAA/);
+  assert.deepEqual(env.sent.find(item => item.type === 'apps.icons').payload, { scanId: 'scan-1', candidateIds: ['wechat'] });
+});
+
 test('five consecutive additions stay independent and each native launch carries only its id', async () => {
   let nextId = 0;
   const env = setup('workspace', {
@@ -116,7 +236,7 @@ test('five consecutive additions stay independent and each native launch carries
     'apps.launch': async ({ appId }) => ({ success: true, processId: 124, message: `已提交 ${appId} 的启动请求。` })
   });
   await env.initialize();
-  for (let index = 0; index < 5; index++) await env.H.actions['app-add']();
+  for (let index = 0; index < 5; index++) await env.H.actions['app-import-file']();
   const saved = env.window.DesktopHubDesktop.getState().hostState.settings.appEntries;
   assert.equal(saved.length, 5);
   assert.deepEqual(saved.map(app => app.id), ['native-1', 'native-2', 'native-3', 'native-4', 'native-5']);
@@ -279,7 +399,7 @@ test('cancelled picker adds nothing; replacing a target keeps the stable id and 
   });
   env.state.settings.appEntries = [appEntry('keep-id'), appEntry('untouched', 1)];
   await env.initialize();
-  await env.H.actions['app-add']();
+  await env.H.actions['app-import-file']();
   assert.equal(env.window.DesktopHubDesktop.getState().hostState.settings.appEntries.length, 2);
   env.nodes.set('#app-name', { value: '我的编辑草稿' });
   env.H.actions['app-edit'](click('keep-id'));

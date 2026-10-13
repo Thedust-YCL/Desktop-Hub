@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$SkipBuild, [switch]$CoreFixtureIntegration, [ValidateRange(30, 600)][int]$TimeoutSeconds = 240, [string]$EvidenceDirectory)
+param([switch]$SkipBuild, [switch]$CoreFixtureIntegration, [switch]$ApplicationImportOnly, [ValidateRange(30, 600)][int]$TimeoutSeconds = 240, [string]$EvidenceDirectory)
 
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
@@ -47,8 +47,8 @@ try {
     $env:DOTNET_ROOT_X64 = $env:DOTNET_ROOT
     $env:DESKTOP_HUB_TEST_EXE = $taskFixture
     foreach ($taskPhase in @(
-        @{ Name = 'management-and-launch'; Flag = '--smoke-test'; Completion = 'phase1-summary.txt' },
-        @{ Name = 'actual-host-restart'; Flag = '--smoke-test-restart'; Completion = 'summary.txt' }
+        @{ Name = 'management-and-launch'; Flag = $(if ($ApplicationImportOnly) { '--application-import-smoke' } else { '--smoke-test' }); Completion = 'phase1-summary.txt' },
+        @{ Name = 'actual-host-restart'; Flag = $(if ($ApplicationImportOnly) { '--application-import-smoke-restart' } else { '--smoke-test-restart' }); Completion = 'summary.txt' }
     )) {
         $taskPhaseStarted = [DateTime]::UtcNow
         $taskProcess = Start-Process -FilePath $taskApplication -ArgumentList $taskPhase.Flag -WorkingDirectory $taskApplicationDirectory -WindowStyle Hidden -PassThru

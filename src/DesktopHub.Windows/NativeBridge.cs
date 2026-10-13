@@ -12,12 +12,13 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
 {
     private readonly HashSet<string> pending = new();
     private static readonly HashSet<string> Editable = new(StringComparer.Ordinal)
-    { "theme", "reducedMotion", "onboardingCompleted", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
+    { "theme", "reducedMotion", "onboardingCompleted", "suppressDesktopLocationNotice", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
     private static readonly HashSet<string> Pages = new(StringComparer.Ordinal)
     { "home", "scenes", "library", "tags", "favorites", "search", "settings" };
     private bool pickerOpen, launching;
     private readonly ResourceBridge resources = new(host, window);
     private readonly SystemBridge system = new(host, window);
+    private readonly ApplicationImportService imports = new(host.Store, host.Launcher, app => host.Icons.Extract(app));
 
     public async Task ReceiveAsync(CoreWebView2WebMessageReceivedEventArgs message)
     {
@@ -102,6 +103,27 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                 return new { dragging = true };
             case "apps.add":
                 RequireWorkspace(); Empty(payload); return await ChooseAppAsync();
+            case "apps.scan":
+                RequireWorkspace(); RequireKeys(payload, "source", "recursive", "scanId");
+                return await ScanAppsAsync(String(payload, "source", 12), Boolean(payload, "recursive"), OptionalString(payload, "scanId", 96));
+            case "apps.import":
+                RequireWorkspace(); RequireKeys(payload, "scanId", "candidateIds");
+                if (pickerOpen) throw new BridgeException("BUSY", "请等待文件选择或扫描完成。");
+                var imported = imports.Import(String(payload, "scanId", 96), StringArray(payload, "candidateIds"));
+                host.SettingsChanged();
+                return new { added = imported.Added, skipped = imported.Skipped, settings = imported.Settings, appIcons = host.Icons.GetIcons(imported.Settings) };
+            case "apps.icons":
+                RequireWorkspace(); RequireKeys(payload, "scanId", "candidateIds");
+                var iconScanId = String(payload, "scanId", 96);
+                var iconCandidates = imports.GetCandidates(iconScanId, StringArray(payload, "candidateIds"));
+                var iconEntries = new List<AppEntry>();
+                foreach (var candidate in iconCandidates)
+                {
+                    var entry = new AppEntry { Id = candidate.Id, Target = candidate.Path };
+                    entry.Icon = host.Icons.Extract(entry); iconEntries.Add(entry);
+                    await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+                }
+                return new { scanId = iconScanId, icons = host.Icons.GetIcons(new AppSettings { AppEntries = iconEntries }) };
             case "apps.replaceTarget":
                 RequireWorkspace(); RequireKeys(payload, "appId");
                 return await ChooseAppAsync(String(payload, "appId", 96));
@@ -166,6 +188,27 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
             case "app.exit": Empty(payload); _ = window.Dispatcher.BeginInvoke(host.Exit); return new { exiting = true };
             default: throw new BridgeException("UNKNOWN_MESSAGE", "不支持此操作。");
         }
+    }
+
+    private async Task<object> ScanAppsAsync(string source, bool recursive, string scanId)
+    {
+        if (pickerOpen) throw new BridgeException("BUSY", "请等待文件选择或扫描完成。");
+        pickerOpen = true;
+        try
+        {
+            if (source == "current") return new { cancelled = false, scan = await Task.Run(() => imports.Rescan(scanId, recursive)) };
+            IReadOnlyList<ApplicationScanRoot> roots;
+            if (source == "desktop") roots = ApplicationImportService.DesktopRoots();
+            else if (source == "folder")
+            {
+                var dialog = new OpenFolderDialog { Title = "选择文件夹，自动查找程序与快捷方式", Multiselect = false };
+                if (await window.Dispatcher.InvokeAsync(() => dialog.ShowDialog(window)) != true) return new { cancelled = true };
+                roots = [new(NativeLaunchService.ValidateLocalPath(dialog.FolderName), "所选文件夹")];
+            }
+            else throw new BridgeException("INVALID_PARAMS", "请选择桌面或本地文件夹。");
+            return new { cancelled = false, scan = await Task.Run(() => imports.Scan(roots, recursive)) };
+        }
+        finally { pickerOpen = false; }
     }
 
     private async Task<object> ChooseAppAsync(string? replaceId = null)
