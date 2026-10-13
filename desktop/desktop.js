@@ -572,6 +572,7 @@
       appLaunches.set(selected.id, resultState);
       launch = resultState;
       H.render();
+      return { ...resultState, success: resultState.status === 'success' };
     },
     'launch-dismiss': () => { launch = { status: 'idle', message: '', code: '', appId: '' }; H.render(); },
     'app-favorite': async el => {

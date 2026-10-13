@@ -7,6 +7,7 @@
   const types = { all: '全部', app: '应用', scene: '场景', file: '文件', folder: '文件夹', tag: '标签', project: '项目' };
   const statuses = { Missing: '缺失 · 重新关联', PendingRepair: '需修复 · 重新关联', SourceUnavailable: '来源不可用', Disabled: '已停用 · 编辑启用', Invalid: '引用失效 · 编辑修复' };
   let query = '', type = 'all', rows = [], active = -1, composing = false, timer = null, generation = 0, error = '', loading = false, opener = null;
+  let launchFailure = null, launchSequence = 0;
   const isOpen = () => !!H.ui.modal?.unifiedSearch;
   const node = id => document.querySelector('#' + id);
   const settings = () => desktop.getState().hostState?.settings;
@@ -77,7 +78,14 @@
     }
     H.closeModal();
     try {
-      if (row.type === 'app') await H.actions['app-launch']({ dataset: { id: row.id } });
+      if (row.type === 'app') {
+        const order = ++launchSequence;
+        const outcome = await H.actions['app-launch']({ dataset: { id: row.id } });
+        if (order === launchSequence && outcome?.success === false) {
+          launchFailure = { appId: row.id, name: row.name, message: outcome.message || '启动失败，请检查所选文件。' };
+          H.render();
+        }
+      }
       else if (row.type === 'scene') {
         const scene = current.scenes.find(item => item.id === row.id);
         const invalid = scene.actions?.some(action => action.enabled !== false && (action.referenceInvalid || action.appEntryId && !current.appEntries.some(app => app.id === action.appEntryId)));
@@ -95,7 +103,13 @@
   Object.assign(H.actions, {
     'search-open': open, 'unified-retry': refresh,
     'unified-type': el => { if (!Object.hasOwn(types, el.dataset.type)) return; type = el.dataset.type; refresh(); },
-    'unified-execute': el => execute(Number(el.dataset.index)), 'unified-reveal': el => execute(Number(el.dataset.index), true)
+    'unified-execute': el => execute(Number(el.dataset.index)), 'unified-reveal': el => execute(Number(el.dataset.index), true),
+    'unified-launch-dismiss': () => { launchFailure = null; H.render(); },
+    'unified-launch-edit': el => {
+      if (H.ui.modal) return;
+      if (!settings()?.appEntries?.some(app => app.id === el.dataset.id)) { H.toast('此应用已移除，请重新搜索。', 'warning'); return; }
+      H.actions['app-edit']({ dataset: { id: el.dataset.id } });
+    }
   });
   const navigate = H.navigate;
   H.navigate = function (page) { if (page === 'search') { open(); return; } return navigate(page); };
@@ -103,7 +117,11 @@
     const top = document.querySelector('.global-search');
     if (top) { top.dataset.action = 'search-open'; top.removeAttribute('data-page'); top.setAttribute('aria-label', '搜索应用、场景、文件和标签'); const label = top.querySelector('span'); if (label) label.textContent = '搜索应用、场景、文件'; }
   }
-  const render = H.render; H.render = function () { render(); bindEntry(); };
+  function paintLaunchFailure() {
+    if (!launchFailure || node('unified-launch-failure')) return;
+    document.querySelector('.workspace-content')?.insertAdjacentHTML('afterbegin', `<div id="unified-launch-failure" class="notice warning" role="alert"><span>${e(launchFailure.name)}：${e(launchFailure.message)}</span><button class="button small" data-action="unified-launch-edit" data-id="${e(launchFailure.appId)}">编辑应用 / 更换文件</button><button class="icon-button small" data-action="unified-launch-dismiss" aria-label="关闭启动提示">${H.icon('close', 16)}</button></div>`);
+  }
+  const render = H.render; H.render = function () { render(); bindEntry(); paintLaunchFailure(); };
   document.addEventListener('input', event => {
     if (!isOpen() || event.target.id !== 'unified-query') return;
     query = event.target.value; if (event.isComposing) composing = true; refresh();

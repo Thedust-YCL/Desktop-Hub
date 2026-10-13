@@ -17,6 +17,14 @@
   let query = '', tagIds = [], view = 'list', page = 0, status = '', loading = false, error = '', sequence = 0, loaded = false;
   let selected = new Set(), scan = null, preview = null, folder = null, searchTimer = null, reloadTimer = null, busy = false;
   let discovery = null;
+  let navigationRevision = 0, navigationOperation = 0;
+  // Modal/page transitions supersede a deferred browse or tag-validation result,
+  // including an editor opened and then closed while the native request was pending.
+  const showModal = H.showModal, closeModal = H.closeModal;
+  H.showModal = function (...args) { ++navigationRevision; return showModal.apply(this, args); };
+  H.closeModal = function (...args) { ++navigationRevision; return closeModal.apply(this, args); };
+  const beginNavigation = () => ({ revision: navigationRevision, operation: ++navigationOperation, page: H.ui.page });
+  const currentNavigation = intent => intent.revision === navigationRevision && intent.operation === navigationOperation && intent.page === H.ui.page && !H.ui.modal;
   const uuid = () => window.crypto.randomUUID();
   const categories = () => result.tagCategories || Object.entries(kinds).map(([id, name]) => ({ id, name }));
   const categoryOf = tag => tag.categoryId || tag.tagType;
@@ -85,6 +93,7 @@
   H.pages.folder = () =>     `<div class="page-heading"><div><h1 class="page-title" tabindex="-1">文件夹浏览</h1><p class="subtitle nr-path">${e(folder?.path)}</p><p class="subtitle">临时浏览 · ${folder?.total || 0} 项，添加后才成为长期索引。</p></div><div class="toolbar">${btn('nr-library', '返回资源库')}${btn('nr-folder-recursive', '为此文件夹开启递归…')}</div></div>${folder?.warnings?.length ? `<p class="form-error">${folder.warnings.map(e).join('<br>')}</p>` : ''}<div class="nr-list">${(folder?.items || []).map(r => `<div class="nr-folder-row ${r.resourceType === 'folder' ? 'nr-browsable' : ''}">${r.resourceType === 'folder' ? `<button class="nr-row-hit" data-action="nr-folder-child" data-name="${e(r.displayName)}" aria-label="浏览文件夹 ${e(r.displayName)}" title="点击整行浏览文件夹"></button>` : ''}<span class="nr-type-icon">${icon(typeIcon(r),25)}</span><strong>${e(r.displayName)}</strong>${r.resourceType === 'folder' ? `<span class="nr-browse-hint">浏览 ${icon('arrow-right',15)}</span>` : ''}<div class="toolbar">${btn('nr-folder-add','加入资源库',`data-name="${e(r.displayName)}"`)}${btn('nr-folder-open','打开',`data-name="${e(r.displayName)}"`)}</div></div>`).join('') || '<div class="empty-state">文件夹为空。</div>'}</div><div class="nr-pagination">${btn('nr-folder-page','上一页',`data-page="${(folder?.page || 0)-1}" ${!folder?.page ? 'disabled' : ''}`)}<span>${(folder?.page || 0)+1} / ${Math.max(1,Math.ceil((folder?.total || 0)/60))}</span>${btn('nr-folder-page','下一页',`data-page="${(folder?.page || 0)+1}" ${(folder?.page || 0)+1 >= Math.ceil((folder?.total || 0)/60) ? 'disabled' : ''}`)}</div>`;
   const previousNavigate = H.navigate;
   H.navigate = function (next) {
+    ++navigationRevision;
     if (next !== H.ui.page && resourcePages.has(next)) { query = ''; tagIds = []; page = 0; status = ''; extension = ''; category = ''; selected.clear(); }
     previousNavigate(next);
     if (resourcePages.has(next)) void reload();
@@ -151,7 +160,15 @@
     const item = itemById(id); if (!item) return; const r = item.resource;
     H.showModal(r.displayName, `<div class="nr-path">${e(r.canonicalPath)}</div><p>${stateMarkup(r)}</p><p class="subtitle">创建 ${e(new Date(r.creationTime).toLocaleString())} · 修改 ${e(new Date(r.modificationTime).toLocaleString())}</p><h3>正式标签</h3><div class="nr-bind-tags">${result.tags.map(tag => `<label class="check-row"><input type="checkbox" data-change="nr-bind" data-resource-id="${e(id)}" ${idAttr(tag.id)} ${item.tags.some(t => t.id === tag.id) ? 'checked' : ''}><span>${e(tag.name)}</span></label>`).join('') || '先在标签中心新建标签。'}</div><h3>待确认建议</h3>${item.suggestions.map(s => `<div class="nr-detail-suggestion"><strong>${e(s.suggestedName)}</strong><p class="muted">${e(s.suggestionBasis)}</p><div class="toolbar">${btn('nr-accept','接受',idAttr(s.id))}${btn('nr-edit-suggestion','编辑后接受',idAttr(s.id))}${btn('nr-reject','拒绝',idAttr(s.id))}</div></div>`).join('') || '<p class="muted">暂无待确认建议。</p>'}`, `${btn('nr-open','在资源管理器中显示',`${idAttr(id)} data-mode="reveal"`)}${btn('nr-open','打开所在文件夹',`${idAttr(id)} data-mode="folder"`)}${btn('close-modal','关闭')}`, { wide: true });
   }
-  async function browse(payload) { window.DesktopHubInteractions?.checkpoint(); try { folder = await request('resources.browse',payload); H.navigate('folder'); } catch(err) { H.toast(err.message,'error'); } }
+  async function browse(payload) {
+    if (H.ui.modal) return;
+    const intent = beginNavigation();
+    try {
+      const next = await request('resources.browse', payload);
+      if (!currentNavigation(intent)) return;
+      window.DesktopHubInteractions?.checkpoint(); folder = next; H.navigate('folder');
+    } catch (err) { if (currentNavigation(intent)) H.toast(err.message, 'error'); }
+  }
   Object.assign(H.actions, {
     'nr-library': () => H.navigate('library'), 'nr-invalid': () => H.navigate('missing'), 'nr-tags': () => H.navigate('tags'),
     'nr-source-add': el => el.dataset.kind==='publicDesktop' ? H.showModal('公共桌面', '<p>公共桌面包含所有用户可见的桌面项目。</p><label class="check-row"><input id="nr-allow-public" type="checkbox" data-change="nr-public-consent"><span>允许读取公共桌面的目录元信息并查看扫描预览</span></label>', `${btn('close-modal','取消')}${btn('nr-public-preview','查看预览','disabled','primary')}`) : previewSource(el.dataset.kind),
@@ -185,7 +202,7 @@
     },
     'nr-status': el => { status=el.value;page=0;void reload(); },
     'nr-filter-tag': el => { const id=el.dataset.id; tagIds=tagIds.includes(id)?tagIds.filter(x=>x!==id):[...tagIds,id];page=0;void reload(); },
-    'nr-clear': () => { query='';tagIds=[];extension='';page=0;void reload(); }, 'nr-page': el => {page=Number(el.dataset.page);void reload();},
+    'nr-clear': () => { query='';tagIds=[];extension='';status='';page=0;void reload(); }, 'nr-page': el => {page=Number(el.dataset.page);void reload();},
     'nr-select': el => {el.checked?selected.add(el.dataset.id):selected.delete(el.dataset.id);H.render();},
     'nr-clean': () => confirm('清理所选失效索引？',`<p>将清理 ${selected.size} 项索引及其标签、收藏关系。只清理缺失或待修复项。</p><p class="muted">不会删除实际文件。此操作不能撤销。</p>`,'nr-clean-confirm'),
     'nr-clean-confirm': async () => {if(await mutate('resources.clean',{resourceIds:[...selected],confirmed:true},true)){selected.clear();H.render();}},
@@ -212,17 +229,21 @@
   document.addEventListener('dblclick', event => { const row=event.target.closest('[data-resource-id]');if(row&&!event.target.closest('button,input')) void H.actions['nr-open']({dataset:{id:row.dataset.resourceId,mode:'open'}}); });
   bridge.on('resources.changed', () => {clearTimeout(reloadTimer);reloadTimer=setTimeout(reload,150);});
   bridge.on('resources.progress', progress => {if(progress.operationId===scan){const label=document.querySelector('#nr-scan-progress');if(label)label.textContent=`已读取 ${progress.count} 项 · ${progress.path}`;}else if(progress.phase==='Failed')H.toast(`后台核对未完成：${progress.path}`,'error');});
-  window.DesktopHubResources = Object.freeze({reload,getState:()=>({result,query,tagIds,view,page,loading,busy,scan,preview,folder,category,extension}),previewSource,
+  window.DesktopHubResources = Object.freeze({reload,getState:()=>({result,query,tagIds,view,page,status,loading,busy,scan,preview,folder,category,extension}),previewSource,
     browse: id => browse({ resourceId: id }),
     repair: id => H.actions['nr-repair']({ dataset: { id } }),
     filterTag: async id => {
+      if (H.ui.modal) return;
+      const intent = beginNavigation();
       try {
         const snapshot = await request('resources.query');
+        if (!currentNavigation(intent)) return;
         if (!snapshot.tags.some(tag => tag.id === id)) throw new Error('此标签已移除，请重新搜索。');
         window.DesktopHubInteractions?.checkpoint(); H.navigate('library');
+        if (H.ui.page !== 'library' || H.ui.modal) return;
         query = ''; tagIds = [id]; page = 0; status = ''; extension = ''; category = ''; selected.clear();
         await reload();
-      } catch (err) { H.toast(err.message, 'error'); }
+      } catch (err) { if (currentNavigation(intent)) H.toast(err.message, 'error'); }
     },
     navigationState: () => ({ query, tagIds: [...tagIds], view, page, status, category, extension, folder }),
     restoreNavigation: value => { query = value.query; tagIds = [...value.tagIds]; view = value.view; page = value.page; status = value.status; category = value.category; extension = value.extension; folder = value.folder; void reload(); }});

@@ -5,19 +5,50 @@ import vm from 'node:vm';
 import { randomUUID } from 'node:crypto';
 const source = fs.readFileSync(new URL('../resources.js', import.meta.url),'utf8');
 function setup(surface='workspace') {
-  const sent=[], events=new Map(), toasts=[], nodes=new Map();
+  const sent=[], events=new Map(), toasts=[], nodes=new Map(), responses=new Map();
   const tag={id:'tag',name:'主题',tagType:'theme'};
   const data={items:[{resource:{id:'resource',canonicalPath:'C:\\Owned\\课程.txt',displayName:'课程.txt',resourceType:'file',extension:'.txt',status:'Active',favorite:false,creationTime:new Date().toISOString(),modificationTime:new Date().toISOString()},tags:[tag],suggestions:[{id:'suggestion',suggestedName:'2026年10月',suggestionBasis:'创建时间',status:'Pending'}]}],total:1,page:0,pageSize:60,sources:[],tags:[tag]};
   let failure=null;
   const H={state:{files:[{id:'demo'}],tags:[{id:'demo'}],sources:[{path:'demo'}]},ui:{page:'library'},pages:{},actions:{},
-    escape:value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),icon:()=>'<svg></svg>',render(){},navigate(next){H.ui.page=next;},toast(message){toasts.push(message);},showModal(title,body,footer){H.ui.modal={title,body,footer};},closeModal(){H.ui.modal=null;}};
-  const document={activeElement:null,querySelector:selector=>nodes.get(selector)||null,addEventListener(){}};
-  const bridge={on(type,callback){events.set(type,callback);},async request(type,payload){sent.push({type,payload:structuredClone(payload)});if(failure)throw new Error(failure);if(type==='resources.query')return structuredClone(data);if(type==='resources.preview')return {token:payload.operationId,path:'C:\\Owned',files:1,folders:0,recursive:payload.recursive,warnings:[],cloudPath:false};if(type==='resources.browse')return {token:'browse',path:'C:\\Owned\\sub',items:[],total:0,page:0,warnings:[]};return {saved:true};}};
+    escape:value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),icon:()=>'<svg></svg>',render(){nodes.delete('.usability-conditions');},navigate(next){H.ui.page=next;H.closeModal();H.render();},toast(message){toasts.push(message);},showModal(title,body,footer){H.ui.modal={title,body,footer};},closeModal(){H.ui.modal=null;}};
+  const document={activeElement:null,documentElement:{dataset:{}},querySelector:selector=>nodes.get(selector)||null,querySelectorAll(){return [];},createElement(){return {innerHTML:'',className:''};},addEventListener(){}};
+  const bridge={on(type,callback){events.set(type,callback);},async request(type,payload){sent.push({type,payload:structuredClone(payload)});if(responses.has(type))return responses.get(type)(payload);if(failure)throw new Error(failure);if(type==='resources.query')return structuredClone(data);if(type==='resources.preview')return {token:payload.operationId,path:'C:\\Owned',files:1,folders:0,recursive:payload.recursive,warnings:[],cloudPath:false};if(type==='resources.browse')return {token:'browse',path:'C:\\Owned\\sub',items:[],total:0,page:0,warnings:[]};return {saved:true};}};
   const window={Hub:H,crypto:{randomUUID},DesktopHubNative:{bridge},DesktopHubDesktop:{getState:()=>({surface})}};
-  vm.runInContext(source,vm.createContext({window,document,setTimeout,clearTimeout,queueMicrotask,Date,console}));
-  return {H,sent,data,window,toasts,events,nodes,fail(message){failure=message;}};
+  const context=vm.createContext({window,document,setTimeout,clearTimeout,queueMicrotask,Date,console});vm.runInContext(source,context);
+  return {H,sent,data,window,toasts,events,nodes,respond(type,handler){responses.set(type,handler);},load(name){vm.runInContext(fs.readFileSync(new URL('../'+name,import.meta.url),'utf8'),context);},fail(message){failure=message;}};
 }
 const click=id=>({dataset:{id}});
+
+for(const operation of ['tag','folder']) for(const intent of ['editor','import','search','page','closed-modal','page-back']) {
+  test(`deferred ${operation} navigation respects newer ${intent} intent`,async()=>{
+    const env=setup();await env.window.DesktopHubResources.reload();env.H.navigate('home');let resolve;const waiting=new Promise(done=>{resolve=done;});env.respond(operation==='tag'?'resources.query':'resources.browse',()=>waiting);
+    const pending=operation==='tag'?env.window.DesktopHubResources.filterTag('tag'):env.window.DesktopHubResources.browse('off-page');
+    if(intent==='page')env.H.navigate('editor');else if(intent==='page-back'){env.H.navigate('settings');env.H.navigate('home');}else if(intent==='search'){env.load('search.js');env.window.DesktopHubSearch.open();}else {env.H.showModal(intent,'新内容','');env.H.ui.modal.locked=intent==='import';if(intent==='closed-modal')env.H.closeModal();}
+    const page=env.H.ui.page,modal=env.H.ui.modal,before=structuredClone(env.window.DesktopHubResources.navigationState());
+    resolve(operation==='tag'?structuredClone(env.data):{token:'old',path:'C:/Owned/old',items:[],total:0,page:0,warnings:[]});await pending;
+    assert.equal(env.H.ui.page,page);assert.equal(env.H.ui.modal,modal);assert.deepEqual(structuredClone(env.window.DesktopHubResources.navigationState()),before);
+  });
+}
+function compactResourceUI(env) {
+  env.H.state.settings={uiDensity:'compact'};env.H.pages.settings=()=>'';
+  env.nodes.set('.workspace-content',{scrollTop:0,querySelector(){return null;}});env.nodes.set('#usability-filters',{open:false});
+  env.nodes.set('.nr-toolbar',{after(element){env.nodes.set('.usability-conditions',element);},querySelectorAll(){return [];}});
+  env.load('interactions.js');env.load('usability.js');env.H.render();
+}
+test('collapsed invalid-resource conditions expose selected status and clear it individually',async()=>{
+  const env=setup();await env.window.DesktopHubResources.reload();env.H.navigate('missing');compactResourceUI(env);env.H.actions['nr-status']({value:'PendingRepair'});await env.window.DesktopHubResources.reload();
+  assert.equal(env.nodes.get('#usability-filters').open,false);assert.match(env.nodes.get('.usability-conditions')?.innerHTML||'',/状态：需修复/);assert.match(env.nodes.get('.usability-conditions').innerHTML,/usability-clear-status/);
+  env.H.actions['usability-clear-status']();await env.window.DesktopHubResources.reload();assert.equal(env.window.DesktopHubResources.navigationState().status,'');assert.ok(!env.nodes.has('.usability-conditions'));
+});
+test('clear all removes status together with tags, query and extension before pagination',async()=>{
+  const env=setup();await env.window.DesktopHubResources.reload();env.H.navigate('missing');env.H.actions['nr-status']({value:'Missing'});env.H.actions['nr-filter-tag'](click('tag'));env.H.actions['nr-search']({value:'课程'});env.H.actions['nr-extension']({value:'.txt'});env.H.actions['nr-page']({dataset:{page:'3'}});env.H.actions['nr-clear']();await env.window.DesktopHubResources.reload();
+  const state=env.window.DesktopHubResources.navigationState();assert.equal(state.status,'');assert.equal(state.query,'');assert.equal(state.extension,'');assert.deepEqual(Array.from(state.tagIds),[]);assert.equal(state.page,0);assert.equal('status' in env.sent.at(-1).payload,false);
+});
+test('back and forward restore the invalid status and visible chip with filters collapsed',async()=>{
+  const env=setup();await env.window.DesktopHubResources.reload();env.H.navigate('missing');compactResourceUI(env);env.H.actions['nr-status']({value:'SourceUnavailable'});await env.window.DesktopHubResources.reload();env.H.navigate('library');await env.window.DesktopHubResources.reload();env.H.actions['history-back']();await env.window.DesktopHubResources.reload();
+  assert.equal(env.H.ui.page,'missing');assert.equal(env.window.DesktopHubResources.navigationState().status,'SourceUnavailable');assert.match(env.nodes.get('.usability-conditions')?.innerHTML||'',/状态：来源不可用/);
+  env.H.actions['history-forward']();await env.window.DesktopHubResources.reload();assert.equal(env.H.ui.page,'library');assert.equal(env.window.DesktopHubResources.navigationState().status,'');assert.ok(!env.nodes.has('.usability-conditions'));
+});
 
 test('public resource navigation uses off-page stable IDs and validates tag existence before filtering',async()=>{
   const env=setup(); await env.window.DesktopHubResources.reload();

@@ -13,7 +13,7 @@ const baseSettings = {
   hoverDelay: 500, allowForeground: true, schemaVersion: 2, appEntries: [], launcherPins: [],
   workspaceBounds: { left: 40, top: 40, width: 1200, height: 800 }
 };
-function setup(surface = 'workspace', responses = {}) {
+function setup(surface = 'workspace', responses = {}, withSearch = false) {
   const sent = [], eventListeners = new Map(), domListeners = new Map(), windowListeners = new Map(), timers = new Map(), toasts = [], nodes = new Map(), storage = new Map();
   let timerId = 0;
   const settings = structuredClone(baseSettings);
@@ -50,11 +50,19 @@ function setup(surface = 'workspace', responses = {}) {
     addEventListener(type, handler) { if (!domListeners.has(type)) domListeners.set(type, []); domListeners.get(type).push(handler); },
     body: { insertAdjacentHTML() {} }
   };
+  if (withSearch) {
+    for (const id of ['unified-query','unified-results','unified-feedback','unified-types']) nodes.set('#' + id, {
+      id, value: '', innerHTML: '', textContent: '', dataset: {}, querySelectorAll() { return []; },
+      focus() { document.activeElement = this; }, setAttribute(key,value) { this[key] = value; }, removeAttribute(key) { delete this[key]; }
+    });
+    nodes.set('.workspace-content', { innerHTML: '', insertAdjacentHTML(position,html) { this.innerHTML += html; } });
+  }
   const window = { Hub: H, DesktopHubNative: { bridge, NativeBridgeError }, localStorage: { getItem(key) { return storage.get(key) ?? null; } }, addEventListener(type, handler) { windowListeners.set(type, handler); } };
   const context = vm.createContext({ window, document, location: { search: `?surface=${surface}` }, URLSearchParams, console,
     setTimeout(fn) { const id = ++timerId; timers.set(id, fn); return id; }, clearTimeout(id) { timers.delete(id); }
   });
   vm.runInContext(source, context, { filename: 'desktop.js' });
+  if (withSearch) vm.runInContext(fs.readFileSync(new URL('../search.js', import.meta.url),'utf8'), context, { filename: 'search.js' });
   return {
     H, sent, toasts, state, document, window, nodes, storage,
     async initialize() { for (const handler of domListeners.get('DOMContentLoaded') || []) await handler(); },
@@ -106,6 +114,34 @@ test('settings writes include only editable fields and never application records
 
 const appEntry = (id, displayOrder = 0) => ({ id, name: `应用 ${id}`, target: `C:\\Tools\\${id}.exe`, arguments: '', workingDirectory: '', icon: null, displayOrder, pinnedToMini: false, pinnedToDock: true });
 const click = (id, more = {}) => ({ dataset: { id, ...more } });
+
+for (const page of ['library','settings']) for (const failure of ['negative','rejection']) {
+  test(`search on ${page} surfaces actual app-launch ${failure} with stable-ID edit recovery`, async () => {
+    const env=setup('workspace', { 'apps.launch': async()=> { if(failure==='rejection') throw new Error('磁盘不可用'); return {success:false,code:'app_missing',message:'所选文件已移除'}; },
+      'search.query':async()=>[{type:'app',id:'a',name:'应用',detail:'C:/Owned/a.exe',status:'Active',favorite:false}] }, true);
+    env.state.settings.appEntries=[appEntry('a')];await env.initialize();env.H.closeModal();env.H.navigate(page);
+    env.window.DesktopHubSearch.open();await env.flushTimers();await env.H.actions['unified-execute']({dataset:{index:'0'}});
+    assert.equal(env.H.ui.page,page);assert.equal(env.H.ui.modal,null);
+    const banner=env.nodes.get('.workspace-content').innerHTML;assert.match(banner,failure==='rejection'?/磁盘不可用/:/所选文件已移除/);
+    assert.match(banner,/data-action="unified-launch-edit"/);assert.match(banner,/data-id="a"/);
+    env.H.actions['unified-launch-edit'](click('a'));assert.equal(env.H.ui.page,page);assert.equal(env.H.ui.modal.title,'编辑应用');assert.match(env.H.ui.modal.body,/data-action="app-replace-target" data-id="a"/);
+    const launch=env.sent.find(x=>x.type==='apps.launch');assert.deepEqual(launch.payload,{appId:'a'});
+  });
+}
+test('actual app-launch exposes success and failure outcomes to callers', async()=>{
+  for(const success of [true,false]) { const env=setup('workspace',{'apps.launch':async()=>({success,message:success?'已提交':'无法启动'})});env.state.settings.appEntries=[appEntry('a')];await env.initialize();const result=await env.H.actions['app-launch'](click('a'));assert.equal(result?.success,success);assert.equal(result?.appId,'a'); }
+});
+test('a delayed search launch failure never replaces a newer modal, search or page', async()=>{
+  for(const intent of ['editor','import','search','page']) {
+    let resolve;const waiting=new Promise(done=>{resolve=done;});
+    const env=setup('workspace',{'apps.launch':()=>waiting,'search.query':async()=>[{type:'app',id:'a',name:'应用',detail:'C:/Owned/a.exe',status:'Active',favorite:false}]},true);
+    env.state.settings.appEntries=[appEntry('a')];await env.initialize();env.H.closeModal();env.H.navigate('library');env.window.DesktopHubSearch.open();await env.flushTimers();const launching=env.H.actions['unified-execute']({dataset:{index:'0'}});
+    if(intent==='page')env.H.navigate('settings');else if(intent==='search')env.window.DesktopHubSearch.open();else {env.H.showModal(intent,'新草稿','');env.H.ui.modal.locked=intent==='import';}
+    const page=env.H.ui.page,modal=env.H.ui.modal;resolve({success:false,message:'启动失败，文件缺失'});await launching;
+    assert.equal(env.H.ui.page,page);assert.equal(env.H.ui.modal,modal);assert.match(env.nodes.get('.workspace-content').innerHTML,/文件缺失/);
+    if(modal) {env.H.actions['unified-launch-edit'](click('a'));assert.equal(env.H.ui.modal,modal,'recovery cannot overwrite newer modal');}
+  }
+});
 
 const discovery = () => ({ scanId: 'scan-1', roots: [{ path: 'C:\\Users\\Public\\Desktop', name: '公共桌面' }], recursive: false, warnings: [], truncated: false,
   candidates: [{ id: 'wechat', name: '微信', path: 'C:\\Users\\Public\\Desktop\\微信.lnk', source: '公共桌面', entryKind: 'lnk' }] });
