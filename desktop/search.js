@@ -119,7 +119,7 @@
   }
   function paintLaunchFailure() {
     if (!launchFailure || node('unified-launch-failure')) return;
-    document.querySelector('.workspace-content')?.insertAdjacentHTML('afterbegin', `<div id="unified-launch-failure" class="notice warning" role="alert"><span>${e(launchFailure.name)}：${e(launchFailure.message)}</span><button class="button small" data-action="unified-launch-edit" data-id="${e(launchFailure.appId)}">编辑应用 / 更换文件</button><button class="icon-button small" data-action="unified-launch-dismiss" aria-label="关闭启动提示">${H.icon('close', 16)}</button></div>`);
+    document.querySelector('.workspace-content')?.insertAdjacentHTML('beforebegin', `<div id="unified-launch-failure" class="notice warning unified-launch-feedback" role="alert"><span title="${e(launchFailure.name + '：' + launchFailure.message)}">${e(launchFailure.name)}：${e(launchFailure.message)}</span><button class="button small" data-action="unified-launch-edit" data-id="${e(launchFailure.appId)}">编辑应用 / 更换文件</button><button class="icon-button small" data-action="unified-launch-dismiss" aria-label="关闭启动提示">${H.icon('close', 16)}</button></div>`);
   }
   const render = H.render; H.render = function () { render(); bindEntry(); paintLaunchFailure(); };
   document.addEventListener('input', event => {

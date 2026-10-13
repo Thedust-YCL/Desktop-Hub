@@ -55,7 +55,17 @@ function setup(surface = 'workspace', responses = {}, withSearch = false) {
       id, value: '', innerHTML: '', textContent: '', dataset: {}, querySelectorAll() { return []; },
       focus() { document.activeElement = this; }, setAttribute(key,value) { this[key] = value; }, removeAttribute(key) { delete this[key]; }
     });
-    nodes.set('.workspace-content', { innerHTML: '', insertAdjacentHTML(position,html) { this.innerHTML += html; } });
+    const shell = { className: 'workspace', children: [] };
+    const content = { className: 'workspace-content', parentElement: shell, innerHTML: '', scrollTop: 0, scrollLeft: 0, querySelector() { return null; },
+      insertAdjacentHTML(position,html) {
+        const inside = position === 'afterbegin' || position === 'beforeend';
+        const banner = { id: 'unified-launch-failure', innerHTML: html, parentElement: inside ? this : shell };
+        nodes.set('#unified-launch-failure', banner);
+        if (inside) this.innerHTML += html;
+        else shell.children.splice(shell.children.indexOf(this) + (position === 'afterend' ? 1 : 0), 0, banner);
+      }
+    };
+    shell.children.push(content);nodes.set('.workspace', shell);nodes.set('.workspace-content', content);
   }
   const window = { Hub: H, DesktopHubNative: { bridge, NativeBridgeError }, localStorage: { getItem(key) { return storage.get(key) ?? null; } }, addEventListener(type, handler) { windowListeners.set(type, handler); } };
   const context = vm.createContext({ window, document, location: { search: `?surface=${surface}` }, URLSearchParams, console,
@@ -65,6 +75,7 @@ function setup(surface = 'workspace', responses = {}, withSearch = false) {
   if (withSearch) vm.runInContext(fs.readFileSync(new URL('../search.js', import.meta.url),'utf8'), context, { filename: 'search.js' });
   return {
     H, sent, toasts, state, document, window, nodes, storage,
+    loadAdapter(name) { vm.runInContext(fs.readFileSync(new URL('../' + name, import.meta.url),'utf8'), context, { filename: name }); },
     async initialize() { for (const handler of domListeners.get('DOMContentLoaded') || []) await handler(); },
     emit(type, payload) { eventListeners.get(type)?.(payload); },
     emitStorage(key, value) { storage.set(key, value); windowListeners.get('storage')?.({ key, newValue: value }); },
@@ -122,7 +133,7 @@ for (const page of ['library','settings']) for (const failure of ['negative','re
     env.state.settings.appEntries=[appEntry('a')];await env.initialize();env.H.closeModal();env.H.navigate(page);
     env.window.DesktopHubSearch.open();await env.flushTimers();await env.H.actions['unified-execute']({dataset:{index:'0'}});
     assert.equal(env.H.ui.page,page);assert.equal(env.H.ui.modal,null);
-    const banner=env.nodes.get('.workspace-content').innerHTML;assert.match(banner,failure==='rejection'?/磁盘不可用/:/所选文件已移除/);
+    const banner=env.nodes.get('#unified-launch-failure').innerHTML;assert.match(banner,failure==='rejection'?/磁盘不可用/:/所选文件已移除/);
     assert.match(banner,/data-action="unified-launch-edit"/);assert.match(banner,/data-id="a"/);
     env.H.actions['unified-launch-edit'](click('a'));assert.equal(env.H.ui.page,page);assert.equal(env.H.ui.modal.title,'编辑应用');assert.match(env.H.ui.modal.body,/data-action="app-replace-target" data-id="a"/);
     const launch=env.sent.find(x=>x.type==='apps.launch');assert.deepEqual(launch.payload,{appId:'a'});
@@ -138,10 +149,24 @@ test('a delayed search launch failure never replaces a newer modal, search or pa
     env.state.settings.appEntries=[appEntry('a')];await env.initialize();env.H.closeModal();env.H.navigate('library');env.window.DesktopHubSearch.open();await env.flushTimers();const launching=env.H.actions['unified-execute']({dataset:{index:'0'}});
     if(intent==='page')env.H.navigate('settings');else if(intent==='search')env.window.DesktopHubSearch.open();else {env.H.showModal(intent,'新草稿','');env.H.ui.modal.locked=intent==='import';}
     const page=env.H.ui.page,modal=env.H.ui.modal;resolve({success:false,message:'启动失败，文件缺失'});await launching;
-    assert.equal(env.H.ui.page,page);assert.equal(env.H.ui.modal,modal);assert.match(env.nodes.get('.workspace-content').innerHTML,/文件缺失/);
+    assert.equal(env.H.ui.page,page);assert.equal(env.H.ui.modal,modal);assert.match(env.nodes.get('#unified-launch-failure').innerHTML,/文件缺失/);
     if(modal) {env.H.actions['unified-launch-edit'](click('a'));assert.equal(env.H.ui.modal,modal,'recovery cannot overwrite newer modal');}
   }
 });
+
+for (const page of ['library','settings']) {
+  test(`failed search launch on scrolled ${page} places recovery outside the content scroller and preserves its viewport`, async()=>{
+    const env=setup('workspace',{'apps.launch':async()=>({success:false,message:'所选文件已移除'}),'search.query':async()=>[{type:'app',id:'a',name:'应用',detail:'C:/Owned/a.exe',status:'Active',favorite:false}]},true);
+    env.state.settings.appEntries=[appEntry('a')];await env.initialize();env.H.closeModal();env.H.navigate(page);
+    const content=env.nodes.get('.workspace-content'),shell=env.nodes.get('.workspace');content.scrollTop=960;content.scrollLeft=28;
+    let restored=0;env.H.restoreViewport=()=>{content.scrollTop=960;content.scrollLeft=28;++restored;};env.loadAdapter('usability.js');
+    env.window.DesktopHubSearch.open();await env.flushTimers();await env.H.actions['unified-execute']({dataset:{index:'0'}});
+    const banner=env.nodes.get('#unified-launch-failure');assert.ok(banner);assert.equal(banner.parentElement,shell,'recovery must be a shell sibling, never scrolling content');
+    assert.ok(shell.children.indexOf(banner)<shell.children.indexOf(content));assert.equal(content.innerHTML.includes('unified-launch-failure'),false);
+    assert.equal(content.scrollTop,960);assert.equal(content.scrollLeft,28);assert.ok(restored>1,'actual outer usability render restores viewport after search feedback');
+    assert.equal(env.H.ui.page,page);assert.equal(env.H.ui.modal,null);assert.match(banner.innerHTML,/所选文件已移除/);assert.match(banner.innerHTML,/data-action="unified-launch-edit" data-id="a"/);
+  });
+}
 
 const discovery = () => ({ scanId: 'scan-1', roots: [{ path: 'C:\\Users\\Public\\Desktop', name: '公共桌面' }], recursive: false, warnings: [], truncated: false,
   candidates: [{ id: 'wechat', name: '微信', path: 'C:\\Users\\Public\\Desktop\\微信.lnk', source: '公共桌面', entryKind: 'lnk' }] });

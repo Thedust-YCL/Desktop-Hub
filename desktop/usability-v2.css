@@ -56,6 +56,14 @@ html[data-desktop-host] .nr-detail-suggestion p, html[data-desktop-host] #nr-sca
 .unified-identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--muted); margin-top: 3px; }
 .unified-operation { font-size: 13px; color: var(--accent); max-width: 132px; }
 .unified-hint { color: var(--muted); font-size: 13px; }
+/* Shell feedback stays visible while the page retains its independent scroll position. */
+html[data-desktop-host] .workspace > .unified-launch-feedback {
+  flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto 32px;
+  align-items: center; gap: 8px; margin: 0; padding: 8px 18px; min-width: 0;
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--raised); font-size: 13px;
+}
+.unified-launch-feedback > span { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; max-height: 4.5em; overflow: auto; }
+.unified-launch-feedback > .button { font-size: 13px; max-width: 170px; white-space: normal; }
 @media (max-width: 700px) {
   html[data-desktop-host] .workspace-header { gap: 6px; padding: 0 12px; }
   html[data-desktop-host] .global-search { flex: 1; min-width: 0; width: auto; max-width: 210px; }
@@ -66,5 +74,6 @@ html[data-desktop-host] .nr-detail-suggestion p, html[data-desktop-host] #nr-sca
   .usability-home-nav { padding: 5px 12px; }
   .unified-result-main { gap: 8px; }
   .unified-operation { max-width: 98px; }
+  html[data-desktop-host] .workspace > .unified-launch-feedback { padding: 8px 12px; }
   html[data-desktop-host] .modal.wide { width: calc(100vw - 32px); max-height: calc(100vh - 32px); }
 }
