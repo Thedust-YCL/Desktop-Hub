@@ -18,6 +18,15 @@ function setup(surface='workspace') {
   return {H,sent,data,window,toasts,events,nodes,fail(message){failure=message;}};
 }
 const click=id=>({dataset:{id}});
+
+test('public resource navigation uses off-page stable IDs and validates tag existence before filtering',async()=>{
+  const env=setup(); await env.window.DesktopHubResources.reload();
+  assert.equal(typeof env.window.DesktopHubResources.browse,'function');
+  await env.window.DesktopHubResources.browse('off-page'); assert.ok(env.sent.some(x=>x.type==='resources.browse'&&x.payload.resourceId==='off-page'));
+  await env.window.DesktopHubResources.repair('off-page'); assert.ok(env.sent.some(x=>x.type==='resources.repair'&&x.payload.resourceId==='off-page'));
+  await env.window.DesktopHubResources.filterTag('tag'); assert.equal(env.H.ui.page,'library');assert.deepEqual(Array.from(env.window.DesktopHubResources.navigationState().tagIds),['tag']);assert.equal(env.window.DesktopHubResources.navigationState().page,0);
+  await env.window.DesktopHubResources.filterTag('removed');assert.deepEqual(Array.from(env.window.DesktopHubResources.navigationState().tagIds),['tag']);assert.match(env.toasts.at(-1),/已移除/);
+});
 test('M0 resources are cleared, compact surfaces do not initialize or request native file library',()=>{
   const env=setup('mini');assert.deepEqual(Array.from(env.H.state.files),[]);assert.equal(env.sent.length,0);assert.equal(env.window.DesktopHubResources,undefined);
 });

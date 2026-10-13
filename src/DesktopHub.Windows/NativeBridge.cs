@@ -12,7 +12,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
 {
     private readonly HashSet<string> pending = new();
     private static readonly HashSet<string> Editable = new(StringComparer.Ordinal)
-    { "theme", "reducedMotion", "onboardingCompleted", "suppressDesktopLocationNotice", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
+    { "theme", "reducedMotion", "uiDensity", "onboardingCompleted", "suppressDesktopLocationNotice", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
     private static readonly HashSet<string> Pages = new(StringComparer.Ordinal)
     { "home", "scenes", "library", "tags", "favorites", "search", "settings" };
     private bool pickerOpen, launching;
@@ -66,6 +66,29 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
         if (type.StartsWith("system.", StringComparison.Ordinal)) return system.Dispatch(type, payload);
         switch (type)
         {
+            case "search.query":
+                RequireWorkspace(); RequireKeys(payload, "query", "type");
+                var searchQuery = OptionalString(payload, "query", 200);
+                var searchType = String(payload, "type", 12);
+                if (searchQuery.Any(char.IsControl) || searchType is not ("all" or "app" or "scene" or "file" or "folder" or "tag" or "project"))
+                    throw new BridgeException("INVALID_PARAMS", "搜索参数无效。");
+                var searchSettings = host.Store.Current;
+                var searchLibrary = (await host.GetResourcesAsync()).Store.Snapshot();
+                return await Task.Run(() =>
+                {
+                    var entities = new List<SearchEntity>();
+                    var appIds = searchSettings.AppEntries.Select(app => app.Id).ToHashSet(StringComparer.Ordinal);
+                    entities.AddRange(searchSettings.AppEntries.Select(app => new SearchEntity("app", app.Id, app.Name, app.Target, "Active", app.Favorite)));
+                    entities.AddRange(searchSettings.Scenes.Select(scene => new SearchEntity("scene", scene.Id, scene.Name, $"{scene.Actions.Count} 个动作",
+                        !scene.Enabled ? "Disabled" : scene.Actions.Any(action => action.Enabled && (action.ReferenceInvalid || action.AppEntryId is { Length: > 0 } reference && !appIds.Contains(reference))) ? "Invalid" : "Active", false)));
+                    var tagsById = searchLibrary.Tags.ToDictionary(tag => tag.Id);
+                    var boundTags = searchLibrary.ResourceTags.ToLookup(binding => binding.ResourceId);
+                    entities.AddRange(searchLibrary.Resources.Select(resource => new SearchEntity(resource.ResourceType, resource.Id, resource.DisplayName,
+                        resource.CanonicalPath + string.Concat(boundTags[resource.Id].Where(binding => tagsById.ContainsKey(binding.TagId)).Select(binding => " · " + tagsById[binding.TagId].Name)), resource.Status, resource.Favorite)));
+                    entities.AddRange(searchLibrary.Tags.Select(tag => new SearchEntity("tag", tag.Id, tag.Name,
+                        searchLibrary.TagCategories.FirstOrDefault(category => category.Id == tag.CategoryId)?.Name ?? "标签", "Active", false)));
+                    return UnifiedSearchService.Search(entities, searchQuery, searchType);
+                });
             case "app.getState": Empty(payload); return host.State(window);
             case "settings.get": Empty(payload); return new { settings = host.Store.Current, effectiveTheme = host.EffectiveTheme };
             case "settings.save":

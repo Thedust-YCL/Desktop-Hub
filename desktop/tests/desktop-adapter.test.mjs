@@ -91,11 +91,13 @@ test('settings writes include only editable fields and never application records
   const env = setup();
   await env.initialize();
   env.H.state.settings.theme = 'dark';
+  env.H.state.settings.uiDensity = 'comfortable';
   env.H.state.settings.autoStart = true;
   env.H.save();
   await env.flushTimers();
   const saved = env.sent.find(item => item.type === 'settings.save').payload.settings;
   assert.equal(saved.theme, 'dark');
+  assert.equal(saved.uiDensity, 'comfortable');
   assert.equal('autoStart' in saved, false);
   assert.equal('appEntries' in saved, false);
   assert.equal('launcherPins' in saved, false);

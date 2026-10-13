@@ -1,0 +1,70 @@
+/* Inherited theme variables and native 18 DIP corner geometry remain authoritative. */
+html[data-desktop-host][data-density=compact] .workspace-header { height: 54px; min-height: 54px; padding: 0 18px; }
+html[data-desktop-host][data-density=compact] .workspace-content,
+html[data-desktop-host][data-density=compact] .workspace-content.home-content { padding: 14px 18px 18px; }
+html[data-desktop-host][data-density=compact] .page-heading { margin-bottom: 12px; gap: 12px; }
+html[data-desktop-host][data-density=compact] .page-title { font-size: 23px; line-height: 1.25; }
+html[data-desktop-host][data-density=compact] .subtitle { margin-top: 4px; font-size: 13px; }
+html[data-desktop-host][data-density=compact] .home-intro { margin-bottom: 12px; }
+html[data-desktop-host] .home-intro .eyebrow { display: none; }
+html[data-desktop-host] .home-content .launch-text > span { font-size: 13px; }
+html[data-desktop-host] .launcher-app > strong, html[data-desktop-host] .launcher-app-state,
+html[data-desktop-host] .launcher-heading h2 > span, html[data-desktop-host] .launcher-heading p,
+html[data-desktop-host] .launcher-heading .button, html[data-desktop-host] .launcher-search input,
+html[data-desktop-host] .launcher-search > span, html[data-desktop-host] .launcher-hint,
+html[data-desktop-host] .launcher-empty p, html[data-desktop-host] .launcher-modules-heading h2,
+html[data-desktop-host] .home-scene small, html[data-desktop-host] .workspace .native-launch-status,
+html[data-desktop-host] .workspace .native-warning, html[data-desktop-host] .workspace-footer { font-size: 13px; }
+html[data-desktop-host][data-density=compact] .launcher-app { min-height: 84px; padding: 8px; }
+html[data-desktop-host][data-density=compact] .launcher-grid { grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); }
+html[data-desktop-host][data-density=compact] .launcher-icon { width: 40px; height: 40px; }
+.usability-home-nav { display: flex; flex-shrink: 0; align-items: center; gap: 4px; padding: 5px 18px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.usability-home-nav .subnav-link { white-space: nowrap; font-size: 13px; padding: 6px 10px; }
+html[data-desktop-host][data-density=compact] .home-content .launch-card { min-height: 80px; padding: 12px; }
+html[data-desktop-host][data-density=compact] .home-content .quick-heading { margin-top: 12px !important; }
+.usability-filters { border: 1px solid var(--line); border-radius: 10px; margin: 8px 0 12px; background: var(--panel); }
+.usability-filters summary { cursor: pointer; padding: 9px 12px; font-size: 13px; }
+.usability-filter-body { padding: 0 12px 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+.usability-filter-body .nr-category-filter, .usability-filter-body .nr-filter-tags { width: 100%; margin-bottom: 4px; }
+.usability-conditions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; font-size: 13px; }
+.usability-conditions > span { color: var(--muted); }
+.usability-conditions .button { min-height: 30px; font-size: 13px; overflow-wrap: anywhere; }
+html[data-desktop-host][data-density=compact] .nr-sources { margin-bottom: 10px; }
+html[data-desktop-host][data-density=compact] .nr-sources > summary { padding: 9px 12px; }
+html[data-desktop-host][data-density=compact] .nr-toolbar { gap: 8px; margin-bottom: 8px; }
+html[data-desktop-host][data-density=compact] .nr-row,
+html[data-desktop-host][data-density=compact] .nr-list-heading { padding: 9px 12px; gap: 8px 12px; }
+html[data-desktop-host][data-density=compact] .nr-row { min-height: 66px; }
+html[data-desktop-host] .nr-identity small, html[data-desktop-host] .nr-source p, html[data-desktop-host] .nr-source small,
+html[data-desktop-host] .nr-discovered-path, html[data-desktop-host] .nr-pagination, html[data-desktop-host] .nr-path,
+html[data-desktop-host] .nr-suggestion-summary, html[data-desktop-host] .nr-clean-bar p, html[data-desktop-host] .nr-tag-row small { font-size: 13px; }
+html[data-desktop-host] .nr-suggestions, html[data-desktop-host] .nr-suggestion-label,
+html[data-desktop-host] .nr-detail-suggestion p, html[data-desktop-host] #nr-scan-progress { font-size: 13px; }
+.unified-input { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.unified-input input { width: 100%; font-size: 15px; }
+.unified-types { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+.unified-types .button { font-size: 13px; min-height: 32px; }
+.unified-feedback { font-size: 13px; color: var(--muted); margin: 10px 0; }
+.unified-results { max-height: min(48vh, 370px); overflow: auto; border-top: 1px solid var(--line); }
+.unified-result { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); border-radius: 7px; }
+.unified-result.selected, .unified-result:hover { background: var(--hover); }
+.unified-result.selected { outline: 1px solid var(--accent); outline-offset: -1px; }
+.unified-result-main { display: flex; align-items: center; gap: 12px; text-align: left; padding: 11px 8px; min-width: 0; flex: 1; }
+.unified-kind { font-size: 13px; color: var(--muted); width: 42px; flex-shrink: 0; }
+.unified-identity { min-width: 0; flex: 1; }
+.unified-identity strong { display: block; font-size: 15px; overflow-wrap: anywhere; }
+.unified-identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--muted); margin-top: 3px; }
+.unified-operation { font-size: 13px; color: var(--accent); max-width: 132px; }
+.unified-hint { color: var(--muted); font-size: 13px; }
+@media (max-width: 700px) {
+  html[data-desktop-host] .workspace-header { gap: 6px; padding: 0 12px; }
+  html[data-desktop-host] .global-search { flex: 1; min-width: 0; width: auto; max-width: 210px; }
+  html[data-desktop-host] .global-search > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html[data-desktop-host] .workspace-header .brand { min-width: 0; }
+  html[data-desktop-host] .workspace-header .brand > span:last-child { display: none; }
+  html[data-desktop-host] .page-heading { flex-wrap: wrap; }
+  .usability-home-nav { padding: 5px 12px; }
+  .unified-result-main { gap: 8px; }
+  .unified-operation { max-width: 98px; }
+  html[data-desktop-host] .modal.wide { width: calc(100vw - 32px); max-height: calc(100vh - 32px); }
+}

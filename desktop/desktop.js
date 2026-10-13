@@ -7,7 +7,7 @@
   const requestedSurface = new URLSearchParams(location.search).get('surface');
   const surface = surfaces.has(requestedSurface) ? requestedSurface : 'workspace';
   const editableSettings = [
-    'theme', 'reducedMotion', 'transparency', 'miniPosition', 'miniSize', 'miniMode', 'miniEnabled', 'miniOpacity', 'workspaceOpacity',
+    'theme', 'reducedMotion', 'uiDensity', 'transparency', 'miniPosition', 'miniSize', 'miniMode', 'miniEnabled', 'miniOpacity', 'workspaceOpacity',
     'dockPosition', 'dockSize', 'dockIconSize', 'hoverEnabled', 'hoverDelay', 'allowForeground', 'foregroundBlocklist'
   ];
   // These preferences use their own explicit saves. Including them in the

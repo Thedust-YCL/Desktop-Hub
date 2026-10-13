@@ -3,7 +3,7 @@
   'use strict';
   const version = 1;
   const allowedTypes = new Set([
-    'app.getState', 'app.exit', 'settings.get', 'settings.save',
+    'app.getState', 'app.exit', 'settings.get', 'settings.save', 'search.query',
     'system.getState', 'system.setDesktopIcons', 'system.setIconExitPolicy', 'system.setStartup', 'system.setHotkeys',
     'window.openWorkspace', 'window.closeWorkspace', 'window.openDock',
     'window.closeDock', 'window.drag', 'window.resizeSurface', 'window.beginResize',

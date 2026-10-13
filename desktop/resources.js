@@ -213,6 +213,17 @@
   bridge.on('resources.changed', () => {clearTimeout(reloadTimer);reloadTimer=setTimeout(reload,150);});
   bridge.on('resources.progress', progress => {if(progress.operationId===scan){const label=document.querySelector('#nr-scan-progress');if(label)label.textContent=`已读取 ${progress.count} 项 · ${progress.path}`;}else if(progress.phase==='Failed')H.toast(`后台核对未完成：${progress.path}`,'error');});
   window.DesktopHubResources = Object.freeze({reload,getState:()=>({result,query,tagIds,view,page,loading,busy,scan,preview,folder,category,extension}),previewSource,
+    browse: id => browse({ resourceId: id }),
+    repair: id => H.actions['nr-repair']({ dataset: { id } }),
+    filterTag: async id => {
+      try {
+        const snapshot = await request('resources.query');
+        if (!snapshot.tags.some(tag => tag.id === id)) throw new Error('此标签已移除，请重新搜索。');
+        window.DesktopHubInteractions?.checkpoint(); H.navigate('library');
+        query = ''; tagIds = [id]; page = 0; status = ''; extension = ''; category = ''; selected.clear();
+        await reload();
+      } catch (err) { H.toast(err.message, 'error'); }
+    },
     navigationState: () => ({ query, tagIds: [...tagIds], view, page, status, category, extension, folder }),
     restoreNavigation: value => { query = value.query; tagIds = [...value.tagIds]; view = value.view; page = value.page; status = value.status; category = value.category; extension = value.extension; folder = value.folder; void reload(); }});
   void request('resources.discover').then(value => { discovery=value; if(H.ui.page==='library')H.render(); }).catch(err => {error=err.message;});

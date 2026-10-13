@@ -16,6 +16,11 @@
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="..\DesktopHub.Core\ThirdParty\Pinyin\LICENSE">
+      <Link>licenses\pinyin-data-LICENSE.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
     <ProjectReference Include="..\DesktopHub.Core\DesktopHub.Core.csproj" />
