@@ -172,3 +172,32 @@ Coverage includes migration repeat/restart, pin/favorite four-way combinations, 
 ## Scope and concerns
 
 The root approved a narrow ownership exception for `Scenes.cs` to add model fields, clone and normalize them. Scheduling, retry, layout capture/restore, frontend bridge/UI integration and lifecycle/performance work are intentionally left to their assigned later tasks. Controlled executable launch integration is opt-in and was skipped by the Core harness; the Scene runner is controlled, so these results do not claim Windows launch/layout acceptance. This task adds no external package dependencies and changes no existing import limits or Mini limits.
+
+## Review fix round 1 — future-version classification
+
+The review identified one P1 in the previous version guard: parsing a whole document with current `MaxDepth=16` before classification hid schema 6 when a preceding future field nested 20 levels; `TryGetInt32` failure also let numeric version `2147483648` bypass protection. Both `Load` and save-before-load could then remove/replace the original. The root independently confirmed this finding.
+
+Added four isolated regressions for versions `6` / `2147483648`, each with load-first and save-first entry. In every fixture, `schemaVersion` appears **after** a future field with 20 nested objects. They assert original path existence and identical bytes, both `Save`/`Update` throwing, the update callback never running, and no corrupt-file backup. RED was observed before production edits:
+
+```text
+FAIL Future schema 6 ... (loadFirst=True): Assertion failed.
+FAIL Future schema 6 ... (loadFirst=False): Expected InvalidOperationException.
+FAIL Future schema 2147483648 ... (loadFirst=True): Assertion failed.
+FAIL Future schema 2147483648 ... (loadFirst=False): Expected InvalidOperationException.
+RESULT 42 passed; 4 failed.
+```
+
+`SettingsStore` now shares a private `Utf8JsonReader` header classifier across loading and write checking. It examines only top-level version tokens, uses a depth setting independent from current payload validation, skips unknown subtrees without building their object model, and recognizes every numeric token not representable as a supported integer 1–5 as unsupported. UTF-8 BOMs are handled. The original stream position is restored before the existing strict schema/field/depth parser runs. A detected unsupported schema blocks writes before either that parser or an update callback can run. Current file byte limits and the known/nonversioned corrupt recovery policy remain unchanged.
+
+Two additional regressions retain the separate corrupt recovery policy for deeply nested known-schema and nonversioned settings: the corrupt JSON is quarantined with exact original bytes and a subsequent default save remains possible.
+
+Only `SettingsStore.cs`, `tests/DesktopHub.Core.Tests/Program.cs`, and this report changed. No public interface changed. Fresh covering verification, exit 0:
+
+```text
+.tools/dotnet/dotnet.exe run --project tests/DesktopHub.Core.Tests -c Release --no-restore
+PASS all four future-version entry cases
+PASS both known/nonversioned corrupt recovery cases
+RESULT 48 passed; 0 failed.
+```
+
+Full round-1 outputs are retained locally as `task-1-round1-red.log` / `task-1-round1-green.log` under the report directory and excluded from the commit. `git diff --check` passed. Resource/Scene were not rerun for this settings-only header fix; their prior 32/0 and 17/0 evidence above remains the applicable verification. User configuration, release folders and sources were untouched.

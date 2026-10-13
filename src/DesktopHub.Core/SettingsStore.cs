@@ -43,15 +43,14 @@ public sealed class SettingsStore
                 {
                     if (input.Length > MaximumFileBytes)
                         throw new SettingsValidationException("配置文件超过 16 MiB 安全限制。");
+                    if (HasUnsupportedSchema(input))
+                    {
+                        _current = new(); BlockUnsupportedSchema();
+                        return Snapshot(_current);
+                    }
                     // Isolate damaged scene records so the validated M1.5 app library still loads.
                     using var document = JsonDocument.Parse(input, new JsonDocumentOptions { MaxDepth = 16 });
                     if (document.RootElement.ValueKind != JsonValueKind.Object) throw new SettingsValidationException("配置必须是对象。");
-                    if (document.RootElement.TryGetProperty("schemaVersion", out var version) && version.ValueKind == JsonValueKind.Number && version.TryGetInt32(out var schema) && schema is not (1 or 2 or 3 or 4 or 5))
-                    {
-                        _current = new(); _writesBlocked = true;
-                        RecoveryWarning = "配置版本不受支持，原 settings.json 已保留且停止写入。请升级应用。";
-                        return Snapshot(_current);
-                    }
                     var node = System.Text.Json.Nodes.JsonNode.Parse(document.RootElement.GetRawText())!.AsObject();
                     var sceneNode = node["scenes"];
                     node.Remove("scenes");
@@ -176,15 +175,40 @@ public sealed class SettingsStore
         {
             using var input = File.OpenRead(SettingsPath);
             if (input.Length > MaximumFileBytes) throw new SettingsValidationException("配置文件超过 16 MiB，原文件保留且未写入。");
-            using var document = JsonDocument.Parse(input, new JsonDocumentOptions { MaxDepth = 16 });
-            if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("schemaVersion", out var version) &&
-                version.ValueKind == JsonValueKind.Number && version.TryGetInt32(out var schema) && schema is not (1 or 2 or 3 or 4 or 5))
+            if (HasUnsupportedSchema(input))
             {
-                _writesBlocked = true; RecoveryWarning = "配置版本不受支持，原 settings.json 已保留且停止写入。请升级应用。";
+                BlockUnsupportedSchema();
                 throw new InvalidOperationException(RecoveryWarning);
             }
         }
         catch (JsonException) { } // Corrupt JSON follows the existing recovery path; unknown versions never do.
+    }
+
+    private void BlockUnsupportedSchema()
+    {
+        _writesBlocked = true;
+        RecoveryWarning = "配置版本不受支持，原 settings.json 已保留且停止写入。请升级应用。";
+    }
+
+    private static bool HasUnsupportedSchema(FileStream input)
+    {
+        // Classify only top-level version tokens, before current-schema field/depth parsing.
+        // The caller enforces the byte budget; Skip avoids materializing unknown future payloads.
+        var bytes = new byte[checked((int)input.Length)];
+        input.ReadExactly(bytes); input.Position = 0;
+        var offset = bytes.Length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf ? 3 : 0;
+        var reader = new Utf8JsonReader(bytes.AsSpan(offset), new JsonReaderOptions { MaxDepth = int.MaxValue });
+        if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject) return false;
+        while (reader.Read())
+        {
+            if (reader.TokenType != JsonTokenType.PropertyName || reader.CurrentDepth != 1) continue;
+            var versionField = reader.ValueTextEquals("schemaVersion");
+            if (!reader.Read()) throw new JsonException("配置字段缺少值。");
+            if (versionField && reader.TokenType == JsonTokenType.Number &&
+                (!reader.TryGetInt32(out var schema) || schema is not (1 or 2 or 3 or 4 or 5))) return true;
+            reader.Skip();
+        }
+        return false;
     }
 
     private static string JoinWarning(string? existing, string additional) =>

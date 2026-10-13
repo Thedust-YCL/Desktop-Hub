@@ -41,6 +41,38 @@ try
         var store = Store("future-before-load"); var original = "{\"schemaVersion\":6,\"nextVersionOnly\":true}"; Write(store, original);
         Throws<InvalidOperationException>(() => store.Save(new())); Equal(original, File.ReadAllText(store.SettingsPath));
     });
+    foreach (var version in new[] { "6", "2147483648" })
+    foreach (var loadFirst in new[] { true, false })
+    {
+        Check($"Future schema {version} after deep fields preserves bytes and blocks writes (loadFirst={loadFirst})", () =>
+        {
+            var store = Store("future-deep-" + version + "-" + loadFirst);
+            var nested = "{\"value\":42}";
+            for (var level = 0; level < 20; level++) nested = "{\"next\":" + nested + "}";
+            // The version follows the future payload so classification must skip deeper unknown fields.
+            var original = "{\"futurePayload\":" + nested + ",\"schemaVersion\":" + version + "}";
+            Write(store, original); var bytes = File.ReadAllBytes(store.SettingsPath);
+            if (loadFirst) { store.Load(); True(store.RecoveryWarning is not null); }
+            True(File.Exists(store.SettingsPath)); Sequence(bytes, File.ReadAllBytes(store.SettingsPath));
+            Throws<InvalidOperationException>(() => store.Save(new()));
+            var mutationRan = false;
+            Throws<InvalidOperationException>(() => store.Update(settings => { mutationRan = true; return settings with { Theme = "dark" }; }));
+            True(!mutationRan); Sequence(bytes, File.ReadAllBytes(store.SettingsPath));
+            Equal(0, Directory.GetFiles(Path.GetDirectoryName(store.SettingsPath)!, "settings.corrupt-*.json").Length);
+        });
+    }
+    foreach (var versionField in new[] { "\"schemaVersion\":5,", "" })
+    {
+        Check($"Deep known/nonversioned settings retain corrupt recovery (versioned={versionField.Length > 0})", () =>
+        {
+            var store = Store("deep-known-" + (versionField.Length > 0)); var nested = "[]";
+            for (var level = 0; level < 20; level++) nested = "[" + nested + "]";
+            var original = "{" + versionField + "\"foregroundBlocklist\":" + nested + "}"; Write(store, original);
+            store.Load(); True(store.RecoveryWarning is not null); True(!File.Exists(store.SettingsPath));
+            var backups = Directory.GetFiles(Path.GetDirectoryName(store.SettingsPath)!, "settings.corrupt-*.json"); Equal(1, backups.Length); Equal(original, File.ReadAllText(backups[0]));
+            store.Save(store.Current); True(File.Exists(store.SettingsPath));
+        });
+    }
     Check("Favorite mutations and pin mutations are independent across all four combinations", () =>
     {
         var store = Store("favorites"); var library = new AppLibraryService(store); var app = Registered("favorite-app"); library.Add(app);
