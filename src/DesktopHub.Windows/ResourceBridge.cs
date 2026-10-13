@@ -16,8 +16,16 @@ internal sealed class ResourceBridge(HubApplication host, HubWindow window)
         switch (type)
         {
             case "resources.query":
-                Keys(payload, "query", "tagIds", "favoritesOnly", "invalidOnly", "status", "page", "extension");
-                return await Task.Run(() => service.Query(new(Text(payload, "query", 200, "")!, Strings(payload, "tagIds"), Bool(payload, "favoritesOnly"), Bool(payload, "invalidOnly"), Text(payload, "status", 30, null), Number(payload, "page"), Text(payload, "extension", 260, null))));
+                var query = ResourceRequestParser.Query(payload);
+                return await Task.Run(() => Query(service, query));
+            case "resources.batch":
+                var batch = ResourceRequestParser.Batch(payload); await service.BatchAsync(batch.ResourceIds, batch.Operation, batch.Values); break;
+            case "resources.batchSuggestions":
+                var suggestions = ResourceRequestParser.Suggestions(payload); await service.BatchAcceptSuggestionsAsync(suggestions.ResourceIds, suggestions.SuggestionName, suggestions.SuggestionType); break;
+            case "resources.filterSave":
+                await service.SaveFilterAsync(ResourceRequestParser.FilterSave(payload)); break;
+            case "resources.filterDelete":
+                await service.DeleteFilterAsync(ResourceRequestParser.FilterDelete(payload)); break;
             case "resources.discover":
                 Keys(payload); return await Task.Run(() => new { desktop = ResourceScanner.DesktopPath(), cloudPath = ResourceScanner.CloudPath(ResourceScanner.DesktopPath()), publicDesktopAvailable = true });
             case "resources.preview":
@@ -108,6 +116,17 @@ internal sealed class ResourceBridge(HubApplication host, HubWindow window)
             default: throw new BridgeException("UNKNOWN_MESSAGE", "不支持此资源操作。");
         }
         return new { saved = true };
+    }
+    private static object Query(ResourceLibraryService service, ResourceQueryRequest request)
+    {
+        var saved = service.Store.Snapshot().SavedFilters.Select(filter => service.ResolveFilter(filter.Id)).ToList();
+        var filterStatus = request.FilterId is null ? null : saved.SingleOrDefault(status => status.Filter.Id == request.FilterId);
+        var invalid = request.FilterId is not null && filterStatus?.Valid != true;
+        var page = request.FilterId is null ? service.Query(request.Query) : invalid ? service.Query(new()) with { Items = [], Total = 0, Page = 0 } : service.QueryFilter(request.FilterId, request.Query.Page);
+        var selection = service.SelectionMetadata(request.SelectedIds, request.CleanupIds);
+        return new { page.Items, page.Total, page.Page, page.PageSize, page.Sources, page.Tags, page.Warning, page.AutoTagByModificationTime, page.TagCategories, page.Extensions,
+            savedFilters = saved, filterStatus, filterInvalid = invalid, filterMissing = request.FilterId is not null && filterStatus is null,
+            selection.SelectedResources, selection.CleanupResources, selection.CommonSuggestions };
     }
     private static void Keys(JsonElement value, params string[] allowed)
     { var seen = new HashSet<string>(); foreach (var field in value.EnumerateObject()) if (!allowed.Contains(field.Name) || !seen.Add(field.Name)) throw new ArgumentException("未知或重复参数：" + field.Name); }

@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/DesktopHub.Core/DesktopHub.Core.csproj" /></ItemGroup>
+  <ItemGroup><Compile Include="../../src/DesktopHub.Windows/ResourceRequestParser.cs" Link="ResourceRequestParser.cs" /></ItemGroup>
 </Project>

@@ -106,7 +106,7 @@ public sealed class ResourceStore
             if (migrating) Update(_ => { });
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidDataException or TargetValidationException)
-        { RecoveryWarning = "资源配置未载入，原文件保留且停止写入。请检查 resources.json：" + ex.Message; }
+        { RecoveryWarning = "资源配置需要检查，原文件保留且停止写入。请检查 resources.json：" + ex.Message; }
     }
     public void Update(Action<ResourceLibrary> mutation)
     {

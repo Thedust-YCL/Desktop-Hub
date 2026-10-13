@@ -10,6 +10,14 @@ const context = vm.createContext({ setTimeout, clearTimeout });
 vm.runInContext(source, context, { filename: 'native.js' });
 const { createBridge } = context.DesktopHubNative;
 
+test('resource batch and saved-filter routes reach host through the request allowlist',async()=>{
+  const view=fakeWebView(),bridge=createBridge(view);
+  for(const type of ['resources.batch','resources.batchSuggestions','resources.filterSave','resources.filterDelete']){
+    const pending=bridge.request(type,{id:'stable-id'});const sent=view.sent.at(-1);assert.equal(sent?.type,type);view.receive({version:1,id:sent.id,ok:true,result:{saved:true}});assert.deepEqual(await pending,{saved:true});
+  }
+  await assert.rejects(bridge.request('resources.executePath',{}),error=>error.code==='UNKNOWN_MESSAGE');bridge.dispose();
+});
+
 function fakeWebView() {
   const listeners = new Set();
   const sent = [];

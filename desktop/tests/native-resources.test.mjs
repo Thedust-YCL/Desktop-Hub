@@ -98,6 +98,87 @@ test('suggestion acceptance/rejection, open and browse use stable ids only and e
   assert.ok(env.sent.some(x=>x.type==='resources.suggestion'&&x.payload.accept===false));assert.ok(env.sent.some(x=>x.type==='resources.open'&&x.payload.resourceId==='resource'));assert.ok(env.sent.every(x=>!('target' in x.payload)));
 });
 test('cleanup needs a second confirmation; actual host errors are visible and never become fake success',async()=>{
-  const env=setup();await env.window.DesktopHubResources.reload();env.H.actions['nr-select']({dataset:{id:'resource'},checked:true});env.H.actions['nr-clean']();assert.match(env.H.ui.modal.body,/不会删除实际文件/);assert.ok(!env.sent.some(x=>x.type==='resources.clean'));
+  const env=setup();env.data.items[0].resource.status='Missing';env.H.navigate('missing');await env.window.DesktopHubResources.reload();env.H.actions['nr-select']({dataset:{id:'resource'},checked:true});env.H.actions['nr-clean']();assert.match(env.H.ui.modal.body,/不会删除实际文件/);assert.ok(!env.sent.some(x=>x.type==='resources.clean'));
   env.fail('磁盘不可用');await env.H.actions['nr-clean-confirm']();assert.match(env.toasts.at(-1),/磁盘不可用/);assert.ok(env.sent.find(x=>x.type==='resources.clean').payload.confirmed);assert.ok(env.H.ui.modal);
+});
+
+function batchFixture() {
+  const env=setup(), rows=Array.from({length:501},(_,i)=>({resource:{...env.data.items[0].resource,id:randomUUID(),displayName:`资源${i}`},tags:[],suggestions:[]}));
+  env.rows=rows;env.data.items=rows.slice(0,60);env.data.total=501;env.data.savedFilters=[];
+  env.respond('resources.query',payload=>({...structuredClone(env.data),page:payload.page||0,items:structuredClone(rows.slice((payload.page||0)*60,(payload.page||0)*60+60)),
+    selectedResources:rows.filter(x=>(payload.selectedIds||[]).includes(x.resource.id)).map(x=>({id:x.resource.id,status:x.resource.status})),
+    cleanupResources:rows.filter(x=>(payload.cleanupIds||[]).includes(x.resource.id)).map(x=>({id:x.resource.id,status:x.resource.status})),commonSuggestions:env.commonSuggestions||[]}));
+  return env;
+}
+const selection = env => Array.from(env.window.DesktopHubResources.getState().selectedIds||[]);
+test('normal selection survives page/view/sort and metadata refresh, clearing synchronously on conditions',async()=>{
+  const env=batchFixture();await env.window.DesktopHubResources.reload();assert.match(env.H.pages.library(),/nr-select/);
+  env.H.actions['nr-select']({dataset:{id:env.rows[0].resource.id},checked:true});env.H.actions['nr-page']({dataset:{page:'1'}});await env.window.DesktopHubResources.reload();
+  env.H.actions['nr-select']({dataset:{id:env.rows[60].resource.id},checked:true});env.H.actions['nr-view']({dataset:{view:'grid'}});env.H.actions['nr-sort']({value:'modifiedDesc'});await env.window.DesktopHubResources.reload();
+  assert.deepEqual(selection(env),[env.rows[0].resource.id,env.rows[60].resource.id]);assert.equal(env.sent.at(-1).payload.sort,'modifiedDesc');
+  env.H.actions['nr-search']({value:'新条件'});assert.deepEqual(selection(env),[]);
+});
+test('500 selection limit excludes non-active IDs and missing cleanup stays independent',async()=>{
+  const env=batchFixture();await env.window.DesktopHubResources.reload();
+  for(let p=0;p<9;p++){env.H.actions['nr-page']({dataset:{page:String(p)}});await env.window.DesktopHubResources.reload();for(const row of env.window.DesktopHubResources.getState().result.items)env.H.actions['nr-select']({dataset:{id:row.resource.id},checked:true});}
+  assert.equal(selection(env).length,500);assert.match(env.toasts.at(-1),/500/);
+  env.H.navigate('missing');env.rows[0].resource.status='Missing';env.rows[1].resource.status='SourceUnavailable';await env.window.DesktopHubResources.reload();
+  env.H.actions['nr-select']({dataset:{id:env.rows[0].resource.id},checked:true});env.H.actions['nr-select']({dataset:{id:env.rows[1].resource.id},checked:true});
+  assert.deepEqual(selection(env),[]);assert.deepEqual(Array.from(env.window.DesktopHubResources.getState().cleanupIds),[env.rows[0].resource.id]);
+  env.H.navigate('favorites');assert.deepEqual(Array.from(env.window.DesktopHubResources.getState().cleanupIds),[]);
+});
+test('refresh prunes disappeared and status-changed off-page selection while preserving scroll',async()=>{
+  const env=batchFixture();env.nodes.set('.workspace-content',{scrollTop:780,scrollLeft:24});await env.window.DesktopHubResources.reload();
+  const vanished=env.rows[0].resource.id,changed=env.rows[1].resource.id,kept=env.rows[2].resource.id;
+  for(const id of [vanished,changed,kept])env.H.actions['nr-select']({dataset:{id},checked:true});env.H.actions['nr-page']({dataset:{page:'1'}});await env.window.DesktopHubResources.reload();
+  env.rows.splice(0,1);env.rows[0].resource.status='Missing';await env.window.DesktopHubResources.reload();
+  assert.deepEqual(selection(env),[kept]);assert.equal(env.nodes.get('.workspace-content').scrollTop,780);assert.equal(env.nodes.get('.workspace-content').scrollLeft,24);
+});
+test('old query cannot restore selection/results after a condition changes before debounce',async()=>{
+  const env=batchFixture();await env.window.DesktopHubResources.reload();env.H.actions['nr-select']({dataset:{id:env.rows[0].resource.id},checked:true});
+  let resolve;env.respond('resources.query',()=>new Promise(done=>resolve=done));const pending=env.window.DesktopHubResources.reload();const before=env.window.DesktopHubResources.getState().result;
+  env.H.actions['nr-search']({value:'新'});resolve({...env.data,items:[],selectedResources:[],cleanupResources:[]});await pending;
+  assert.equal(env.window.DesktopHubResources.getState().result,before);assert.deepEqual(selection(env),[]);
+  env.respond('resources.query',()=>env.data);
+});
+test('batch tag confirmation sends one incremental atomic request and keeps selection on host failure',async()=>{
+  const env=batchFixture();await env.window.DesktopHubResources.reload();const ids=env.rows.slice(0,2).map(x=>x.resource.id);for(const id of ids)env.H.actions['nr-select']({dataset:{id},checked:true});
+  await env.H.actions['nr-batch-tags']({dataset:{operation:'addTags'}});assert.match(env.H.ui.modal.body,/原有标签/);assert.ok(!env.sent.some(x=>x.type==='resources.batch'));
+  env.nodes.set('[data-batch-tag]:checked',[{value:'tag'}]);env.H.actions['nr-batch-tag']({value:'tag',checked:true});
+  env.respond('resources.batch',()=>{throw new Error('写入失败');});await env.H.actions['nr-batch-confirm']();assert.deepEqual(selection(env),ids);assert.ok(env.H.ui.modal);assert.match(env.toasts.at(-1),/写入失败/);
+  env.respond('resources.batch',()=>({saved:true}));await env.H.actions['nr-batch-confirm']();const requests=env.sent.filter(x=>x.type==='resources.batch');assert.equal(requests.length,2);assert.deepEqual(requests[1].payload,{resourceIds:ids,operation:'addTags',values:['tag']});
+  assert.ok(!env.sent.some(x=>x.type==='resources.bindTag'));assert.deepEqual(selection(env),[]);
+});
+test('favorites and comparable suggestions use whole selection with name/type rather than current-page IDs',async()=>{
+  const env=batchFixture();await env.window.DesktopHubResources.reload();const first=env.rows[0].resource.id;env.H.actions['nr-select']({dataset:{id:first},checked:true});env.H.actions['nr-page']({dataset:{page:'1'}});await env.window.DesktopHubResources.reload();const second=env.rows[60].resource.id;env.H.actions['nr-select']({dataset:{id:second},checked:true});env.commonSuggestions=[{name:'共享',type:'theme'}];
+  await env.H.actions['nr-batch-suggestions']();assert.match(env.H.ui.modal.body,/共享/);env.H.actions['nr-batch-suggestion']({dataset:{index:'0'}});await env.H.actions['nr-batch-confirm']();
+  assert.deepEqual(env.sent.find(x=>x.type==='resources.batchSuggestions').payload,{resourceIds:[first,second],suggestionName:'共享',suggestionType:'theme'});
+  env.H.actions['nr-select']({dataset:{id:second},checked:true});await env.H.actions['nr-batch-favorite']({dataset:{operation:'unfavorite'}});assert.deepEqual(env.sent.find(x=>x.type==='resources.batch').payload,{resourceIds:[second],operation:'unfavorite',values:[]});
+});
+test('batch confirmation cannot silently retarget a pruned selection or close a newer modal',async()=>{
+  const env=batchFixture();await env.window.DesktopHubResources.reload();env.H.actions['nr-select']({dataset:{id:env.rows[0].resource.id},checked:true});await env.H.actions['nr-batch-tags']({dataset:{operation:'removeTags'}});env.H.actions['nr-batch-tag']({value:'tag',checked:true});
+  env.rows.splice(0,1);await env.window.DesktopHubResources.reload();await env.H.actions['nr-batch-confirm']();assert.ok(!env.sent.some(x=>x.type==='resources.batch'));assert.match(env.toasts.at(-1),/选择.*变化|已失效/);
+  env.H.closeModal();env.H.actions['nr-select']({dataset:{id:env.rows[0].resource.id},checked:true});let done;env.respond('resources.batch',()=>new Promise(resolve=>done=resolve));const pending=env.H.actions['nr-batch-favorite']({dataset:{operation:'favorite'}});env.H.showModal('新草稿','保持','');const modal=env.H.ui.modal;done({saved:true});await pending;assert.equal(env.H.ui.modal,modal);
+});
+test('saved filter create/edit/delete preserves ID and invalid filters offer explicit recovery without broadening',async()=>{
+  const env=batchFixture();const id=randomUUID();env.data.savedFilters=[{filter:{id,name:'旧筛选',query:'课程',tagIds:['gone'],extension:'.txt',favoritesOnly:true,sort:'name'},valid:false,missingTagIds:['gone']}];await env.window.DesktopHubResources.reload();assert.match(env.H.pages.library(),/旧筛选/);
+  env.H.actions['nr-filter-use'](click(id));await env.window.DesktopHubResources.reload();assert.equal(env.sent.at(-1).payload.filterId,id);assert.ok(!('query' in env.sent.at(-1).payload));
+  env.H.actions['nr-filter-edit'](click(id));assert.match(env.H.ui.modal.body,/已删除|失效/);env.nodes.set('#nr-filter-name',{value:'修复后'});env.H.actions['nr-filter-tag-remove'](click('gone'));await env.H.actions['nr-filter-save']();const saved=env.sent.find(x=>x.type==='resources.filterSave');assert.equal(saved.payload.filter.id,id);assert.deepEqual(saved.payload.filter.tagIds,[]);assert.equal(saved.payload.filter.sort,'name');
+  env.H.actions['nr-filter-delete'](click(id));assert.ok(!env.sent.some(x=>x.type==='resources.filterDelete'));await env.H.actions['nr-filter-delete-confirm'](click(id));assert.deepEqual(env.sent.find(x=>x.type==='resources.filterDelete').payload,{id});
+  env.H.actions['nr-filter-new']();env.nodes.set('#nr-filter-name',{value:'当前条件'});await env.H.actions['nr-filter-save']();assert.notEqual(env.sent.filter(x=>x.type==='resources.filterSave').at(-1).payload.filter.id,id);
+});
+test('deferred batch editor never replaces a newer dialog or reports stale selection feedback',async()=>{
+  const env=batchFixture();await env.window.DesktopHubResources.reload();env.H.actions['nr-select']({dataset:{id:env.rows[0].resource.id},checked:true});let done;env.respond('resources.query',()=>new Promise(resolve=>done=resolve));const pending=env.H.actions['nr-batch-suggestions']();env.H.showModal('新编辑器','保留','');const modal=env.H.ui.modal;done({...env.data,selectedResources:[],cleanupResources:[],commonSuggestions:[]});await pending;
+  assert.equal(env.H.ui.modal,modal);assert.equal(env.toasts.length,0);
+});
+test('completed saved-filter and single-resource mutation render usable selection controls',async()=>{
+  const env=batchFixture();await env.window.DesktopHubResources.reload();const images=[];env.H.render=()=>images.push(env.H.pages.library());
+  await env.H.actions['nr-favorite'](click(env.rows[0].resource.id));assert.equal(env.window.DesktopHubResources.getState().busy,false);assert.doesNotMatch(images.at(-1).match(/<input type="checkbox" data-change="nr-select"[^>]*>/)[0],/disabled/);
+  env.H.actions['nr-filter-new']();env.nodes.set('#nr-filter-name',{value:'我的筛选'});await env.H.actions['nr-filter-save']();assert.doesNotMatch(images.at(-1).match(/<input type="checkbox" data-change="nr-select"[^>]*>/)[0],/disabled/);
+  const id=env.sent.find(x=>x.type==='resources.filterSave').payload.filter.id;env.H.actions['nr-filter-delete'](click(id));await env.H.actions['nr-filter-delete-confirm'](click(id));assert.doesNotMatch(images.at(-1).match(/<input type="checkbox" data-change="nr-select"[^>]*>/)[0],/disabled/);
+});
+test('invalid saved filter remains explicit and hides resource results instead of running broad conditions',async()=>{
+  const env=batchFixture();const id=randomUUID();env.data.savedFilters=[{filter:{id,name:'失效条件',query:'课程',tagIds:['gone'],favoritesOnly:false,sort:'type'},valid:false,missingTagIds:['gone']}];await env.window.DesktopHubResources.reload();
+  env.H.actions['nr-filter-use'](click(id));env.data.filterInvalid=true;await env.window.DesktopHubResources.reload();assert.match(env.H.pages.library(),/筛选中的标签已失效/);assert.doesNotMatch(env.H.pages.library(),/data-resource-id/);
+  assert.ok(env.sent.filter(x=>x.type==='resources.query'&&x.payload.filterId===id).every(x=>!('query' in x.payload)&&!('tagIds' in x.payload)));
 });

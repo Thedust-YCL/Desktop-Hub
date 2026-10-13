@@ -4,6 +4,9 @@ namespace DesktopHub.Core;
 
 public sealed record ResourceQuery(string Query = "", List<string>? TagIds = null, bool FavoritesOnly = false, bool InvalidOnly = false, string? Status = null, int Page = 0, string? Extension = null, string Sort = "type");
 public sealed record ResourceItem(Resource Resource, List<Tag> Tags, List<TagSuggestion> Suggestions);
+public sealed record ResourceSelectionItem(string Id, string Status);
+public sealed record ResourceSuggestionGroup(string Name, string Type);
+public sealed record ResourceSelectionMetadata(List<ResourceSelectionItem> SelectedResources, List<ResourceSelectionItem> CleanupResources, List<ResourceSuggestionGroup> CommonSuggestions);
 public sealed record ResourcePage(List<ResourceItem> Items, int Total, int Page, int PageSize, List<SourceRoot> Sources, List<Tag> Tags, string? Warning, bool? AutoTagByModificationTime = null, List<TagCategory>? TagCategories = null, List<string>? Extensions = null);
 
 public sealed class ResourceLibraryService : IDisposable
@@ -270,6 +273,38 @@ public sealed class ResourceLibraryService : IDisposable
         finally { serial.Release(); }
     }
     public Task FavoriteAsync(string id, bool favorite) => MutateAsync(data => Find(data, id).Favorite = favorite);
+
+    // Global metadata, rather than a page, establishes whether selected stable IDs still exist.
+    public ResourceSelectionMetadata SelectionMetadata(IReadOnlyList<string> selectedIds, IReadOnlyList<string> cleanupIds)
+    {
+        static string[] Copy(IReadOnlyList<string> ids)
+        {
+            ArgumentNullException.ThrowIfNull(ids);
+            var copy = ids.ToArray();
+            if (copy.Length > 500 || copy.Distinct(StringComparer.Ordinal).Count() != copy.Length || copy.Any(id => !Guid.TryParse(id, out var value) || value == Guid.Empty)) throw new ArgumentException("选择最多 500 个不同资源。");
+            return copy;
+        }
+        var selected = Copy(selectedIds); var cleanup = Copy(cleanupIds);
+        return Store.Read(data =>
+        {
+            var resources = data.Resources.ToDictionary(r => r.Id, StringComparer.Ordinal);
+            List<ResourceSelectionItem> Resolve(string[] ids) => ids.Where(resources.ContainsKey).Select(id => new ResourceSelectionItem(id, resources[id].Status)).ToList();
+            var current = Resolve(selected); var common = new List<ResourceSuggestionGroup>();
+            var active = current.Where(r => r.Status == "Active").Select(r => r.Id).ToArray();
+            if (active.Length > 0)
+            {
+                var wanted = active.ToHashSet(StringComparer.Ordinal);
+                // A comparable group must cover each selected resource exactly once.
+                common = data.Suggestions.Where(s => wanted.Contains(s.ResourceId) && s.Status == "Pending")
+                    .GroupBy(s => (Name: s.SuggestedName.Trim().ToUpperInvariant(), Type: s.TagType))
+                    .Where(group => group.Count() == active.Length && group.Select(s => s.ResourceId).Distinct(StringComparer.Ordinal).Count() == active.Length)
+                    .Select(group => new ResourceSuggestionGroup(group.First().SuggestedName.Trim(), group.Key.Type))
+                    .Where(group => !data.Tags.Any(t => t.Name.Equals(group.Name, StringComparison.OrdinalIgnoreCase) && t.TagType != group.Type))
+                    .OrderBy(group => group.Name, StringComparer.OrdinalIgnoreCase).ThenBy(group => group.Type, StringComparer.Ordinal).Take(500).ToList();
+            }
+            return new ResourceSelectionMetadata(current, Resolve(cleanup), common);
+        });
+    }
 
     /// <summary>Operations: addTags/removeTags use label IDs; favorite/unfavorite use no values;
     /// acceptSuggestions uses one pending suggestion ID per resource, all with identical name and type.</summary>

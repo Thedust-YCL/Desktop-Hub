@@ -38,7 +38,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                 throw new BridgeException("UNSUPPORTED_VERSION", "通信版本不受支持。");
             if (!root.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String || !root.TryGetProperty("payload", out var payload) || payload.ValueKind != JsonValueKind.Object)
                 throw new BridgeException("INVALID_REQUEST", "请求格式无效。");
-            if (json.Length > 16384 && type.GetString() is not ("apps.update" or "apps.reorder" or "launcher.setPins" or "scenes.save" or "scenes.reorder"))
+            if (!ResourceRequestParser.EnvelopeAllowed(type.GetString()!, json.Length))
                 throw new BridgeException("MESSAGE_TOO_LARGE", "请求过大。");
             if (pending.Count >= 16 || !pending.Add(id)) throw new BridgeException("BUSY", "请等待当前操作完成。");
             window.BeginNativeRequest();

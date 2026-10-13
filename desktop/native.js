@@ -14,7 +14,8 @@
     'resources.confirm', 'resources.refresh', 'resources.removeSource', 'resources.favorite',
     'resources.beginRepair', 'resources.repair', 'resources.clean', 'resources.saveTag',
     'resources.deleteTag', 'resources.bindTag', 'resources.suggestion', 'resources.browse',
-    'resources.addBrowsed', 'resources.open', 'resources.saveCategory'
+    'resources.addBrowsed', 'resources.open', 'resources.saveCategory',
+    'resources.batch', 'resources.batchSuggestions', 'resources.filterSave', 'resources.filterDelete'
   ]);
 
   class NativeBridgeError extends Error {
