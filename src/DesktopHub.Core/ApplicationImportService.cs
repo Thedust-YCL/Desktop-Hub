@@ -10,10 +10,15 @@ public sealed record ApplicationImportSkip(string Name, string Code, string Mess
 public sealed record ApplicationImportResult(IReadOnlyList<AppEntry> Added, IReadOnlyList<ApplicationImportSkip> Skipped, AppSettings Settings);
 
 /// <summary>Read-only discovery in native-authorized roots; confirmation accepts opaque IDs, never frontend paths.</summary>
-public sealed class ApplicationImportService(SettingsStore store, NativeLaunchService launcher, Func<AppEntry, string>? icon = null)
+public sealed class ApplicationImportService(SettingsStore store, NativeLaunchService launcher, Func<AppEntry, string>? icon = null, Func<DateTime>? utcNow = null)
 {
     private ApplicationScan? current;
     private DateTime expires;
+    private ApplicationScan? staged;
+    private DateTime stagedExpires;
+    private bool currentShortcutsOnly;
+    private IReadOnlyList<string>? currentFiles;
+    private DateTime Now => utcNow?.Invoke() ?? DateTime.UtcNow;
     private readonly AppLibraryService library = new(store);
 
     public static IReadOnlyList<ApplicationScanRoot> DesktopRoots() => new[]
@@ -22,7 +27,13 @@ public sealed class ApplicationImportService(SettingsStore store, NativeLaunchSe
         new ApplicationScanRoot(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory), "公共桌面")
     }.Where(root => !string.IsNullOrWhiteSpace(root.Path)).DistinctBy(root => root.Path, StringComparer.OrdinalIgnoreCase).ToArray();
 
-    public ApplicationScan Scan(IReadOnlyList<ApplicationScanRoot> roots, bool recursive)
+    public static IReadOnlyList<ApplicationScanRoot> StartMenuRoots() => new[]
+    {
+        new ApplicationScanRoot(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "个人开始菜单"),
+        new ApplicationScanRoot(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), "公共开始菜单")
+    }.Where(root => !string.IsNullOrWhiteSpace(root.Path)).DistinctBy(root => root.Path, StringComparer.OrdinalIgnoreCase).ToArray();
+
+    public ApplicationScan Scan(IReadOnlyList<ApplicationScanRoot> roots, bool recursive, bool shortcutsOnly = false)
     {
         var candidates = new List<ApplicationCandidate>(); var warnings = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -63,6 +74,7 @@ public sealed class ApplicationImportService(SettingsStore store, NativeLaunchSe
                                 continue;
                             }
                             var extension = Path.GetExtension(entry);
+                            if (shortcutsOnly && !extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase)) continue;
                             if (!extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase) && !extension.Equals(".exe", StringComparison.OrdinalIgnoreCase)) continue;
                             var path = NativeLaunchService.ValidateLocalPath(entry);
                             if (seen.Add(path)) candidates.Add(new(Guid.NewGuid().ToString("N"), Path.GetFileNameWithoutExtension(path), path,
@@ -80,11 +92,60 @@ public sealed class ApplicationImportService(SettingsStore store, NativeLaunchSe
         current = new(Guid.NewGuid().ToString("N"), normalized,
             candidates.OrderBy(candidate => candidate.EntryKind == "lnk" ? 0 : 1).ThenBy(candidate => candidate.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(candidate => candidate.Path, StringComparer.OrdinalIgnoreCase).ToArray(), recursive, warnings.Take(20).ToArray(), truncated);
-        expires = DateTime.UtcNow.AddMinutes(15);
+        expires = Now.AddMinutes(15);
+        currentShortcutsOnly = shortcutsOnly; currentFiles = null; staged = null;
         return current;
     }
 
-    public ApplicationScan Rescan(string scanId, bool recursive) => Scan(RequireScan(scanId).Roots, recursive);
+    public ApplicationScan Rescan(string scanId, bool recursive)
+    {
+        var scan = RequireScan(scanId);
+        return currentFiles is { } files ? ScanFiles(files, scan.Candidates.FirstOrDefault()?.Source ?? "所选文件") : Scan(scan.Roots, recursive, currentShortcutsOnly);
+    }
+
+    /// <summary>Exact files selected by a native picker; no containing directory is authorized.</summary>
+    public ApplicationScan ScanFiles(IReadOnlyList<string> paths, string source)
+    {
+        var scan = StageFiles(paths, source);
+        return ActivateStaged(scan.ScanId);
+    }
+
+    /// <summary>One detached native drop preview; current import authorization survives until explicit activation.</summary>
+    public ApplicationScan StageFiles(IReadOnlyList<string> paths, string source)
+    {
+        if (paths.Count is < 1 or > 100) throw new TargetValidationException("invalid_selection", "每次请选择或拖入 1–100 个应用文件。");
+        var candidates = new List<ApplicationCandidate>(); var warnings = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var original in paths)
+        {
+            try
+            {
+                var path = NativeLaunchService.ValidateLocalPath(original);
+                var attributes = File.GetAttributes(path);
+                if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint | FileAttributes.Offline)) != 0)
+                    throw new TargetValidationException("unavailable_target", "仅支持已下载的普通 EXE 或 LNK 文件。");
+                var extension = Path.GetExtension(path);
+                if (!extension.Equals(".exe", StringComparison.OrdinalIgnoreCase) && !extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase))
+                    throw new TargetValidationException("unsupported_target", "仅支持 EXE 或普通 LNK 文件。");
+                if (seen.Add(path)) candidates.Add(new(Guid.NewGuid().ToString("N"), Path.GetFileNameWithoutExtension(path), path, source,
+                    extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase) ? "lnk" : "exe"));
+            }
+            catch (Exception ex) when (ex is TargetValidationException or IOException or UnauthorizedAccessException)
+            { if (warnings.Count < 20) warnings.Add($"无法添加 {Path.GetFileName(original)}：{ex.Message}"); }
+        }
+        staged = new(Guid.NewGuid().ToString("N"), [], candidates, false, warnings, false);
+        stagedExpires = Now.AddMinutes(15);
+        return staged;
+    }
+
+    public ApplicationScan ActivateStaged(string scanId)
+    {
+        if (staged is not { } scan || scan.ScanId != scanId || Now > stagedExpires)
+            throw new TargetValidationException("scan_expired", "拖入列表已过期，请重新选择或拖入。");
+        current = scan; expires = stagedExpires; currentFiles = scan.Candidates.Select(candidate => candidate.Path).ToArray();
+        currentShortcutsOnly = false; staged = null;
+        return scan;
+    }
 
     public ApplicationImportResult Import(string scanId, IReadOnlyList<string> candidateIds)
     {
@@ -136,6 +197,6 @@ public sealed class ApplicationImportService(SettingsStore store, NativeLaunchSe
         return (target.ToUpperInvariant(), app.Arguments, directory.ToUpperInvariant());
     }
 
-    private ApplicationScan RequireScan(string scanId) => current is { } scan && scan.ScanId == scanId && DateTime.UtcNow <= expires ? scan :
+    private ApplicationScan RequireScan(string scanId) => current is { } scan && scan.ScanId == scanId && Now <= expires ? scan :
         throw new TargetValidationException("scan_expired", "应用列表已过期，请重新扫描后选择。");
 }

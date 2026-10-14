@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/DesktopHub.Core/DesktopHub.Core.csproj" />
+    <Compile Include="../../src/DesktopHub.Windows/ApplicationRequestParser.cs" Link="ApplicationRequestParser.cs" />
   </ItemGroup>
 </Project>

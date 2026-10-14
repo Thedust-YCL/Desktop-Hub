@@ -58,6 +58,13 @@ test('first hide requires explicit unselected policy; cancelling sends no system
   assert.equal(env.state().systemIntegration.desktopIcons.visible, true);
 });
 
+test('Task4 Dock launch auto-close is opt-in and saves only its dedicated setting',async()=>{
+  const env=setup();assert.equal(env.state().settings.autoCloseDock,undefined);
+  const markup=env.section('surfaces');assert.match(markup,/独立应用启动请求成功后自动收起 Dock/);assert.doesNotMatch(markup,/aria-label="独立应用启动请求成功后自动收起 Dock" checked/);
+  await env.H.actions['sys-auto-close-dock']({checked:true});assert.deepEqual(env.sent.filter(x=>x.type==='settings.save').at(-1).payload,{settings:{autoCloseDock:true}});
+  assert.equal(env.state().settings.autoCloseDock,true);
+});
+
 test('first hide transmits chosen exit policy; subsequent hide commands remain target-state writes', async () => {
   const env = setup();
   env.H.actions['sys-icons']({ dataset: { visible: 'false' } });

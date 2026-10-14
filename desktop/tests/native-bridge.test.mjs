@@ -30,6 +30,16 @@ function fakeWebView() {
   };
 }
 
+test('Task4 application group and favorite routes plus native staged-drop event are allowlisted',async()=>{
+  const view=fakeWebView(),bridge=createBridge(view);let preview=null;
+  bridge.on('apps.dropPreview',payload=>{preview=payload;});const scan={scanId:'staged',candidates:[]};
+  view.receive({version:1,type:'apps.dropPreview',payload:scan});assert.equal(preview,scan);
+  for(const type of ['apps.favorite','apps.groupSave','apps.groupRemove','apps.moveGroup','apps.groupReorder']){
+    const promise=bridge.request(type,{appId:'stable'}),sent=view.sent.at(-1);assert.equal(sent.type,type);view.receive({version:1,id:sent.id,ok:true,result:{saved:true}});assert.deepEqual(await promise,{saved:true});
+  }
+  await assert.rejects(bridge.request('apps.executePath',{path:'C:/forged.exe'}),error=>error.code==='UNKNOWN_MESSAGE');bridge.dispose();
+});
+
 test('request/response correlation and only selected native launch id crosses boundary', async () => {
   const view = fakeWebView();
   const bridge = createBridge(view);

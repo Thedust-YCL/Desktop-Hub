@@ -75,6 +75,23 @@ public sealed class HubWindow : Window, IDisposable
             catch (Exception e) { host.Log("Suspend", Surface + ":" + e.Message); }
         };
         bridge = new NativeBridge(host, this);
+        if (surface == "workspace")
+        {
+            AllowDrop = true;
+            ((FrameworkElement)Browser).AllowDrop = true;
+            PreviewDragOver += (_, e) =>
+            {
+                if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+                e.Effects = bridge.CanStageDrop ? DragDropEffects.Copy : DragDropEffects.None;
+                e.Handled = true;
+            };
+            PreviewDrop += (_, e) =>
+            {
+                if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+                e.Handled = true;
+                if (e.Data.GetData(DataFormats.FileDrop) is string[] files) bridge.StageApplicationDrop(files);
+            };
+        }
         ApplyBounds();
         SourceInitialized += (_, _) =>
         {

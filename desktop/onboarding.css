@@ -33,3 +33,9 @@
   .guide-import-actions { padding-left: 0; }
   .guide-welcome h3 { font-size: 18px; }
 }
+
+.guide-app-list { display: grid; gap: 6px; max-height: 180px; overflow: auto; }
+.guide-app-list > div { display: flex; gap: 12px; justify-content: space-between; align-items: center; min-width: 0; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.guide-app-list > div > span { overflow-wrap: anywhere; min-width: 0; }
+.guide-app-list .button { flex-shrink: 0; }
+.native-guide .guide-hint, .native-guide .guide-lesson p, .native-guide .check-row, .native-guide .guide-progress li, .native-guide .guide-feedback { font-size: 13px; }

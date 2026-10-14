@@ -8,7 +8,7 @@
     'window.openWorkspace', 'window.closeWorkspace', 'window.openDock',
     'window.closeDock', 'window.drag', 'window.resizeSurface', 'window.beginResize',
     'apps.add', 'apps.scan', 'apps.icons', 'apps.import', 'apps.update', 'apps.replaceTarget', 'apps.remove',
-    'apps.reorder', 'apps.launch', 'launcher.setPins',
+    'apps.favorite', 'apps.groupSave', 'apps.groupRemove', 'apps.moveGroup', 'apps.groupReorder', 'apps.reorder', 'apps.launch', 'launcher.setPins',
     'scenes.save', 'scenes.remove', 'scenes.reorder', 'scenes.run', 'scenes.pickTarget',
     'resources.query', 'resources.discover', 'resources.preview', 'resources.cancel',
     'resources.confirm', 'resources.refresh', 'resources.removeSource', 'resources.favorite',
@@ -53,7 +53,7 @@
         else request.reject(new NativeBridgeError(message.error.code, message.error.message));
         return;
       }
-      if (!['state.changed', 'window.navigate', 'window.historyNavigate', 'scene.executions', 'resources.changed', 'resources.progress'].includes(message.type)) return;
+      if (!['state.changed', 'window.navigate', 'window.historyNavigate', 'scene.executions', 'apps.dropPreview', 'resources.changed', 'resources.progress'].includes(message.type)) return;
       if (!message.payload || typeof message.payload !== 'object' || Array.isArray(message.payload)) return;
       for (const callback of subscribers.get(message.type) || []) {
         try { callback(message.payload); } catch (error) { options.onEventError?.(error); }

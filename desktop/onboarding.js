@@ -4,8 +4,9 @@
   const H = window.Hub, desktop = window.DesktopHubDesktop, bridge = window.DesktopHubNative.bridge;
   if (desktop.getState().surface !== 'workspace') return;
   const e = value => H.escape(String(value ?? '')), icon = (name, size = 20) => H.icon(name, size);
-  const steps = ['欢迎', '导入', '使用', '桌面图标', '开机自启', '完成'];
+  const steps = ['欢迎', '添加应用', '固定入口', '可选文件', '常驻设置', '完成'];
   let active = false, step = 0, busy = false, suspended = false, autoStarted = false, rescanning = false;
+  let suspendedKind = '';
   let hidePolicy = '', feedback = '', feedbackError = false;
   const host = () => desktop.getState().hostState;
   const settings = () => host()?.settings || {};
@@ -23,34 +24,35 @@
     switch (step) {
       case 0:
         title = '欢迎使用 Desktop Hub';
-        body = `<div class="guide-welcome"><span class="guide-mark">${icon('grid', 36)}</span><h3>把常用内容，放在顺手的位置</h3><p>用几步了解导入与使用，再按你的习惯设置桌面。</p></div><div class="guide-overview"><span>${icon('folder', 18)} 导入文件</span><span>${icon('dock', 18)} 快速打开</span><span>${icon('settings', 18)} 常驻设置</span></div>${hint('随时可以跳过。之后在“设置 → 系统与恢复 → 使用帮助”重新引导。')}`;
+        body = `<div class="guide-welcome"><span class="guide-mark">${icon('grid', 36)}</span><h3>把常用内容，放在顺手的位置</h3><p>先添加并试用常用应用，再选择固定入口和常驻设置。</p></div><div class="guide-overview"><span>${icon('app', 18)} 添加应用</span><span>${icon('dock', 18)} 快速打开</span><span>${icon('settings', 18)} 常驻设置</span></div>${hint('随时可以跳过。之后在“设置 → 系统与恢复 → 使用帮助”重新引导。')}`;
         break;
       case 1:
-        title = '先导入一个文件来源';
+        title = '添加并尝试启动应用';
+        body = lesson('app', '先添加常用软件', '从桌面、开始菜单或多选 EXE / Windows 快捷方式，预览后确认添加。也可将程序拖入工作空间。', button('guide-add-app','添加应用…','primary')) +
+          `<div class="guide-app-list">${(settings().appEntries || []).map(app => `<div><span>${e(app.name)}</span>${button('guide-launch','尝试启动','quiet',`data-id="${e(app.id)}"`)}</div>`).join('')}</div>` + hint('只有点击“尝试启动”才会启动程序；可以跳过，之后在首页继续。');
+        break;
+      case 2:
+        title = '固定常用入口';
+        body = lesson('pin', '分别选择 Mini 与 Dock 的入口', '固定只添加启动入口，不会改变收藏。Mini 最多放 4 个应用或场景；顺序由你选择。', `<div class="guide-actions">${button('guide-pins','选择 Mini 入口…','primary','data-surface="mini"')}${button('guide-pins','选择 Dock 入口…','quiet','data-surface="dock"')}</div>`) +
+          hint('已有入口和收藏保持原样。可以先跳过，之后在首页“固定入口”调整。') +
+          `<div class="guide-shortcuts"><span><kbd>${e(settings().workspaceHotkey || 'Ctrl+Alt+W')}</kbd> 打开工作空间</span><span><kbd>${e(settings().dockHotkey || 'Ctrl+Alt+D')}</kbd> 展开 Dock</span></div>`;
+        break;
+      case 3:
+        title = '可选：导入文件来源';
         body = lesson('folder', '选择桌面或常用目录', '先查看扫描预览，确认导入后才建立索引。文件留在原处；默认只导入目录的直接子项。') +
           `<div class="guide-import-actions">${button('guide-import', `${icon('monitor', 18)} 查看桌面预览`, 'primary', 'data-kind="desktop"')}${button('guide-import', `${icon('folder', 18)} 选择目录…`, 'quiet', 'data-kind="custom"')}</div>` +
           lesson('tag', '按需要整理', '确认导入时可以选择是否按修改年月自动添加时间标签；之后也能手动添加标签和收藏。') +
           hint('已有来源会保留。取消扫描会回到这里，也可以先跳过导入，稍后在文件资源库添加。');
         break;
-      case 2:
-        title = '了解日常使用';
-        body = lesson('app', '应用：添加 → 点击启动 → 收藏', '在首页“我的应用”选择 EXE 或 Windows 快捷方式。点击图标启动，收藏后会加入 Dock。', button('guide-add-app', '添加一个应用…')) +
-          lesson('search', '文件：搜索、标签与收藏', '在文件资源库点击“打开”使用文件；点击文件夹整行进入浏览。用快速搜索、标签和收藏找回常用内容。') +
-          lesson('scenes', '场景：把多个动作组合起来', '在场景中心创建场景，添加应用、网页、文件等动作，保存后一次启动。常用应用和场景可固定到 Mini。') +
-          `<div class="guide-shortcuts"><span><kbd>${e(settings().workspaceHotkey || 'Ctrl+Alt+W')}</kbd> 打开工作空间</span><span><kbd>${e(settings().dockHotkey || 'Ctrl+Alt+D')}</kbd> 展开 Dock</span><span><kbd>Esc</kbd> 收起工作空间</span></div>`;
-        break;
-      case 3:
-        title = '是否隐藏 Windows 桌面图标';
+      case 4:
+        title = '常驻与桌面设置';
         body = lesson('monitor', iconsKnown ? `桌面图标当前${icons.visible ? '显示' : '隐藏'}` : '暂时无法读取桌面图标状态', '隐藏后，桌面会更简洁；文件仍可从资源库和资源管理器打开。只改变图标整体可见性，原文件不受影响。') +
           (!icons?.firstHideAuthorized ? `<fieldset class="guide-policy"><legend>如果选择隐藏，完整退出后如何处理？</legend><label class="check-row"><input type="radio" name="guide-policy" value="restore" data-change="guide-policy" ${hidePolicy === 'restore' ? 'checked' : ''} ${busy ? 'disabled' : ''}><span>恢复隐藏前的图标状态</span></label><label class="check-row"><input type="radio" name="guide-policy" value="keepHidden" data-change="guide-policy" ${hidePolicy === 'keepHidden' ? 'checked' : ''} ${busy ? 'disabled' : ''}><span>保持隐藏，由我手动恢复</span></label></fieldset>` : hint(`完整退出后的策略：${icons.exitPolicy === 'keepHidden' ? '保持隐藏' : '恢复隐藏前的图标状态'}。可在系统设置中更改。`)) +
           `<div class="guide-actions">${button('guide-icons', '显示桌面图标', 'quiet', `data-visible="true" ${!iconsKnown ? 'disabled' : ''}`)}${button('guide-icons', '隐藏桌面图标', 'quiet', `data-visible="false" ${!iconsKnown || (!icons?.firstHideAuthorized && !hidePolicy) ? 'disabled' : ''}`)}</div>` +
           hint(`随时恢复：<strong>桌面空白处右键 → 查看 → 显示桌面图标</strong>。关闭工作空间会继续常驻；完整退出请使用托盘菜单。`) +
           (icons?.message && (!icons.success || icons.conflict) ? hint(e(icons.message)) : '') +
           (!iconsKnown ? button('guide-refresh', '重新读取状态') : '');
-        break;
-      case 4:
-        title = '是否随 Windows 登录启动';
-        body = lesson('settings', startupKnown ? `开机自启当前${startup.enabled ? '开启' : '关闭'}` : '暂时无法读取启动项状态', '开启后，在当前用户登录 Windows 时安静常驻。不会自动打开工作空间，也不会自动执行场景。') +
+        body += lesson('settings', startupKnown ? `开机自启当前${startup.enabled ? '开启' : '关闭'}` : '暂时无法读取启动项状态', '开启后，在当前用户登录 Windows 时安静常驻。不会自动打开工作空间，也不会自动执行场景。') +
           `<div class="guide-actions">${button('guide-startup', startup?.needsRepair ? '按当前位置修复自启' : '开启开机自启', 'quiet', `data-enabled="true" ${!startupKnown ? 'disabled' : ''}`)}${button('guide-startup', '关闭开机自启', 'quiet', `data-enabled="false" ${!startupKnown ? 'disabled' : ''}`)}</div>` +
           hint('这一步按你的需要选择，也可以保持当前设置直接继续。之后可在“设置 → 系统与恢复”更改。') +
           (startup?.message && (!startup.success || startup.needsRepair) ? hint(e(startup.message)) : '') +
@@ -102,23 +104,32 @@
     H.toast(step === steps.length - 1 ? '可以开始使用了。设置中可随时重新引导。' : '已跳过引导，可从设置重新开始。');
   }
   function resumeImport() {
-    if (!active || !suspended || rescanning) return;
+    if (!active || !suspended || rescanning || busy || H.ui.modal) return;
     const resources = window.DesktopHubResources?.getState();
-    if (resources?.scan || resources?.preview) return;
+    if (suspendedKind === 'resources' && (resources?.scan || resources?.preview)) return;
+    if (suspendedKind === 'apps' && desktop.isImporting?.()) return;
     suspended = false;
-    feedback = resources?.result?.sources?.length ? '来源已保存或保留，可以继续，也可以再添加一个目录。' : '尚未导入。可以重新选择来源，或直接进入下一步。';
-    feedbackError = false; renderGuide();
+    feedback = suspendedKind === 'apps' ? desktop.getState().launch?.message || '应用保持已保存的状态。可以继续添加、尝试启动或进入下一步。' : suspendedKind === 'pins' ? '固定入口保持已保存的选择。' : '文件来源保持已保存的状态。可以继续，也可以跳过。';
+    suspendedKind = ''; feedbackError = false; renderGuide();
+  }
+  const closeModal = H.closeModal;
+  H.closeModal = function (...args) { const result = closeModal.apply(H,args); if (active && suspended) Promise.resolve().then(resumeImport); return result; };
+  async function suspendFor(kind, action) {
+    suspended = true; suspendedKind = kind; H.closeModal();
+    try { await action(); }
+    catch (error) { feedback = error.message; feedbackError = true; }
+    resumeImport();
   }
   // Existing preview dialogs keep their own cancel/confirm and time-tag consent flow.
-  for (const action of ['nr-cancel', 'nr-confirm']) {
+  for (const action of ['nr-cancel', 'nr-confirm', 'app-import-confirm', 'launcher-pins-save', 'close-modal']) {
     const previous = H.actions[action];
-    H.actions[action] = async (...args) => { const result = await previous(...args); resumeImport(); return result; };
+    H.actions[action] = async (...args) => { const result = await previous?.(...args); resumeImport(); return result; };
   }
   const previousRescan = H.actions['nr-rescan'];
   H.actions['nr-rescan'] = async (...args) => {
     const guided = active && suspended;
     if (guided) rescanning = true;
-    try { return await previousRescan(...args); }
+    try { return await previousRescan?.(...args); }
     finally { if (guided) { rescanning = false; resumeImport(); } }
   };
   Object.assign(H.actions, {
@@ -129,20 +140,22 @@
     'guide-skip': finish,
     'guide-finish': finish,
     'guide-import': async el => {
-      if (!active || step !== 1 || busy || suspended || !['desktop', 'custom'].includes(el.dataset.kind)) return;
-      suspended = true;
-      try { await window.DesktopHubResources.previewSource(el.dataset.kind); }
-      catch (error) { feedback = error.message; feedbackError = true; }
-      resumeImport();
+      if (!active || step !== 3 || busy || suspended || !['desktop', 'custom'].includes(el.dataset.kind)) return;
+      await suspendFor('resources',() => window.DesktopHubResources.previewSource(el.dataset.kind));
     },
     'guide-add-app': async () => {
-      if (!active || step !== 2 || busy || suspended) return;
+      if (!active || step !== 1 || busy || suspended) return;
+      await suspendFor('apps',() => H.actions['app-add']());
+    },
+    'guide-pins': async el => {
+      if (!active || step !== 2 || busy || suspended || !['mini','dock'].includes(el.dataset.surface)) return;
+      await suspendFor('pins',() => H.actions['launcher-manage'](el));
+    },
+    'guide-launch': async el => {
+      if (!active || step !== 1 || busy || suspended || !settings().appEntries?.some(app => app.id === el.dataset.id)) return;
       busy = true; renderGuide();
-      try {
-        await H.actions['app-add']();
-        const launch = desktop.getState().launch;
-        feedback = launch?.message || '之后也可以在首页继续添加应用。'; feedbackError = launch?.status === 'error';
-      } catch (error) { feedback = error.message; feedbackError = true; }
+      try { const result = await H.actions['app-launch'](el); feedback = result?.message || '请查看应用启动结果。'; feedbackError = result?.success !== true; }
+      catch (error) { feedback = error.message; feedbackError = true; }
       finally { busy = false; renderGuide(); }
     },
     'guide-policy': el => {
@@ -152,7 +165,7 @@
       if (hide) hide.disabled = integration().desktopIcons?.supported !== true || typeof integration().desktopIcons?.visible !== 'boolean';
     },
     'guide-icons': el => {
-      if (step !== 3 || busy || suspended) return;
+      if (step !== 4 || busy || suspended) return;
       const icons = integration().desktopIcons, visible = el.dataset.visible === 'true';
       if (!icons?.supported || typeof icons.visible !== 'boolean' || (!visible && !icons.firstHideAuthorized && !hidePolicy)) return;
       return mutate('system.setDesktopIcons', { visible, ...(!visible && !icons.firstHideAuthorized ? { firstHidePolicy: hidePolicy } : {}) }, visible ? '桌面图标已显示。' : '桌面图标已隐藏。');

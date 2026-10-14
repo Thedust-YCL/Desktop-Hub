@@ -7,7 +7,7 @@
   const types = { all: '全部', app: '应用', scene: '场景', file: '文件', folder: '文件夹', tag: '标签', project: '项目' };
   const statuses = { Missing: '缺失 · 重新关联', PendingRepair: '需修复 · 重新关联', SourceUnavailable: '来源不可用', Disabled: '已停用 · 编辑启用', Invalid: '引用失效 · 编辑修复' };
   let query = '', type = 'all', rows = [], active = -1, composing = false, timer = null, generation = 0, error = '', loading = false, opener = null;
-  let launchFailure = null, launchSequence = 0;
+  let favoritesOnly = false;
   const isOpen = () => !!H.ui.modal?.unifiedSearch;
   const node = id => document.querySelector('#' + id);
   const settings = () => desktop.getState().hostState?.settings;
@@ -40,11 +40,11 @@
     if (!isOpen()) return;
     invalidate(); loading = true; error = ''; paint();
     if (composing) return;
-    const order = generation, text = query, filter = type;
+    const order = generation, text = query, filter = type, onlyFavorites = favoritesOnly;
     timer = setTimeout(async () => {
       timer = null;
       try {
-        const result = await bridge.request('search.query', { query: text, type: filter });
+        const result = await bridge.request('search.query', { query: text, type: filter, favoritesOnly: onlyFavorites });
         if (order !== generation || !isOpen()) return;
         if (!Array.isArray(result) || result.some(row => !types[row.type] || row.type === 'all' || typeof row.id !== 'string' || typeof row.name !== 'string' || typeof row.detail !== 'string' || typeof row.status !== 'string')) throw new Error('搜索结果无效，请重试。');
         rows = result.slice(0, 50); active = rows.findIndex(row => row.status === 'Active'); if (active < 0 && rows.length) active = 0;
@@ -55,8 +55,8 @@
   function open() {
     if (H.ui.modal) return false;
     opener = document.activeElement ? { id: document.activeElement.id, data: { ...document.activeElement.dataset } } : null;
-    query = ''; type = 'all'; composing = false;
-    H.showModal('搜索', `<div class="unified-search"><label class="unified-input">${H.icon('search', 20)}<input id="unified-query" type="search" maxlength="200" autofocus autocomplete="off" placeholder="名称、中文首字母、路径或标签" aria-label="搜索应用、场景、文件和标签" role="combobox" aria-controls="unified-results" aria-expanded="true" aria-autocomplete="list"></label><div id="unified-types" class="unified-types" aria-label="搜索类型"></div><p id="unified-feedback" class="unified-feedback" role="status" aria-live="polite"></p><div id="unified-results" class="unified-results" role="listbox" aria-label="搜索结果"></div></div>`, '<span class="unified-hint">↑ ↓ 选择 · Enter 打开 · Esc 关闭</span>', { wide: true });
+    query = ''; type = 'all'; favoritesOnly = false; composing = false;
+    H.showModal('搜索', `<div class="unified-search"><label class="unified-input">${H.icon('search', 20)}<input id="unified-query" type="search" maxlength="200" autofocus autocomplete="off" placeholder="名称、中文首字母、路径或标签" aria-label="搜索应用、场景、文件和标签" role="combobox" aria-controls="unified-results" aria-expanded="true" aria-autocomplete="list"></label><div id="unified-types" class="unified-types" aria-label="搜索类型"></div><label class="check-row"><input id="unified-favorites" type="checkbox" data-change="unified-favorites"><span>仅收藏的应用与文件</span></label><p id="unified-feedback" class="unified-feedback" role="status" aria-live="polite"></p><div id="unified-results" class="unified-results" role="listbox" aria-label="搜索结果"></div></div>`, '<span class="unified-hint">↑ ↓ 选择 · Enter 打开 · Esc 关闭</span>', { wide: true });
     H.ui.modal.unifiedSearch = true; node('unified-query')?.focus({ preventScroll: true }); refresh(); return true;
   }
   const previousClose = H.closeModal;
@@ -79,12 +79,7 @@
     H.closeModal();
     try {
       if (row.type === 'app') {
-        const order = ++launchSequence;
-        const outcome = await H.actions['app-launch']({ dataset: { id: row.id } });
-        if (order === launchSequence && outcome?.success === false) {
-          launchFailure = { appId: row.id, name: row.name, message: outcome.message || '启动失败，请检查所选文件。' };
-          H.render();
-        }
+        await H.actions['app-launch']({ dataset: { id: row.id } });
       }
       else if (row.type === 'scene') {
         const scene = current.scenes.find(item => item.id === row.id);
@@ -104,12 +99,7 @@
     'search-open': open, 'unified-retry': refresh,
     'unified-type': el => { if (!Object.hasOwn(types, el.dataset.type)) return; type = el.dataset.type; refresh(); },
     'unified-execute': el => execute(Number(el.dataset.index)), 'unified-reveal': el => execute(Number(el.dataset.index), true),
-    'unified-launch-dismiss': () => { launchFailure = null; H.render(); },
-    'unified-launch-edit': el => {
-      if (H.ui.modal) return;
-      if (!settings()?.appEntries?.some(app => app.id === el.dataset.id)) { H.toast('此应用已移除，请重新搜索。', 'warning'); return; }
-      H.actions['app-edit']({ dataset: { id: el.dataset.id } });
-    }
+    'unified-favorites': el => { favoritesOnly = !!el.checked; refresh(); }
   });
   const navigate = H.navigate;
   H.navigate = function (page) { if (page === 'search') { open(); return; } return navigate(page); };
@@ -117,11 +107,7 @@
     const top = document.querySelector('.global-search');
     if (top) { top.dataset.action = 'search-open'; top.removeAttribute('data-page'); top.setAttribute('aria-label', '搜索应用、场景、文件和标签'); const label = top.querySelector('span'); if (label) label.textContent = '搜索应用、场景、文件'; }
   }
-  function paintLaunchFailure() {
-    if (!launchFailure || node('unified-launch-failure')) return;
-    document.querySelector('.workspace-content')?.insertAdjacentHTML('beforebegin', `<div id="unified-launch-failure" class="notice warning unified-launch-feedback" role="alert"><span title="${e(launchFailure.name + '：' + launchFailure.message)}">${e(launchFailure.name)}：${e(launchFailure.message)}</span><button class="button small" data-action="unified-launch-edit" data-id="${e(launchFailure.appId)}">编辑应用 / 更换文件</button><button class="icon-button small" data-action="unified-launch-dismiss" aria-label="关闭启动提示">${H.icon('close', 16)}</button></div>`);
-  }
-  const render = H.render; H.render = function () { render(); bindEntry(); paintLaunchFailure(); };
+  const render = H.render; H.render = function () { render(); bindEntry(); };
   document.addEventListener('input', event => {
     if (!isOpen() || event.target.id !== 'unified-query') return;
     query = event.target.value; if (event.isComposing) composing = true; refresh();

@@ -19,6 +19,14 @@ function setup(surface='workspace') {
 }
 const click=id=>({dataset:{id}});
 
+test('Task4 Favorites combines an independent app section with separately selected favorite resources',async()=>{
+  const env=setup();env.window.DesktopHubDesktop.favoriteApplicationsMarkup=()=>'<section aria-label="收藏的应用"><button data-action="app-launch" data-id="app-id">应用</button></section>';
+  env.H.navigate('favorites');await env.window.DesktopHubResources.reload();
+  const html=env.H.pages.favorites();assert.match(html,/data-action="app-launch" data-id="app-id"/);assert.match(html,/文件与文件夹/);
+  env.H.actions['nr-select-page']();assert.deepEqual(Array.from(env.window.DesktopHubResources.getState().selectedIds),['resource']);
+  assert.equal(env.sent.filter(x=>x.type==='resources.query').at(-1).payload.favoritesOnly,true);
+});
+
 for(const operation of ['tag','folder']) for(const intent of ['editor','import','search','page','closed-modal','page-back']) {
   test(`deferred ${operation} navigation respects newer ${intent} intent`,async()=>{
     const env=setup();await env.window.DesktopHubResources.reload();env.H.navigate('home');let resolve;const waiting=new Promise(done=>{resolve=done;});env.respond(operation==='tag'?'resources.query':'resources.browse',()=>waiting);

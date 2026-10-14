@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DesktopHub.Core;
@@ -12,7 +13,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
 {
     private readonly HashSet<string> pending = new();
     private static readonly HashSet<string> Editable = new(StringComparer.Ordinal)
-    { "theme", "reducedMotion", "uiDensity", "onboardingCompleted", "suppressDesktopLocationNotice", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
+    { "theme", "reducedMotion", "uiDensity", "autoCloseDock", "onboardingCompleted", "suppressDesktopLocationNotice", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
     private static readonly HashSet<string> Pages = new(StringComparer.Ordinal)
     { "home", "scenes", "library", "tags", "favorites", "search", "settings" };
     private bool pickerOpen, launching;
@@ -67,11 +68,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
         switch (type)
         {
             case "search.query":
-                RequireWorkspace(); RequireKeys(payload, "query", "type");
-                var searchQuery = OptionalString(payload, "query", 200);
-                var searchType = String(payload, "type", 12);
-                if (searchQuery.Any(char.IsControl) || searchType is not ("all" or "app" or "scene" or "file" or "folder" or "tag" or "project"))
-                    throw new BridgeException("INVALID_PARAMS", "搜索参数无效。");
+                RequireWorkspace(); var searchRequest = ApplicationRequestParser.Search(payload);
                 var searchSettings = host.Store.Current;
                 var searchLibrary = (await host.GetResourcesAsync()).Store.Snapshot();
                 return await Task.Run(() =>
@@ -87,7 +84,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                         resource.CanonicalPath + string.Concat(boundTags[resource.Id].Where(binding => tagsById.ContainsKey(binding.TagId)).Select(binding => " · " + tagsById[binding.TagId].Name)), resource.Status, resource.Favorite)));
                     entities.AddRange(searchLibrary.Tags.Select(tag => new SearchEntity("tag", tag.Id, tag.Name,
                         searchLibrary.TagCategories.FirstOrDefault(category => category.Id == tag.CategoryId)?.Name ?? "标签", "Active", false)));
-                    return UnifiedSearchService.Search(entities, searchQuery, searchType);
+                    return searchRequest.Execute(entities);
                 });
             case "app.getState": Empty(payload); return host.State(window);
             case "settings.get": Empty(payload); return new { settings = host.Store.Current, effectiveTheme = host.EffectiveTheme };
@@ -127,8 +124,8 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
             case "apps.add":
                 RequireWorkspace(); Empty(payload); return await ChooseAppAsync();
             case "apps.scan":
-                RequireWorkspace(); RequireKeys(payload, "source", "recursive", "scanId");
-                return await ScanAppsAsync(String(payload, "source", 12), Boolean(payload, "recursive"), OptionalString(payload, "scanId", 96));
+                RequireWorkspace(); var scanRequest = ApplicationRequestParser.Scan(payload);
+                return await ScanAppsAsync(scanRequest.Source, scanRequest.Recursive, scanRequest.ScanId);
             case "apps.import":
                 RequireWorkspace(); RequireKeys(payload, "scanId", "candidateIds");
                 if (pickerOpen) throw new BridgeException("BUSY", "请等待文件选择或扫描完成。");
@@ -151,11 +148,27 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                 RequireWorkspace(); RequireKeys(payload, "appId");
                 return await ChooseAppAsync(String(payload, "appId", 96));
             case "apps.update":
-                RequireWorkspace(); RequireKeys(payload, "appId", "name", "arguments", "workingDirectory", "pinnedToMini", "pinnedToDock");
-                var updated = host.AppLibrary.Update(String(payload, "appId", 96), String(payload, "name", 200),
-                    OptionalString(payload, "arguments", 32767), OptionalString(payload, "workingDirectory", 32767),
-                    Boolean(payload, "pinnedToMini"), Boolean(payload, "pinnedToDock"));
+                RequireWorkspace(); var edit = ApplicationRequestParser.Update(payload);
+                var updated = host.AppLibrary.Update(edit.AppId, edit.Name, edit.Arguments, edit.WorkingDirectory, edit.Mini, edit.Dock, edit.Favorite);
                 host.SettingsChanged(); return new { settings = updated };
+            case "apps.favorite":
+                RequireWorkspace(); var favorite = ApplicationRequestParser.Favorite(payload);
+                var favorited = host.AppLibrary.SetFavorite(favorite.AppId, favorite.Favorite);
+                host.SettingsChanged(); return new { settings = favorited };
+            case "apps.groupSave":
+                RequireWorkspace(); var group = ApplicationRequestParser.GroupSave(payload);
+                var groupSaved = host.AppLibrary.SaveGroup(group.GroupId, group.Name);
+                host.SettingsChanged(); return new { settings = groupSaved };
+            case "apps.groupRemove":
+                RequireWorkspace(); var groupRemoved = host.AppLibrary.RemoveGroup(ApplicationRequestParser.GroupRemove(payload));
+                host.SettingsChanged(); return new { settings = groupRemoved };
+            case "apps.moveGroup":
+                RequireWorkspace(); var membership = ApplicationRequestParser.MoveGroup(payload);
+                var groupMoved = host.AppLibrary.MoveToGroup(membership.AppId, membership.GroupId);
+                host.SettingsChanged(); return new { settings = groupMoved };
+            case "apps.groupReorder":
+                RequireWorkspace(); var groupOrdered = host.AppLibrary.ReorderGroups(ApplicationRequestParser.GroupReorder(payload));
+                host.SettingsChanged(); return new { settings = groupOrdered };
             case "apps.remove":
                 RequireWorkspace(); RequireKeys(payload, "appId", "confirmReferences");
                 var removeId = String(payload, "appId", 96);
@@ -206,7 +219,12 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                 var appId = String(payload, "appId", 96);
                 var snapshot = host.Store.Current;
                 launching = true;
-                try { return await Task.Run(() => host.Launcher.LaunchApp(snapshot, appId)); }
+                try
+                {
+                    var outcome = await Task.Run(() => host.Launcher.LaunchApp(snapshot, appId));
+                    if (ApplicationRequestParser.ShouldCloseDock(window.Surface, host.Store.Current.AutoCloseDock, outcome.Success)) host.CloseDock();
+                    return outcome;
+                }
                 finally { launching = false; }
             case "app.exit": Empty(payload); _ = window.Dispatcher.BeginInvoke(host.Exit); return new { exiting = true };
             default: throw new BridgeException("UNKNOWN_MESSAGE", "不支持此操作。");
@@ -220,8 +238,16 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
         try
         {
             if (source == "current") return new { cancelled = false, scan = await Task.Run(() => imports.Rescan(scanId, recursive)) };
+            if (source == "drop") return new { cancelled = false, scan = imports.ActivateStaged(scanId) };
+            if (source == "files")
+            {
+                var files = new OpenFileDialog { Title = "选择要添加的应用", Filter = "程序与快捷方式 (*.exe;*.lnk)|*.exe;*.lnk", CheckFileExists = true, Multiselect = true, DereferenceLinks = false };
+                if (await window.Dispatcher.InvokeAsync(() => files.ShowDialog(window)) != true) return new { cancelled = true };
+                return new { cancelled = false, scan = await Task.Run(() => imports.ScanFiles(files.FileNames, "手动选择")) };
+            }
             IReadOnlyList<ApplicationScanRoot> roots;
             if (source == "desktop") roots = ApplicationImportService.DesktopRoots();
+            else if (source == "startMenu") roots = ApplicationImportService.StartMenuRoots();
             else if (source == "folder")
             {
                 var dialog = new OpenFolderDialog { Title = "选择文件夹，自动查找程序与快捷方式", Multiselect = false };
@@ -229,9 +255,19 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                 roots = [new(NativeLaunchService.ValidateLocalPath(dialog.FolderName), "所选文件夹")];
             }
             else throw new BridgeException("INVALID_PARAMS", "请选择桌面或本地文件夹。");
-            return new { cancelled = false, scan = await Task.Run(() => imports.Scan(roots, recursive)) };
+            return new { cancelled = false, scan = await Task.Run(() => imports.Scan(roots, recursive, source == "startMenu")) };
         }
         finally { pickerOpen = false; }
+    }
+
+    public bool CanStageDrop => window.Surface == "workspace" && !host.IsExiting && !pickerOpen && pending.Count == 0;
+
+    public void StageApplicationDrop(IReadOnlyList<string> nativeFiles)
+    {
+        if (!CanStageDrop) return;
+        try { window.SendEvent("apps.dropPreview", imports.StageFiles(nativeFiles, "拖入应用")); }
+        catch (Exception ex) when (ex is TargetValidationException or ArgumentException or IOException or UnauthorizedAccessException)
+        { host.Log("ApplicationDrop", ex.Message); }
     }
 
     private async Task<object> ChooseAppAsync(string? replaceId = null)

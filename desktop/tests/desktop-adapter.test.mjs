@@ -77,10 +77,11 @@ function setup(surface = 'workspace', responses = {}, withSearch = false) {
     H, sent, toasts, state, document, window, nodes, storage,
     loadAdapter(name) { vm.runInContext(fs.readFileSync(new URL('../' + name, import.meta.url),'utf8'), context, { filename: name }); },
     async initialize() { for (const handler of domListeners.get('DOMContentLoaded') || []) await handler(); },
-    emit(type, payload) { eventListeners.get(type)?.(payload); },
+    emit(type, payload) { return eventListeners.get(type)?.(payload); },
     emitStorage(key, value) { storage.set(key, value); windowListeners.get('storage')?.({ key, newValue: value }); },
     async flushTimers() { const tasks = [...timers.values()]; timers.clear(); for (const fn of tasks) await fn(); },
     key(event) { for (const handler of domListeners.get('keydown') || []) handler(event); }
+    ,domEvent(type,event) { return domListeners.get(type)?.[0]?.(event); }
   };
 }
 
@@ -171,6 +172,82 @@ for (const page of ['library','settings']) {
 const discovery = () => ({ scanId: 'scan-1', roots: [{ path: 'C:\\Users\\Public\\Desktop', name: '公共桌面' }], recursive: false, warnings: [], truncated: false,
   candidates: [{ id: 'wechat', name: '微信', path: 'C:\\Users\\Public\\Desktop\\微信.lnk', source: '公共桌面', entryKind: 'lnk' }] });
 
+test('Task4 favorite and atomic editor use independent Favorite without changing launcher pins', async()=>{
+  const env=setup('workspace',{'apps.favorite':async(p,state)=>{state.settings.appEntries[0].favorite=p.favorite;return {settings:structuredClone(state.settings)};},'apps.update':async(p,state)=>({settings:structuredClone(state.settings)})});
+  env.state.settings.appEntries=[{...appEntry('a'),favorite:false}];await env.initialize();
+  await env.H.actions['app-favorite'](click('a'));assert.deepEqual(env.sent.find(x=>x.type==='apps.favorite')?.payload,{appId:'a',favorite:true});assert.equal(env.sent.some(x=>x.type==='launcher.setPins'),false);
+  env.H.actions['app-edit'](click('a'));assert.match(env.H.ui.modal.body,/收藏应用/);assert.match(env.H.ui.modal.body,/固定到 Dock/);assert.match(env.H.ui.modal.body,/id="app-favorite"/);
+  for(const [id,node] of [['#app-name',{value:'Name'}],['#app-arguments',{value:'--x'}],['#app-working-directory',{value:''}],['#app-favorite',{checked:false}],['#app-pin-mini',{checked:false}],['#app-pin-dock',{checked:true}]])env.nodes.set(id,node);
+  await env.H.actions['app-save'](click('a'));assert.deepEqual(env.sent.find(x=>x.type==='apps.update').payload,{appId:'a',name:'Name',arguments:'--x',workingDirectory:'',favorite:false,pinnedToMini:false,pinnedToDock:true});
+});
+test('Task4 StartMenu and native multiSelect enter token confirmation without apps.add writes',async()=>{
+  const env=setup('workspace',{'apps.scan':async(p)=>({scan:{...discovery(),recursive:p.recursive,roots:p.source==='startMenu'?[{name:'个人开始菜单',path:'C:/Programs'}]:[]}})});env.state.settings.suppressDesktopLocationNotice=true;await env.initialize();await env.H.actions['app-add']();
+  assert.match(env.H.ui.modal.body,/开始菜单/);await env.H.actions['app-import-start-menu']();assert.deepEqual(env.sent.filter(x=>x.type==='apps.scan').at(-1).payload,{source:'startMenu',recursive:true,scanId:''});
+  await env.H.actions['app-import-file']();assert.deepEqual(env.sent.filter(x=>x.type==='apps.scan').at(-1).payload,{source:'files',recursive:false,scanId:''});assert.equal(env.sent.some(x=>x.type==='apps.add'),false);assert.match(env.H.ui.modal.footer,/添加所选应用/);
+});
+test('Task4 drops refuse any current modal and activate only staged IDs after the guard',async()=>{
+  const env=setup('workspace',{'apps.scan':async()=>({scan:discovery()})});await env.initialize();
+  for(const locked of [false,true]){env.H.ui.modal={title:'existing',locked};env.emit('apps.dropPreview',discovery());await Promise.resolve();assert.equal(env.sent.some(x=>x.type==='apps.scan'),false);assert.equal(env.H.ui.modal.title,'existing');}
+  env.H.closeModal();await env.emit('apps.dropPreview',discovery());assert.deepEqual(env.sent.find(x=>x.type==='apps.scan')?.payload,{source:'drop',recursive:false,scanId:'scan-1'});assert.match(env.H.ui.modal.body,/微信/);
+});
+test('Task4 app-add cannot replace unlocked editor and delayed drop cannot reopen another modal',async()=>{
+  let resolve;const env=setup('workspace',{'apps.scan':()=>new Promise(done=>{resolve=done;})});await env.initialize();env.H.ui.modal={title:'editor',locked:false};await env.H.actions['app-add']();assert.equal(env.H.ui.modal.title,'editor');env.H.closeModal();env.emit('apps.dropPreview',discovery());assert.equal(typeof resolve,'function');env.H.showModal('newer','','');resolve({scan:discovery()});await Promise.resolve();await Promise.resolve();assert.equal(env.H.ui.modal.title,'newer');
+});
+test('Task4 grouped arrows emit a full permutation while preserving other group positions and pins',async()=>{
+ const env=setup('workspace',{'apps.reorder':async(p,state)=>({settings:{...state.settings,appEntries:p.appIds.map((id,i)=>({...state.settings.appEntries.find(a=>a.id===id),displayOrder:i}))}})});env.state.settings.appGroups=[{id:'g',name:'Work',displayOrder:0}];env.state.settings.appEntries=[{...appEntry('a',0),groupId:'g'},appEntry('b',1),{...appEntry('c',2),groupId:'g'},appEntry('d',3)];await env.initialize();assert.match(env.H.pages.home(),/Work/);await env.H.actions['app-move'](click('a',{direction:'1'}));assert.deepEqual(env.sent.find(x=>x.type==='apps.reorder').payload,{appIds:['c','b','a','d']});env.H.actions['apps-search']({value:'a'});await env.H.actions['app-move'](click('c',{direction:'1'}));assert.equal(env.sent.filter(x=>x.type==='apps.reorder').length,1);assert.match(env.H.pages.home(),/清除搜索后/);
+});
+test('Task4 Favorites applications provider keeps app IDs outside resource selection and shared launch failure visible',async()=>{
+ const env=setup('workspace',{'apps.launch':async()=>({success:false,message:'目标已移除'})},true);env.state.settings.appEntries=[{...appEntry('a'),favorite:true},{...appEntry('b'),favorite:false}];await env.initialize();assert.equal(typeof env.window.DesktopHubDesktop.favoriteApplicationsMarkup,'function');const markup=env.window.DesktopHubDesktop.favoriteApplicationsMarkup();assert.match(markup,/data-action="app-launch" data-id="a"/);assert.doesNotMatch(markup,/data-id="b"|nr-select/);env.H.navigate('favorites');await env.H.actions['app-launch'](click('a'));assert.match(env.nodes.get('#unified-launch-failure')?.innerHTML||'',/目标已移除/);assert.equal(env.nodes.get('#unified-launch-failure')?.parentElement,env.nodes.get('.workspace'));
+});
+
+test('Task4 drag and arrow sorting share full app/group permutations and reject filtered or cross-group drags',async()=>{
+  const env=setup('workspace',{'apps.reorder':async(_,state)=>({settings:structuredClone(state.settings)}),'apps.groupReorder':async(_,state)=>({settings:structuredClone(state.settings)})});
+  env.state.settings.appGroups=[{id:'g',name:'First',displayOrder:0},{id:'h',name:'Second',displayOrder:1}];
+  env.state.settings.appEntries=[{...appEntry('a'),groupId:'g'},{...appEntry('b',1),groupId:'h'},{...appEntry('c',2),groupId:'g'}];await env.initialize();env.H.actions['apps-manage']();
+  const drag=(kind,from,to)=>{const source={dataset:{sortKind:kind,sortId:from}},target={dataset:{sortKind:kind,sortId:to}};env.domEvent('dragstart',{target:{closest:()=>source},dataTransfer:{setData(){}},preventDefault(){}});return env.domEvent('drop',{target:{closest:()=>target},preventDefault(){}});};
+  await drag('app','a','c');assert.deepEqual(env.sent.find(x=>x.type==='apps.reorder').payload,{appIds:['c','b','a']});
+  drag('app','a','b');assert.equal(env.sent.filter(x=>x.type==='apps.reorder').length,1);
+  await drag('group','g','h');assert.deepEqual(env.sent.find(x=>x.type==='apps.groupReorder').payload,{groupIds:['h','g']});
+  env.H.actions['apps-search']({value:'a'});drag('group','h','g');assert.equal(env.sent.filter(x=>x.type==='apps.groupReorder').length,1);
+});
+
+test('Task4 detached drops during system writes are ignored without touching an existing scan',async()=>{
+  const env=setup();await env.initialize();env.window.DesktopHubSystem={getState:()=>({busy:true})};
+  await env.emit('apps.dropPreview',discovery());assert.equal(env.sent.some(x=>x.type==='apps.scan'),false);assert.equal(env.H.ui.modal,null);
+});
+
+test('Task4 pending editor save cannot close or unlock a newer modal',async()=>{
+  let resolve;const env=setup('workspace',{'apps.update':()=>new Promise(done=>{resolve=done;})});env.state.settings.appEntries=[appEntry('a')];await env.initialize();env.H.actions['app-edit'](click('a'));env.nodes.set('#app-name',{value:'Changed'});
+  const pending=env.H.actions['app-save'](click('a'));env.H.showModal('newer','','');env.H.ui.modal.locked=true;const newer=env.H.ui.modal;
+  resolve({settings:structuredClone(env.state.settings)});await pending;assert.equal(env.H.ui.modal,newer);assert.equal(newer.locked,true);
+});
+
+test('Task4 deferred group membership preserves newer editor text and choices, rejecting repeated group requests',async()=>{
+  let resolve;const env=setup('workspace',{'apps.moveGroup':()=>new Promise(done=>{resolve=done;})});
+  env.state.settings.appEntries=[appEntry('a')];env.state.settings.appGroups=[{id:'g',name:'Work',displayOrder:0},{id:'h',name:'Other',displayOrder:1}];await env.initialize();env.H.actions['app-edit'](click('a'));
+  const name={value:'Original'},args={value:'--old'},directory={value:'C:/Original'},favorite={checked:false},mini={checked:false},dock={checked:true};
+  for(const [selector,node] of [['#app-name',name],['#app-arguments',args],['#app-working-directory',directory],['#app-favorite',favorite],['#app-pin-mini',mini],['#app-pin-dock',dock]])env.nodes.set(selector,node);
+  const choice={dataset:{id:'a'},value:'g',disabled:false};const pending=env.H.actions['app-group-choice'](choice);
+  // Other editable controls remain available while this independent membership write runs.
+  name.value='Newer draft';args.value='--new';directory.value='C:/Newer';favorite.checked=true;mini.checked=true;dock.checked=false;
+  await env.H.actions['app-group-choice']({dataset:{id:'a'},value:'h',disabled:false});assert.equal(env.sent.filter(x=>x.type==='apps.moveGroup').length,1);
+  resolve({settings:{...structuredClone(env.state.settings),appEntries:[{...appEntry('a'),groupId:'g'}]}});await pending;
+  assert.match(env.H.ui.modal.body,/id="app-name"[^>]*value="Newer draft"/);assert.match(env.H.ui.modal.body,/id="app-arguments"[^>]*value="--new"/);assert.match(env.H.ui.modal.body,/id="app-working-directory"[^>]*value="C:\/Newer"/);
+  assert.match(env.H.ui.modal.body,/id="app-favorite"[^>]*checked/);assert.match(env.H.ui.modal.body,/id="app-pin-mini"[^>]*checked/);assert.doesNotMatch(env.H.ui.modal.body,/id="app-pin-dock"[^>]*checked/);assert.match(env.H.ui.modal.body,/<option value="g" selected>/);
+});
+
+test('Task4 group membership failure restores its selector while keeping edits; newer modal remains untouched',async()=>{
+  for(const newer of [false,true]){
+    let reject;const env=setup('workspace',{'apps.moveGroup':()=>new Promise((_,fail)=>{reject=fail;})});env.state.settings.appEntries=[appEntry('a')];await env.initialize();env.H.actions['app-edit'](click('a'));
+    const name={value:'Keep new text'},choice={dataset:{id:'a'},value:'g',disabled:false};env.nodes.set('#app-name',name);const pending=env.H.actions['app-group-choice'](choice);
+    assert.equal(choice.disabled,true,'pending membership selector must refuse a second displayed selection');
+    let modal;if(newer){env.H.showModal('newer','','');env.H.ui.modal.locked=true;modal=env.H.ui.modal;}
+    reject(new Error('写入失败'));await pending;
+    assert.equal(name.value,'Keep new text');
+    if(newer){assert.equal(env.H.ui.modal,modal);assert.equal(modal.locked,true);}else{assert.equal(choice.disabled,false);assert.equal(choice.value,'');assert.notEqual(env.H.ui.modal,null);}
+  }
+});
+
 test('desktop notice returns on every entry unless explicitly suppressed', async () => {
   const env = setup('workspace', { 'apps.scan': async () => ({ scan: discovery() }) });
   await env.initialize();
@@ -240,7 +317,7 @@ test('folder and recursive scans use native selection or the existing scan token
   env.state.settings.suppressDesktopLocationNotice = true;
   await env.initialize(); await env.H.actions['app-add']();
   await env.H.actions['app-import-folder']();
-  assert.deepEqual(env.sent.filter(item => item.type === 'apps.scan').at(-1).payload, { source: 'folder', recursive: false, scanId: 'scan-1' });
+  assert.deepEqual(env.sent.filter(item => item.type === 'apps.scan').at(-1).payload, { source: 'folder', recursive: false, scanId: '' });
   await env.H.actions['app-import-recursive']({ checked: true });
   assert.deepEqual(env.sent.filter(item => item.type === 'apps.scan').at(-1).payload, { source: 'current', recursive: true, scanId: 'scan-1' });
   assert.match(env.H.ui.modal.body, /D:\\Apps/);
@@ -291,15 +368,18 @@ test('preview icons accept only native PNG data and Chinese composition does not
 test('five consecutive additions stay independent and each native launch carries only its id', async () => {
   let nextId = 0;
   const env = setup('workspace', {
-    'apps.add': async (_, state) => {
+    'apps.scan': async () => ({ scan: discovery() }),
+    'apps.import': async (_, state) => {
       const app = appEntry(`native-${++nextId}`, nextId - 1);
       state.settings.appEntries.push(app);
-      return { cancelled: false, app, settings: structuredClone(state.settings) };
+      return { added: [app], skipped: [], settings: structuredClone(state.settings) };
     },
     'apps.launch': async ({ appId }) => ({ success: true, processId: 124, message: `已提交 ${appId} 的启动请求。` })
   });
   await env.initialize();
-  for (let index = 0; index < 5; index++) await env.H.actions['app-import-file']();
+  env.state.settings.suppressDesktopLocationNotice = true;
+  env.window.DesktopHubDesktop.applyHostState(env.state);
+  for (let index = 0; index < 5; index++) { await env.H.actions['app-add'](); await env.H.actions['app-import-file'](); env.H.actions['app-import-select-visible'](); await env.H.actions['app-import-confirm'](); }
   const saved = env.window.DesktopHubDesktop.getState().hostState.settings.appEntries;
   assert.equal(saved.length, 5);
   assert.deepEqual(saved.map(app => app.id), ['native-1', 'native-2', 'native-3', 'native-4', 'native-5']);
@@ -439,7 +519,7 @@ test('editing and removing one application preserve its neighbours and do not se
   env.nodes.set('#app-pin-dock', { checked: false });
   await env.H.actions['app-save'](click(edited.id));
   const request = env.sent.find(item => item.type === 'apps.update');
-  assert.deepEqual(request.payload, { appId: edited.id, name: '编辑器的新名称', arguments: '--new-window "C:\\My Files"', workingDirectory: 'C:\\Tools', pinnedToMini: true, pinnedToDock: false });
+  assert.deepEqual(request.payload, { appId: edited.id, name: '编辑器的新名称', arguments: '--new-window "C:\\My Files"', workingDirectory: 'C:\\Tools', favorite: false, pinnedToMini: true, pinnedToDock: false });
   const saved = env.window.DesktopHubDesktop.getState().hostState.settings.appEntries;
   assert.deepEqual(saved.filter(app => app.id !== edited.id), entries.filter(app => app.id !== edited.id));
   env.H.actions['app-remove'](click(edited.id));
@@ -453,7 +533,7 @@ test('editing and removing one application preserve its neighbours and do not se
 
 test('cancelled picker adds nothing; replacing a target keeps the stable id and does not send a frontend path', async () => {
   const env = setup('workspace', {
-    'apps.add': async () => ({ cancelled: true }),
+    'apps.scan': async () => ({ cancelled: true }),
     'apps.replaceTarget': async ({ appId }, state) => {
       const app = state.settings.appEntries.find(app => app.id === appId);
       app.target = 'C:\\Tools\\Replacement.lnk';
@@ -462,8 +542,10 @@ test('cancelled picker adds nothing; replacing a target keeps the stable id and 
   });
   env.state.settings.appEntries = [appEntry('keep-id'), appEntry('untouched', 1)];
   await env.initialize();
-  await env.H.actions['app-import-file']();
+  env.state.settings.suppressDesktopLocationNotice = true;env.window.DesktopHubDesktop.applyHostState(env.state);
+  await env.H.actions['app-add']();await env.H.actions['app-import-file']();
   assert.equal(env.window.DesktopHubDesktop.getState().hostState.settings.appEntries.length, 2);
+  assert.deepEqual(env.sent.filter(x=>x.type==='apps.scan').at(-1).payload,{source:'files',recursive:false,scanId:''});env.H.closeModal();
   env.nodes.set('#app-name', { value: '我的编辑草稿' });
   env.H.actions['app-edit'](click('keep-id'));
   await env.H.actions['app-replace-target'](click('keep-id'));

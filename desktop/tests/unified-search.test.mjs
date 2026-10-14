@@ -55,3 +55,14 @@ test('changing search type preserves the keyboard-focused filter button while re
   Object.defineProperty(filters,'innerHTML',{get:()=>html,set(value){html=value;env.document.activeElement=null;}});
   env.H.actions['unified-type']({dataset:{type:'file'}});assert.equal(env.document.activeElement,focused);
 });
+
+test('Task4 favorite filter is a stable control, invalidates old requests and survives IME composition',async()=>{
+  const env=setup();env.window.DesktopHubSearch.open();assert.match(env.H.ui.modal.body,/仅收藏的应用与文件/);
+  const modal=env.H.ui.modal, checkbox={id:'unified-favorites',checked:true};env.document.activeElement=checkbox;
+  await env.flush();const previous=env.requests[0];env.H.actions['unified-favorites'](checkbox);
+  assert.equal(env.H.ui.modal,modal);assert.equal(env.document.activeElement,checkbox);
+  previous.resolve([row('app','old')]);await Promise.resolve();await Promise.resolve();assert.doesNotMatch(env.nodes.get('#unified-results').innerHTML,/data-id="old"/);
+  env.emit('compositionstart');await env.flush();assert.equal(env.sent.length,1);
+  env.nodes.get('#unified-query').value='应用';env.emit('compositionend');await env.flush();assert.equal(env.sent.at(-1).payload.favoritesOnly,true);
+  env.H.actions['unified-favorites']({checked:false});await env.flush();assert.equal(env.sent.at(-1).payload.favoritesOnly,false);
+});

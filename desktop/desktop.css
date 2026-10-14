@@ -247,3 +247,19 @@ html[data-desktop-host] .workspace-header { user-select: none; }
 .modal:has(.app-discovery-list) .app-import-warnings { max-height: 80px; overflow: auto; }
 .modal:has(.app-discovery-list) .form-error:empty { display: none; }
 @media (max-width: 540px) { .app-discovery-row { gap: 8px; } .app-discovery-icon { display: none; } .app-discovery-kind { max-width: 72px; } }
+
+/* Application groups reuse the launcher grid; actions remain beside their group. */
+.app-group { margin: 16px 0; min-width: 0; }
+.app-group-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.app-group-heading h3 { font-size: 14px; overflow-wrap: anywhere; min-width: 0; }
+.app-group-heading small, .favorite-applications h2 small { font-size: 13px; color: var(--muted); font-weight: 400; }
+.app-group-heading .toolbar { flex-wrap: wrap; gap: 4px; }
+.app-group-heading .button { min-height: 32px; font-size: 13px; }
+[data-sort-kind][draggable=true] { cursor: grab; }
+[data-sort-kind][draggable=true]:active { cursor: grabbing; }
+.favorite-applications { margin: 12px 0 20px; min-width: 0; }
+.favorite-applications h2 { font-size: 16px; margin-bottom: 10px; }
+.favorite-applications .muted, .app-group > .muted { font-size: 13px; line-height: 1.6; }
+.native-dock-launch.is-empty { padding: 8px 0; margin: 0; }
+.native-dock-launch.is-empty .native-launch-status:empty { display: none; }
+.dock-add-app, .dock-add-scene { min-height: 32px; font-size: 13px; }

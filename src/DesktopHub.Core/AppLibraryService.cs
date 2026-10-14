@@ -83,12 +83,13 @@ public sealed class AppLibraryService(SettingsStore store)
     });
 
     public AppSettings Update(string appId, string name, string arguments, string workingDirectory,
-        bool pinnedToMini, bool pinnedToDock) => store.Update(settings =>
+        bool pinnedToMini, bool pinnedToDock, bool? favorite = null) => store.Update(settings =>
     {
         var index = FindEntry(settings, appId);
         NativeLaunchService.ValidateArguments(arguments);
         var directory = NativeLaunchService.ValidateWorkingDirectory(workingDirectory, requireExists: true);
-        settings.AppEntries[index] = settings.AppEntries[index] with { Name = name, Arguments = arguments, WorkingDirectory = directory };
+        settings.AppEntries[index] = settings.AppEntries[index] with { Name = name, Arguments = arguments, WorkingDirectory = directory,
+            Favorite = favorite ?? settings.AppEntries[index].Favorite };
         ChangePin(settings, "mini", "app", appId, pinnedToMini);
         ChangePin(settings, "dock", "app", appId, pinnedToDock);
         return settings;
