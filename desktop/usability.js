@@ -37,6 +37,7 @@
     const chips = [];
     if (state.query) chips.push(`<button class="button small" data-action="usability-clear-query">名称：${e(state.query)} ×</button>`);
     if (state.extension) chips.push(`<button class="button small" data-action="usability-clear-extension">类型：${e(state.extension === '__folders' ? '文件夹' : state.extension === '__none' ? '无扩展名' : state.extension)} ×</button>`);
+    if (state.favoritesOnly && H.ui.page !== 'favorites') chips.push('<button class="button small" data-action="usability-clear-favorites">仅收藏 ×</button>');
     if (state.status) chips.push(`<button class="button small" data-action="usability-clear-status">状态：${e({ Missing: '缺失', PendingRepair: '需修复', SourceUnavailable: '来源不可用' }[state.status] || state.status)} ×</button>`);
     if (chips.length || state.tagIds?.length) {
       const bar = document.createElement('div'); bar.className = 'usability-conditions';
@@ -61,6 +62,7 @@
   }
   H.actions['usability-clear-query'] = () => H.actions['nr-search']({ value: '' });
   H.actions['usability-clear-extension'] = () => H.actions['nr-extension']({ value: '' });
+  H.actions['usability-clear-favorites'] = () => H.actions['nr-favorites-only']({ checked: false });
   H.actions['usability-clear-status'] = () => H.actions['nr-status']({ value: '' });
   const render = H.render; H.render = function () { render(); apply(); };
   document.addEventListener('toggle', event => { if (['nr-sources','usability-filters'].includes(event.target.id)) expanded.set(event.target.id, event.target.open); }, true);

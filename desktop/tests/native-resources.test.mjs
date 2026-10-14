@@ -111,6 +111,102 @@ function batchFixture() {
   return env;
 }
 const selection = env => Array.from(env.window.DesktopHubResources.getState().selectedIds||[]);
+
+function savedFilterFixture() {
+  const env=setup(), id=randomUUID();
+  env.data.tags.push({id:'new-tag',name:'新标签',tagType:'theme'});
+  env.filter={id,name:'保存的条件',query:'alpha',tagIds:['tag'],extension:'.txt',favoritesOnly:false,sort:'name'};
+  env.resolveFilter=()=>env.filter ? {filter:structuredClone(env.filter),valid:env.filter.tagIds.every(id=>env.data.tags.some(t=>t.id===id)),missingTagIds:env.filter.tagIds.filter(id=>!env.data.tags.some(t=>t.id===id))} : null;
+  env.respond('resources.query',payload=>{
+    const current=env.resolveFilter(), active=payload.filterId ? current : null, invalid=!!payload.filterId && !active?.valid;
+    return {...structuredClone(env.data),page:payload.page||0,savedFilters:current?[current]:[],filterStatus:active,filterInvalid:invalid,filterMissing:!!payload.filterId&&!active,
+      items:invalid?[]:structuredClone(env.data.items),total:invalid?0:1,
+      selectedResources:(payload.selectedIds||[]).map(id=>({id,status:'Active'})),cleanupResources:[]};
+  });
+  env.respond('resources.filterSave',({filter})=>{env.filter=structuredClone(filter);return {saved:true};});
+  return env;
+}
+function assertFilterCriteria(env, expected) {
+  for(const state of [env.window.DesktopHubResources.getState(),env.window.DesktopHubResources.navigationState()]) {
+    for(const key of ['query','extension','favoritesOnly','sort'])assert.equal(state[key],expected[key],key);
+    assert.deepEqual(Array.from(state.tagIds),expected.tagIds);
+    assert.equal(state.filterId,expected.id);
+  }
+  const html=env.H.pages.library();
+  assert.match(html,new RegExp(`data-change="nr-search" value="${expected.query}"`));
+  assert.ok(html.includes(`value="${expected.extension}" selected`));
+  assert.ok(html.includes(`value="${expected.sort}" selected`));
+  const favorites=html.match(/<input type="checkbox" data-change="nr-favorites-only"[^>]*>/)[0];
+  assert.equal(/checked/.test(favorites),expected.favoritesOnly);
+}
+
+for(const removed of ['query','tag','extension','favoritesOnly'])test(`saved-filter history accepts current criteria before individually removing ${removed}`,async()=>{
+  const env=savedFilterFixture();await env.window.DesktopHubResources.reload();compactResourceUI(env);
+  env.H.actions['nr-filter-use'](click(env.filter.id));await env.window.DesktopHubResources.reload();
+  env.H.navigate('tags');await env.window.DesktopHubResources.reload();
+  env.H.actions['nr-filter-edit'](click(env.filter.id));
+  env.nodes.set('#nr-filter-query',{value:'beta'});env.nodes.set('#nr-filter-extension',{value:'.pdf'});
+  env.nodes.set('#nr-filter-favorites',{checked:true});env.nodes.set('#nr-filter-sort',{value:'modifiedDesc'});
+  env.H.actions['nr-filter-tag-choice']({value:'tag',checked:false});env.H.actions['nr-filter-tag-choice']({value:'new-tag',checked:true});
+  await env.H.actions['nr-filter-save']();const current=structuredClone(env.filter);
+  env.H.actions['history-back']();await env.window.DesktopHubResources.reload();
+  assert.equal(env.H.ui.page,'library');assertFilterCriteria(env,current);
+  assert.match(env.nodes.get('.usability-conditions').innerHTML,/名称：beta/);
+  assert.match(env.nodes.get('.usability-conditions').innerHTML,/类型：\.pdf/);
+  assert.match(env.nodes.get('.usability-conditions').innerHTML,/仅收藏/);
+  assert.match(env.H.pages.library(),/nr-filter-tag" data-id="new-tag"[^>]*>新标签 ×/);
+  env.H.actions['history-forward']();await env.window.DesktopHubResources.reload();assert.equal(env.H.ui.page,'tags');
+  env.H.actions['history-back']();await env.window.DesktopHubResources.reload();assertFilterCriteria(env,current);
+  if(removed==='tag')env.H.actions['nr-filter-tag'](click('new-tag'));
+  else env.H.actions[`usability-clear-${removed==='favoritesOnly'?'favorites':removed}`]();
+  await env.window.DesktopHubResources.reload();const payload=env.sent.at(-1).payload;
+  assert.equal(payload.filterId,undefined);assert.equal(payload.query,removed==='query'?'':current.query);
+  assert.deepEqual(payload.tagIds,removed==='tag'?[]:current.tagIds);
+  assert.equal(payload.extension,removed==='extension'?undefined:current.extension);
+  assert.equal(payload.favoritesOnly,removed==='favoritesOnly'?false:current.favoritesOnly);assert.equal(payload.sort,current.sort);
+});
+
+for(const field of ['query','tagIds','extension','favoritesOnly','sort'])test(`accepted active saved-filter ${field} edit updates controls and ${field==='sort'?'retains':'clears'} selection`,async()=>{
+  const env=savedFilterFixture();await env.window.DesktopHubResources.reload();env.H.actions['nr-filter-use'](click(env.filter.id));await env.window.DesktopHubResources.reload();
+  env.H.actions['nr-select']({dataset:{id:'resource'},checked:true});assert.deepEqual(selection(env),['resource']);
+  env.filter[field]=({query:'beta',tagIds:['new-tag'],extension:'.pdf',favoritesOnly:true,sort:'modifiedDesc'})[field];
+  await env.window.DesktopHubResources.reload();assertFilterCriteria(env,env.filter);
+  assert.deepEqual(selection(env),field==='sort'?['resource']:[]);assert.equal(env.window.DesktopHubResources.getState().loading,false);
+});
+
+test('invalid current saved-filter tags stay visible after history and deletion requires explicit exit',async()=>{
+  const env=savedFilterFixture();await env.window.DesktopHubResources.reload();compactResourceUI(env);env.H.actions['nr-filter-use'](click(env.filter.id));await env.window.DesktopHubResources.reload();
+  env.H.navigate('tags');await env.window.DesktopHubResources.reload();env.filter={...env.filter,query:'beta',tagIds:['gone'],extension:'.pdf',favoritesOnly:true,sort:'modifiedDesc'};
+  env.H.actions['history-back']();await env.window.DesktopHubResources.reload();assertFilterCriteria(env,env.filter);
+  assert.match(env.H.pages.library(),/标签已删除 ×/);assert.match(env.H.pages.library(),/筛选中的标签已失效/);assert.doesNotMatch(env.H.pages.library(),/data-resource-id/);
+  env.H.actions['nr-filter-edit'](click(env.filter.id));assert.match(env.H.ui.modal.body,/标签已删除/);env.H.closeModal();
+  const id=env.filter.id;env.filter=null;await env.window.DesktopHubResources.reload();assert.equal(env.window.DesktopHubResources.getState().filterId,id);
+  assert.match(env.H.pages.library(),/此保存筛选已删除/);assert.doesNotMatch(env.H.pages.library(),/data-resource-id/);assert.equal(env.sent.at(-1).payload.filterId,id);
+  env.H.actions['nr-filter-exit']();await env.window.DesktopHubResources.reload();assert.equal(env.sent.at(-1).payload.filterId,undefined);assert.equal(env.window.DesktopHubResources.getState().filterId,'');
+});
+
+test('stale saved-filter responses respect newer input, modal draft and page intent without stuck loading',async()=>{
+  const env=savedFilterFixture();await env.window.DesktopHubResources.reload();env.H.actions['nr-filter-use'](click(env.filter.id));await env.window.DesktopHubResources.reload();
+  const host=()=>({...structuredClone(env.data),savedFilters:[env.resolveFilter()],filterStatus:env.resolveFilter()});
+  let done;env.respond('resources.query',()=>new Promise(resolve=>done=resolve));const pending=env.window.DesktopHubResources.reload();
+  env.filter={...env.filter,query:'host-changed'};env.H.actions['nr-search']({value:'new-input'});done(host());await pending;
+  assert.equal(env.window.DesktopHubResources.getState().query,'new-input');assert.equal(env.window.DesktopHubResources.getState().loading,false);
+  env.respond('resources.query',()=>host());await env.window.DesktopHubResources.reload();env.H.actions['nr-filter-use'](click(env.filter.id));await env.window.DesktopHubResources.reload();
+  env.H.actions['nr-filter-edit'](click(env.filter.id));env.nodes.set('#nr-filter-query',{value:'my-draft'});const modal=env.H.ui.modal;
+  env.filter={...env.filter,query:'new-host'};await env.window.DesktopHubResources.reload();assert.equal(env.H.ui.modal,modal);assert.equal(env.nodes.get('#nr-filter-query').value,'my-draft');
+  assert.equal(env.window.DesktopHubResources.getState().query,'new-host');env.H.closeModal();
+  env.respond('resources.query',()=>new Promise(resolve=>done=resolve));const obsolete=env.window.DesktopHubResources.reload();env.H.navigate('home');done(host());await obsolete;
+  assert.equal(env.window.DesktopHubResources.getState().query,'');assert.equal(env.window.DesktopHubResources.getState().filterId,'');assert.equal(env.window.DesktopHubResources.getState().loading,false);
+});
+
+test('active saved-filter sort-only save retains selection and invalidates older in-flight criteria',async()=>{
+  const env=savedFilterFixture();await env.window.DesktopHubResources.reload();env.H.actions['nr-filter-use'](click(env.filter.id));await env.window.DesktopHubResources.reload();
+  env.H.actions['nr-select']({dataset:{id:'resource'},checked:true});env.H.actions['nr-filter-edit'](click(env.filter.id));env.nodes.set('#nr-filter-sort',{value:'modifiedDesc'});
+  const old=env.resolveFilter();let done;env.respond('resources.query',()=>new Promise(resolve=>done=resolve));const pending=env.window.DesktopHubResources.reload();
+  env.respond('resources.query',()=>({...structuredClone(env.data),savedFilters:[env.resolveFilter()],filterStatus:env.resolveFilter(),selectedResources:[{id:'resource',status:'Active'}]}));
+  await env.H.actions['nr-filter-save']();done({...structuredClone(env.data),savedFilters:[old],filterStatus:old});await pending;
+  assertFilterCriteria(env,env.filter);assert.deepEqual(selection(env),['resource']);assert.equal(env.window.DesktopHubResources.getState().loading,false);
+});
 test('normal selection survives page/view/sort and metadata refresh, clearing synchronously on conditions',async()=>{
   const env=batchFixture();await env.window.DesktopHubResources.reload();assert.match(env.H.pages.library(),/nr-select/);
   env.H.actions['nr-select']({dataset:{id:env.rows[0].resource.id},checked:true});env.H.actions['nr-page']({dataset:{page:'1'}});await env.window.DesktopHubResources.reload();

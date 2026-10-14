@@ -35,7 +35,7 @@
   const extensionName = value => value === '__folders' ? '文件夹' : value === '__none' ? '无扩展名' : value;
   function categoryFilters() {
     const choices = categories();
-    return `<div class="nr-category-filter"><span>标签分类</span><div class="nr-category-choices">${choices.map(c => btn('nr-category', `${e(c.name)} <small>${result.tags.filter(t => categoryOf(t) === c.id).length}</small>`, `data-category="${e(c.id)}" aria-pressed="${category === c.id}"`, category === c.id ? 'primary' : 'quiet')).join('')}${btn('nr-new-category', icon('plus') + ' 新建分类')}</div></div>${category ? `<div class="nr-filter-tags" aria-label="${e(choices.find(c => c.id === category)?.name)}分类下的标签">${result.tags.filter(t => categoryOf(t) === category).map(tag => `<button class="tag-chip ${tagIds.includes(tag.id) ? 'selected' : ''}" data-action="nr-filter-tag" ${idAttr(tag.id)} aria-pressed="${tagIds.includes(tag.id)}">${e(tag.name)}</button>`).join('') || '<span class="muted">此分类暂无标签。</span>'}</div>` : ''}${tagIds.length ? `<div class="nr-selected-tags"><span>已选标签</span>${tagIds.map(id => { const tag = result.tags.find(t => t.id === id); return tag ? btn('nr-filter-tag', e(tag.name) + ' ×', idAttr(id)) : ''; }).join('')}</div>` : ''}`;
+    return `<div class="nr-category-filter"><span>标签分类</span><div class="nr-category-choices">${choices.map(c => btn('nr-category', `${e(c.name)} <small>${result.tags.filter(t => categoryOf(t) === c.id).length}</small>`, `data-category="${e(c.id)}" aria-pressed="${category === c.id}"`, category === c.id ? 'primary' : 'quiet')).join('')}${btn('nr-new-category', icon('plus') + ' 新建分类')}</div></div>${category ? `<div class="nr-filter-tags" aria-label="${e(choices.find(c => c.id === category)?.name)}分类下的标签">${result.tags.filter(t => categoryOf(t) === category).map(tag => `<button class="tag-chip ${tagIds.includes(tag.id) ? 'selected' : ''}" data-action="nr-filter-tag" ${idAttr(tag.id)} aria-pressed="${tagIds.includes(tag.id)}">${e(tag.name)}</button>`).join('') || '<span class="muted">此分类暂无标签。</span>'}</div>` : ''}${tagIds.length ? `<div class="nr-selected-tags"><span>已选标签</span>${tagIds.map(id => { const tag = result.tags.find(t => t.id === id); return btn('nr-filter-tag', (tag ? e(tag.name) : '标签已删除') + ' ×', idAttr(id)); }).join('')}</div>` : ''}`;
   }
   const itemById = id => result.items.find(x => x.resource.id === id);
   function rerender() {
@@ -47,6 +47,12 @@
   function clearSelection() { selected.clear(); cleanupSelected.clear(); ++selectionRevision; }
   function criteriaChanged() { clearTimeout(searchTimer); ++sequence; loading = false; page = 0; filterId = ''; selectionBlocked = true; clearSelection(); }
   const sameIds = (ids, set) => ids.length === set.size && ids.every(id => set.has(id));
+  function applyFilterCriteria(filter) {
+    const nextTags = [...filter.tagIds], nextExtension = filter.extension || '';
+    const changed = query !== filter.query || !sameIds(nextTags, new Set(tagIds)) || extension !== nextExtension || favoritesOnly !== filter.favoritesOnly || status !== '';
+    if (changed) clearSelection();
+    query = filter.query; tagIds = nextTags; extension = nextExtension; favoritesOnly = filter.favoritesOnly; sort = filter.sort; status = '';
+  }
   async function request(type, payload = {}, timeoutMs = 120000) { return bridge.request(type, payload, { timeoutMs }); }
   async function reload() {
     const order = ++sequence; loading = true; error = '';
@@ -55,6 +61,10 @@
     try {
       const next = await request('resources.query', { page, selectedIds, cleanupIds, ...(filterId ? { filterId } : { query, tagIds, sort, ...(extension ? { extension } : {}), favoritesOnly: favoritesOnly || currentPage === 'favorites', invalidOnly: currentPage === 'missing', ...(status ? { status } : {}) }) });
       if (order !== sequence || currentPage !== H.ui.page) return;
+      const active = next.filterStatus?.filter || next.savedFilters?.find(saved => saved.filter.id === filterId)?.filter;
+      // A stable filter ID always queries the host's current criteria, including
+      // missing tags. Reconcile before rendering/history or pruning selection.
+      if (filterId && active?.id === filterId) applyFilterCriteria(active);
       if (selectedVersion === selectionRevision) {
         if (next.selectedResources) { const live = new Set(next.selectedResources.filter(r => r.status === 'Active').map(r => r.id)); for (const id of selectedIds) if (!live.has(id)) selected.delete(id); }
         if (next.cleanupResources) { const live = new Set(next.cleanupResources.filter(r => ['Missing','PendingRepair'].includes(r.status)).map(r => r.id)); for (const id of cleanupIds) if (!live.has(id)) cleanupSelected.delete(id); }
@@ -93,7 +103,9 @@
     return `<details id="nr-sources" class="nr-sources" ${!result.sources.length ? 'open' : ''}><summary>索引来源 · ${result.sources.length} 个已授权目录</summary><div class="nr-source-body"><div class="toolbar">${btn('nr-source-add', '当前用户桌面', 'data-kind="desktop"')}${btn('nr-source-add', '公共桌面…', 'data-kind="publicDesktop"')}${btn('nr-source-add', icon('plus') + ' 选择目录…', 'data-kind="custom"', 'primary')}</div>${!result.sources.length ? '<p class="muted">先查看扫描预览，确认后才建立索引和监测。</p>' : result.sources.map(source => `<div class="nr-source"><div><strong>${e({ desktop: '当前用户桌面', publicDesktop: '公共桌面', custom: '自定义目录' }[source.sourceType])}</strong><p>${e(source.path)}</p><small>${source.recursiveEnabled ? '递归索引' : '仅直接子项'} · ${source.availabilityStatus === 'Active' ? '可访问' : '来源不可用'} · ${source.monitoringStatus === 'Watching' ? '正在监测' : source.monitoringStatus === 'Disabled' ? '监测关闭' : '监测需检查'}${source.lastReconciledAt ? ' · 核对 ' + e(new Date(source.lastReconciledAt).toLocaleTimeString()) : ''}</small>${source.error ? `<p class="form-error">${e(source.error)}</p>` : ''}</div><div class="toolbar">${btn('nr-source-recursive', source.recursiveEnabled ? '关闭递归…' : '开启递归…', `${idAttr(source.id)} data-recursive="${!source.recursiveEnabled}"`)}${btn('nr-source-remove', '移除来源…', idAttr(source.id))}</div></div>`).join('')}</div></details>`;
   }
   function toolbar() {
-    return `<div class="nr-toolbar"><label class="nr-search">${icon('search')}<input type="search" data-change="nr-search" value="${e(query)}" placeholder="搜索文件名或标签" aria-label="搜索文件名或标签"></label><div class="segmented" aria-label="资源视图">${[['list','列表'],['grid','图标'],['tags','标签']].map(([key,label]) => `<button data-action="nr-view" data-view="${key}" class="${view === key ? 'active' : ''}" aria-pressed="${view === key}">${label}</button>`).join('')}</div><select data-change="nr-extension" aria-label="按扩展名筛选"><option value="">全部扩展名</option>${(result.extensions || [...new Set(result.items.map(x => x.resource.resourceType === 'folder' ? '__folders' : x.resource.extension || '__none'))]).map(value => `<option value="${e(value)}" ${extension === value ? 'selected' : ''}>${e(extensionName(value))}</option>`).join('')}</select>${H.ui.page === 'missing' ? `<select data-change="nr-status" aria-label="失效状态筛选"><option value="">全部失效状态</option>${Object.entries(statuses).filter(([key]) => key !== 'Active').map(([key,label]) => `<option value="${key}" ${status === key ? 'selected' : ''}>${label}</option>`).join('')}</select>` : ''}${tagIds.length || query || extension ? btn('nr-clear', '清除筛选') : ''}</div>${categoryFilters()}`;
+    const extensions = new Set(result.extensions || result.items.map(x => x.resource.resourceType === 'folder' ? '__folders' : x.resource.extension || '__none'));
+    if (extension) extensions.add(extension);
+    return `<div class="nr-toolbar"><label class="nr-search">${icon('search')}<input type="search" data-change="nr-search" value="${e(query)}" placeholder="搜索文件名或标签" aria-label="搜索文件名或标签"></label><div class="segmented" aria-label="资源视图">${[['list','列表'],['grid','图标'],['tags','标签']].map(([key,label]) => `<button data-action="nr-view" data-view="${key}" class="${view === key ? 'active' : ''}" aria-pressed="${view === key}">${label}</button>`).join('')}</div><select data-change="nr-extension" aria-label="按扩展名筛选"><option value="">全部扩展名</option>${[...extensions].map(value => `<option value="${e(value)}" ${extension === value ? 'selected' : ''}>${e(extensionName(value))}</option>`).join('')}</select>${H.ui.page === 'missing' ? `<select data-change="nr-status" aria-label="失效状态筛选"><option value="">全部失效状态</option>${Object.entries(statuses).filter(([key]) => key !== 'Active').map(([key,label]) => `<option value="${key}" ${status === key ? 'selected' : ''}>${label}</option>`).join('')}</select>` : ''}${tagIds.length || query || extension ? btn('nr-clear', '清除筛选') : ''}</div>${categoryFilters()}`;
   }
   function heading(title) {
     return `<div class="page-heading"><div><h1 class="page-title" tabindex="-1">${title}</h1><p class="subtitle">${result.total} 项资源${tagIds.length ? ' · 同时匹配所选标签' : ''}</p></div><div class="toolbar">${btn('nr-refresh', loading ? '正在加载…' : icon('refresh') + ' 刷新', loading ? 'disabled' : '')}${H.ui.page === 'missing' ? btn('nr-library', icon('arrow-left') + ' 返回文件资源库') : btn('nr-invalid', '失效资源')}${btn('nr-tags', '管理标签')}</div></div>`;
@@ -213,7 +225,7 @@
     try {
       await request('resources.filterSave',{filter});
       if (revision !== navigationRevision || modal !== H.ui.modal) return;
-      if (filterId === filter.id) { query=filter.query;tagIds=[...filter.tagIds];extension=filter.extension||'';favoritesOnly=filter.favoritesOnly;sort=filter.sort;clearSelection(); }
+      if (filterId === filter.id) { ++sequence; loading=false; applyFilterCriteria(filter); }
       filterDraft=null;H.closeModal();await reload();H.toast('筛选已保存。');
     } catch (err) { if (revision===navigationRevision) { const node=document.querySelector('#nr-filter-error');if(node)node.textContent=err.message;else H.toast(err.message,'error'); } }
     finally {busy=false;rerender();}
