@@ -4,3 +4,19 @@
 artifacts/
 *.user
 *.suo
+
+# Generated test evidence and resource measurements (keep locally)
+/docs/*-evidence/
+/docs/resource-usage/
+/TestResults/
+**/TestResults/
+/coverage/
+/playwright-report/
+/test-results/
+
+# Machine-local shortcuts and editor/temporary files
+*.lnk
+.vs/
+*.log
+*.tmp
+*.bak

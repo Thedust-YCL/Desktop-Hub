@@ -1,4 +1,0 @@
-System.InvalidOperationException: The requested operation requires an element of type 'Boolean', but the target element has type 'Null'.
-   at System.Text.Json.JsonElement.<GetBoolean>g__ThrowJsonElementWrongTypeException|17_0(JsonTokenType actualType)
-   at System.Text.Json.JsonElement.GetBoolean()
-   at DesktopHub.Windows.ResourceSmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 54

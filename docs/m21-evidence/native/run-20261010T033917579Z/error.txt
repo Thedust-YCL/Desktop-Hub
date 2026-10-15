@@ -1,3 +1,0 @@
-System.InvalidOperationException: Default app rule skips reliably matched multiple instances
-   at DesktopHub.Windows.SceneSmokeTests.Check(String name, Boolean passed, Object detail) in E:\桌软工作台\src\DesktopHub.Windows\SceneSmokeTests.cs:line 190
-   at DesktopHub.Windows.SceneSmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\SceneSmokeTests.cs:line 125

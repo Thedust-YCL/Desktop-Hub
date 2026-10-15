@@ -1,1 +1,0 @@
-62 real Windows resource checks passed.

@@ -1,2 +1,0 @@
-20 native integration checks passed.
-Host working set 555257856

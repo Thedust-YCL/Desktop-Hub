@@ -1,3 +1,0 @@
-System.InvalidOperationException: Smoke assertion failed: UI independently launches odbcad32.exe
-   at DesktopHub.Windows.SmokeTests.Check(String name, Boolean passed, Object detail) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 36
-   at DesktopHub.Windows.SmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 105

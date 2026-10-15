@@ -1,8 +1,0 @@
-2026-10-09T13:01:41.2415396Z [Runtime] 154.0.4258.62
-2026-10-09T13:01:42.6476269Z [BridgeRequest] app.getState
-2026-10-09T13:01:42.7513821Z [BridgeRequest] window.resizeSurface
-2026-10-09T13:02:58.1503557Z [BridgeRequest] app.getState
-2026-10-09T13:02:58.2414093Z [BridgeRequest] window.resizeSurface
-2026-10-09T13:04:13.4725012Z [Suspend] dock:True
-2026-10-09T13:04:13.5522330Z [BridgeRequest] app.getState
-2026-10-09T13:05:28.8822267Z [Suspend] workspace:True

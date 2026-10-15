@@ -1,1 +1,0 @@
-﻿4 real-window scenarios completed; 244 memory samples, 240 CPU intervals.

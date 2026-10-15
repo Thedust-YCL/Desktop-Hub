@@ -1,9 +1,0 @@
-System.TimeoutException: Native picker did not open.
-   at DesktopHub.Windows.SmokeTests.SelectNativePicker(String filename) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 152
-   at DesktopHub.Windows.SmokeTests.<>c__DisplayClass4_0.<RunAsync>b__0() in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 56
-   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
---- End of stack trace from previous location ---
-   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
-   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
---- End of stack trace from previous location ---
-   at DesktopHub.Windows.SmokeTests.RunAsync(HubApplication host) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 58

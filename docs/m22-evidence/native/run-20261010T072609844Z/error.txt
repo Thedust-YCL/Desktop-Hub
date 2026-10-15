@@ -1,3 +1,0 @@
-System.Exception: Favorite mutation and watcher refresh preserve scroll, expanded source and focus
-   at DesktopHub.Windows.ResourceSmokeTests.Check(String name, Boolean passed) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 191
-   at DesktopHub.Windows.ResourceSmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 121

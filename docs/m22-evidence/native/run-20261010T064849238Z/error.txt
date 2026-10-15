@@ -1,3 +1,0 @@
-System.IO.IOException: The process cannot access the file because it is being used by another process.
-   at System.IO.FileSystem.MoveFile(String sourceFullPath, String destFullPath, Boolean overwrite)
-   at DesktopHub.Windows.ResourceSmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\ResourceSmokeTests.cs:line 82

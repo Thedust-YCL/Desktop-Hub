@@ -1,4 +1,0 @@
-System.ArgumentException: Process with an Id of 38100 is not running.
-   at System.Diagnostics.Process.GetProcessById(Int32 processId, String machineName)
-   at DesktopHub.Windows.SmokeTests.TrackOwnedProcess(Int32 pid) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 362
-   at DesktopHub.Windows.SmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\SmokeTests.cs:line 107

@@ -1,3 +1,0 @@
-System.Exception: System settings survive the atomic store
-   at DesktopHub.Windows.SystemSmokeTests.Check(String name, Boolean passed) in E:\桌软工作台\src\DesktopHub.Windows\SystemSmokeTests.cs:line 153
-   at DesktopHub.Windows.SystemSmokeTests.RunAsync(HubApplication host, Boolean restart) in E:\桌软工作台\src\DesktopHub.Windows\SystemSmokeTests.cs:line 92
