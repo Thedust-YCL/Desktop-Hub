@@ -8,8 +8,9 @@
   const positions = new Map();
   let entries = [], index = -1, restoring = false, deferredIndex = null, lastSideNavigation = 0;
   const resourceState = () => window.DesktopHubResources?.navigationState();
-  const routeKey = () => H.ui.page + (H.ui.page === 'folder' ? ':' + (resourceState()?.folder?.path || '') : '');
-  const snapshot = () => ({ page: H.ui.page, key: routeKey(), resources: resourceState(), scroll: document.querySelector('.workspace-content')?.scrollTop || 0 });
+  const projectState = () => window.DesktopHubProjects?.navigationState();
+  const routeKey = () => H.ui.page + (H.ui.page === 'folder' ? ':' + (resourceState()?.folder?.path || '') : H.ui.page === 'project' ? ':' + (projectState()?.projectId || '') : '');
+  const snapshot = () => ({ page: H.ui.page, key: routeKey(), resources: resourceState(), projects: projectState(), scroll: document.querySelector('.workspace-content')?.scrollTop || 0 });
   function checkpoint() {
     if (!restoring && entries[index]?.key === routeKey()) entries[index] = snapshot();
   }
@@ -34,6 +35,7 @@
     if (H.ui.modal) { H.closeModal(); return; }
     checkpoint(); restoring = true; index = targetIndex;
     try {
+      if (target.projects) window.DesktopHubProjects?.restoreNavigation({ ...target.projects, scroll: target.scroll });
       H.navigate(target.page);
       if (target.resources) window.DesktopHubResources.restoreNavigation(target.resources);
       H.render();

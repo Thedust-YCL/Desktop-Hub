@@ -122,7 +122,7 @@
       event.preventDefault(); event.stopImmediatePropagation(); active = event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1 : (active + (event.key === 'ArrowUp' ? -1 : 1) + rows.length) % rows.length; paint(); node(`unified-option-${active}`)?.scrollIntoView({ block: 'nearest' });
     }
   }, true);
-  for (const event of ['state.changed', 'resources.changed']) bridge.on(event, () => { if (isOpen() && !composing) refresh(); });
+  for (const event of ['state.changed', 'resources.changed', 'projects.changed']) bridge.on(event, () => { if (isOpen() && !composing) refresh(); });
   window.DesktopHubSearch = Object.freeze({ open, refresh });
   bindEntry();
 }());

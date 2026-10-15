@@ -14,11 +14,19 @@ internal static class ResourceRequestParser
     {
         var limit = type switch
         {
+            "projects.save" => 768 * 1024,
             "resources.query" or "resources.batch" or "resources.batchSuggestions" or "resources.filterSave" => 256 * 1024,
             "apps.update" or "apps.reorder" or "launcher.setPins" or "scenes.save" or "scenes.reorder" => 1024 * 1024,
             _ => 16384
         };
         return length >= 0 && length <= limit;
+    }
+    internal static (string Type, string Id)? ActivityReference(ResourceLibrary library, string? requestedId, string mode)
+    {
+        if (requestedId is null || mode == "reveal") return null;
+        var indexed = library.Resources.FirstOrDefault(item => item.Id == requestedId);
+        if (indexed is null || indexed.ResourceType is not ("file" or "folder") || indexed.Status != "Active" || mode != "open" && !(mode == "folder" && indexed.ResourceType == "folder")) return null;
+        return (indexed.ResourceType, requestedId);
     }
     internal static ResourceBatchRequest Batch(JsonElement payload)
     {

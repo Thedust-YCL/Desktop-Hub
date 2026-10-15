@@ -26,6 +26,8 @@ public sealed class HubApplication : IDisposable
     public AppLibraryService AppLibrary { get; }
     public SceneLibraryService SceneLibrary { get; }
     public SceneExecutionService Scenes { get; }
+    public ActivityService Activity { get; }
+    public ProjectService Projects { get; }
     public ResourceLibraryService Resources { get; private set; } = null!;
     private readonly Task<ResourceLibraryService> resourceInitialization;
     internal Task<ResourceLibraryService> GetResourcesAsync() => resourceInitialization;
@@ -72,6 +74,22 @@ public sealed class HubApplication : IDisposable
         Icons = new ApplicationIconCache(dataDirectory, new WindowsShortcutResolver());
         var firstRun = !File.Exists(Store.SettingsPath);
         Store.Load();
+        Activity = new ActivityService(dataDirectory);
+        Projects = new ProjectService(dataDirectory, (type, id) =>
+        {
+            var current = Store.Current;
+            return type switch
+            {
+                "app" => current.AppEntries.Any(app => app.Id == id),
+                "scene" => current.Scenes.Any(scene => scene.Id == id),
+                "file" or "folder" => resourceInitialization.IsCompletedSuccessfully && resourceInitialization.Result.Store.Snapshot().Resources.Any(item => item.Id == id && item.ResourceType == type),
+                _ => false
+            };
+        });
+        Activity.Changed += () => NotifyActivityProjects("activity.changed", Activity.RecoveryWarning);
+        Projects.Changed += () => NotifyActivityProjects("projects.changed", Projects.RecoveryWarning);
+        if (Activity.RecoveryWarning is { } activityWarning) Log("ActivityRecovery", activityWarning);
+        if (Projects.RecoveryWarning is { } projectWarning) Log("ProjectRecovery", projectWarning);
         DesktopIcons = new DesktopIconVisibilityService(Store);
         Startup = new StartupRegistrationService(Store);
         systemTheme = ReadSystemTheme();
@@ -103,6 +121,20 @@ public sealed class HubApplication : IDisposable
         }
         timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
         timer.Tick += Tick;
+    }
+
+    private void NotifyActivityProjects(string type, string? warning) =>
+        _ = Application.Current.Dispatcher.BeginInvoke(() => { if (!exiting) Workspace?.SendEvent(type, new { changed = true, warning }); });
+
+    // Launch receipts remain truthful even when independent history storage is unavailable.
+    internal void TryRecordActivity(string type, string id, string result)
+    {
+        try { Activity.Record(type, id, result); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or SettingsValidationException or ArgumentException)
+        {
+            Log("ActivityWrite", ex.Message);
+            NotifyActivityProjects("activity.changed", Activity.RecoveryWarning ?? "最近使用保存失败，请重试或重新启动应用。");
+        }
     }
 
     public async Task StartAsync(bool loginStartup = false)

@@ -95,7 +95,8 @@ internal sealed class ResourceBridge(HubApplication host, HubWindow window)
             case "resources.open":
                 Keys(payload, "resourceId", "token", "name", "mode");
                 var mode = Required(payload, "mode"); if (mode is not ("open" or "reveal" or "folder")) throw new ArgumentException("打开方式无效。");
-                var target = await Task.Run(() => service.OpenTarget(Text(payload, "resourceId", 96, null), Text(payload, "token", 96, null), Text(payload, "name", 255, null)));
+                var requestedId = Text(payload, "resourceId", 96, null);
+                var target = await Task.Run(() => service.OpenTarget(requestedId, Text(payload, "token", 96, null), Text(payload, "name", 255, null)));
                 await Task.Run(() =>
                 {
                     if (mode == "reveal")
@@ -112,6 +113,8 @@ internal sealed class ResourceBridge(HubApplication host, HubWindow window)
                         Process.Start(new ProcessStartInfo(pathToOpen) { UseShellExecute = true });
                     }
                 });
+                if (ResourceRequestParser.ActivityReference(service.Store.Snapshot(), requestedId, mode) is { } activity)
+                    host.TryRecordActivity(activity.Type, activity.Id, "submitted");
                 return new { submitted = true, message = "已向 Windows 提交打开请求。" };
             default: throw new BridgeException("UNKNOWN_MESSAGE", "不支持此资源操作。");
         }

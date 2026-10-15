@@ -15,9 +15,10 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
     private static readonly HashSet<string> Editable = new(StringComparer.Ordinal)
     { "theme", "reducedMotion", "uiDensity", "autoCloseDock", "onboardingCompleted", "suppressDesktopLocationNotice", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
     private static readonly HashSet<string> Pages = new(StringComparer.Ordinal)
-    { "home", "scenes", "library", "tags", "favorites", "search", "settings" };
+    { "home", "scenes", "library", "tags", "favorites", "search", "settings", "activity", "projects", "project" };
     private bool pickerOpen, launching;
     private readonly ResourceBridge resources = new(host, window);
+    private readonly ActivityProjectBridge activityProjects = new(host, window);
     private readonly SystemBridge system = new(host, window);
     private readonly ApplicationImportService imports = new(host.Store, host.Launcher, app => host.Icons.Extract(app));
 
@@ -67,10 +68,18 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
         if (type.StartsWith("system.", StringComparison.Ordinal)) return system.Dispatch(type, payload);
         switch (type)
         {
+            case "activity.query":
+            case "activity.clear":
+            case "projects.query":
+            case "projects.save":
+            case "projects.remove":
+            case "projects.openWeb":
+                return await activityProjects.DispatchAsync(type, payload);
             case "search.query":
                 RequireWorkspace(); var searchRequest = ApplicationRequestParser.Search(payload);
                 var searchSettings = host.Store.Current;
                 var searchLibrary = (await host.GetResourcesAsync()).Store.Snapshot();
+                var searchProjects = host.Projects.Snapshot();
                 return await Task.Run(() =>
                 {
                     var entities = new List<SearchEntity>();
@@ -84,6 +93,8 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                         resource.CanonicalPath + string.Concat(boundTags[resource.Id].Where(binding => tagsById.ContainsKey(binding.TagId)).Select(binding => " · " + tagsById[binding.TagId].Name)), resource.Status, resource.Favorite)));
                     entities.AddRange(searchLibrary.Tags.Select(tag => new SearchEntity("tag", tag.Id, tag.Name,
                         searchLibrary.TagCategories.FirstOrDefault(category => category.Id == tag.CategoryId)?.Name ?? "标签", "Active", false)));
+                    entities.AddRange(searchProjects.Select(project => new SearchEntity("project", project.Id, project.Name,
+                        project.Description + $" · {project.Items.Count} 个关联", "Active", false)));
                     return searchRequest.Execute(entities);
                 });
             case "app.getState": Empty(payload); return host.State(window);
@@ -193,13 +204,17 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                 host.SettingsChanged(); return new { settings = sceneOrdered };
             case "scenes.run":
                 RequireKeys(payload, "sceneId");
-                return new { execution = host.Scenes.Start(String(payload, "sceneId", 96)), executions = host.Scenes.Snapshot() };
+                var established = host.Scenes.Start(String(payload, "sceneId", 96));
+                host.TryRecordActivity("scene", established.SceneId, "execution_established");
+                return new { execution = established, executions = host.Scenes.Snapshot() };
             case "scenes.retry":
                 RequireKeys(payload, "executionId");
                 var retryId = String(payload, "executionId", 36);
                 if (!Guid.TryParseExact(retryId, "D", out var retryGuid) || retryGuid == Guid.Empty)
                     throw new BridgeException("INVALID_PARAMS", "执行编号无效。");
-                return new { execution = host.Scenes.Retry(retryId), executions = host.Scenes.Snapshot() };
+                var retried = host.Scenes.Retry(retryId);
+                host.TryRecordActivity("scene", retried.SceneId, "execution_established");
+                return new { execution = retried, executions = host.Scenes.Snapshot() };
             case "scenes.retryScripts":
                 RequireWorkspace(); RequireKeys(payload, "executionId", "actionIds");
                 var scriptRetryId = String(payload, "executionId", 36);
@@ -210,7 +225,9 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                 if (scriptRetryIds.Distinct(StringComparer.Ordinal).Count() != scriptRetryIds.Count ||
                     scriptRetryIds.Any(id => !Guid.TryParseExact(id, "D", out var scriptGuid) || scriptGuid == Guid.Empty))
                     throw new BridgeException("INVALID_PARAMS", "脚本编号无效、为空或重复。");
-                return new { execution = host.Scenes.RetryWithScriptRepeat(scriptRetryId, scriptRetryIds), executions = host.Scenes.Snapshot() };
+                var scriptsRetried = host.Scenes.RetryWithScriptRepeat(scriptRetryId, scriptRetryIds);
+                host.TryRecordActivity("scene", scriptsRetried.SceneId, "execution_established");
+                return new { execution = scriptsRetried, executions = host.Scenes.Snapshot() };
             case "scenes.pickTarget":
                 RequireWorkspace(); RequireKeys(payload, "kind");
                 return await ChooseSceneTargetAsync(String(payload, "kind", 20));
@@ -239,6 +256,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                 try
                 {
                     var outcome = await Task.Run(() => host.Launcher.LaunchApp(snapshot, appId));
+                    if (outcome.Success) host.TryRecordActivity("app", appId, "started");
                     if (ApplicationRequestParser.ShouldCloseDock(window.Surface, host.Store.Current.AutoCloseDock, outcome.Success)) host.CloseDock();
                     return outcome;
                 }

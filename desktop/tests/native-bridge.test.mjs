@@ -30,6 +30,19 @@ function fakeWebView() {
   };
 }
 
+test('Task6 explicit activity/project routes and metadata events reach the host without a history-write or arbitrary URL route', async () => {
+  const view = fakeWebView(), bridge = createBridge(view), events = [];
+  for (const type of ['activity.changed', 'projects.changed']) bridge.on(type, payload => events.push([type, payload.changed]));
+  view.receive({version:1,type:'activity.changed',payload:{changed:true}});view.receive({version:1,type:'projects.changed',payload:{changed:true}});
+  assert.deepEqual(events,[['activity.changed',true],['projects.changed',true]]);
+  for (const [type,payload] of [['activity.query',{}],['activity.clear',{}],['projects.query',{projectId:'current'}],['projects.save',{project:{id:'current'}}],['projects.remove',{projectId:'current'}],['projects.openWeb',{projectId:'current',itemId:'current-item'}]]) {
+    const promise=bridge.request(type,payload);promise.catch(()=>{});const sent=view.sent.at(-1);assert.equal(sent?.type,type);assert.deepEqual(sent.payload,payload);
+    view.receive({version:1,id:sent.id,ok:true,result:{accepted:true}});assert.deepEqual(await promise,{accepted:true});
+  }
+  await assert.rejects(bridge.request('activity.record',{type:'app',id:'forged',result:'started'}),error=>error.code==='UNKNOWN_MESSAGE');
+  await assert.rejects(bridge.request('projects.openUrl',{url:'https://forged.example'}),error=>error.code==='UNKNOWN_MESSAGE');bridge.dispose();
+});
+
 test('Task4 application group and favorite routes plus native staged-drop event are allowlisted',async()=>{
   const view=fakeWebView(),bridge=createBridge(view);let preview=null;
   bridge.on('apps.dropPreview',payload=>{preview=payload;});const scan={scanId:'staged',candidates:[]};

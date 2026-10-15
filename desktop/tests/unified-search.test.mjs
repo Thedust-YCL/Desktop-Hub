@@ -56,6 +56,19 @@ test('changing search type preserves the keyboard-focused filter button while re
   env.H.actions['unified-type']({dataset:{type:'file'}});assert.equal(env.document.activeElement,focused);
 });
 
+test('Task6 project Enter closes search before opening current project detail without launch actions', async()=>{
+  const env=setup();let opened=null;
+  env.window.DesktopHubProjects={open(id){assert.equal(env.H.ui.modal,null);opened=id;return true;}};
+  env.window.DesktopHubSearch.open();await results(env,[row('project','project-a')]);
+  env.emit('keydown',{key:'Enter'});await Promise.resolve();assert.equal(opened,'project-a');assert.equal(env.dispatched.length,0);
+});
+
+test('Task6 project metadata event invalidates an open search response',async()=>{
+  const env=setup();env.window.DesktopHubSearch.open();await env.flush();const old=env.requests[0];
+  env.events.get('projects.changed')?.({changed:true});old.resolve([row('project','removed')]);await Promise.resolve();await Promise.resolve();
+  assert.doesNotMatch(env.nodes.get('#unified-results').innerHTML,/data-id="removed"/);await env.flush();assert.equal(env.sent.length,2);
+});
+
 test('Task4 favorite filter is a stable control, invalidates old requests and survives IME composition',async()=>{
   const env=setup();env.window.DesktopHubSearch.open();assert.match(env.H.ui.modal.body,/仅收藏的应用与文件/);
   const modal=env.H.ui.modal, checkbox={id:'unified-favorites',checked:true};env.document.activeElement=checkbox;

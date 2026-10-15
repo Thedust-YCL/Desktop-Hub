@@ -33,6 +33,9 @@ try {
         $taskResourceTests = Join-Path $taskRoot 'tests/DesktopHub.Resource.Tests/DesktopHub.Resource.Tests.csproj'
         Invoke-Dotnet -Arguments @('restore', $taskResourceTests, '--source', $taskFeed, '--packages', $taskPackages, '-p:NuGetAudit=false')
         Invoke-Dotnet -Arguments @('run', '--project', $taskResourceTests, '-c', 'Release', '--no-restore')
+        $taskActivityProjectTests = Join-Path $taskRoot 'tests/DesktopHub.ActivityProject.Tests/DesktopHub.ActivityProject.Tests.csproj'
+        Invoke-Dotnet -Arguments @('restore', $taskActivityProjectTests, '--source', $taskFeed, '--packages', $taskPackages, '-p:NuGetAudit=false')
+        Invoke-Dotnet -Arguments @('run', '--project', $taskActivityProjectTests, '-c', 'Release', '--no-restore')
         foreach ($taskSystemProject in @('tests/DesktopHub.System.Tests/DesktopHub.System.Tests.csproj', 'tests/DesktopHub.Windows.Lifecycle.Tests/DesktopHub.Windows.Lifecycle.Tests.csproj')) {
             $taskSystemTests = Join-Path $taskRoot $taskSystemProject
             Invoke-Dotnet -Arguments @('restore', $taskSystemTests, '--source', $taskFeed, '--packages', $taskPackages, '-p:NuGetAudit=false')

@@ -4,6 +4,7 @@
   const version = 1;
   const allowedTypes = new Set([
     'app.getState', 'app.exit', 'settings.get', 'settings.save', 'search.query',
+    'activity.query', 'activity.clear', 'projects.query', 'projects.save', 'projects.remove', 'projects.openWeb',
     'system.getState', 'system.setDesktopIcons', 'system.setIconExitPolicy', 'system.setStartup', 'system.setHotkeys',
     'window.openWorkspace', 'window.closeWorkspace', 'window.openDock',
     'window.closeDock', 'window.drag', 'window.resizeSurface', 'window.beginResize',
@@ -53,7 +54,7 @@
         else request.reject(new NativeBridgeError(message.error.code, message.error.message));
         return;
       }
-      if (!['state.changed', 'window.navigate', 'window.historyNavigate', 'scene.executions', 'apps.dropPreview', 'resources.changed', 'resources.progress'].includes(message.type)) return;
+      if (!['state.changed', 'window.navigate', 'window.historyNavigate', 'scene.executions', 'apps.dropPreview', 'resources.changed', 'resources.progress', 'activity.changed', 'projects.changed'].includes(message.type)) return;
       if (!message.payload || typeof message.payload !== 'object' || Array.isArray(message.payload)) return;
       for (const callback of subscribers.get(message.type) || []) {
         try { callback(message.payload); } catch (error) { options.onEventError?.(error); }

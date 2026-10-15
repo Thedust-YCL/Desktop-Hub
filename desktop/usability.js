@@ -6,7 +6,7 @@
   const e = value => H.escape(String(value ?? ''));
   const expanded = new Map();
   const density = () => H.state.settings.uiDensity === 'comfortable' ? 'comfortable' : 'compact';
-  const pages = [['home','启动台'],['scenes','场景'],['library','文件库'],['tags','标签'],['favorites','收藏'],['search','搜索'],['settings','设置']];
+  const pages = [['home','启动台'],['scenes','场景'],['projects','项目集合'],['activity','最近使用'],['library','文件库'],['tags','标签'],['favorites','收藏'],['search','搜索'],['settings','设置']];
   const settingsPage = H.pages.settings;
   H.pages.settings = function () {
     let html = settingsPage();
