@@ -32,7 +32,7 @@
 
 ## Working rules
 
-每个任务先写有意义的失败测试并运行，再实现、运行对应测试、更新记录。任务实现者不再派生代理；控制者分发独立审查。只有一个实现者写产品代码。Windows 缺少 bash，以 PowerShell / Node 建立等价的任务 brief、报告和审查包，存于已忽略的 `artifacts/usability-development/`。
+每个任务先写有意义的失败测试并运行，再实现、运行对应测试、更新记录。任务实现者不再派生代理；控制者分发独立审查。按互不重叠的文件范围并行实施，同一文件只由一个实现者写入，提交串行进行。Windows 缺少 bash，以 PowerShell / Node 建立等价的任务 brief、报告和审查包，存于已忽略的 `artifacts/usability-development/`。
 
 ### Task 1: 数据迁移与业务基础
 
@@ -40,11 +40,11 @@
 
 **Interfaces:** `AppSettings.UiDensity`、`PerformanceMode`、`AutoCloseDock`、`AppGroups`；`AppEntry.Favorite`、`GroupId`；`AppGroup(Id,Name,DisplayOrder)`。场景新增 `EditorMode`、`ExecutionMode` 和可选 `WindowLayout`。资源新增 `SavedResourceFilter`，`ResourceLibrary.SavedFilters`；`ResourceLibraryService.BatchAsync(IReadOnlyList<string>,string,IReadOnlyList<string>)`、`SaveFilterAsync(SavedResourceFilter)`、`DeleteFilterAsync(string)`。`AppLibraryService.SetFavorite(string,bool)`、`SaveGroup(string?,string)`、`RemoveGroup(string)`、`MoveToGroup(string,string?)`。
 
-- [ ] 迁移测试：schema 4 收藏从旧 Dock 状态迁移，schema 5 的独立收藏不被固定覆盖，旧依赖和提示偏好保留；未知 schema 拒绝写入且原文件保留。
-- [ ] 资源测试：500 上限、无效 ID 原子失败、增量标签不改变其他标签、保存筛选重启与删除标签失效。
-- [ ] 运行上述测试观察新行为缺失，然后实现规范化、深克隆、迁移与业务方法。
-- [ ] 运行 `.tools/dotnet/dotnet.exe run --project tests/DesktopHub.Core.Tests -c Release` 和资源测试（使用项目离线源）；预期全通过。
-- [ ] 记录接口与验证，提交该任务文件。
+- [x] 迁移测试：schema 4 收藏从旧 Dock 状态迁移，schema 5 的独立收藏不被固定覆盖，旧依赖和提示偏好保留；未知 schema 拒绝写入且原文件保留。
+- [x] 资源测试：500 上限、无效 ID 原子失败、增量标签不改变其他标签、保存筛选重启与删除标签失效。
+- [x] 运行上述测试观察新行为缺失，然后实现规范化、深克隆、迁移与业务方法。
+- [x] 运行 `.tools/dotnet/dotnet.exe run --project tests/DesktopHub.Core.Tests -c Release` 和资源测试（使用项目离线源）；预期全通过。
+- [x] 记录接口与验证，提交该任务文件。
 
 ### Task 2: 统一搜索与紧凑界面
 
@@ -52,11 +52,11 @@
 
 **Interfaces:** `SearchEntity(Type,Id,Name,Detail,Status,Favorite)`；`UnifiedSearchService.Search(IEnumerable<SearchEntity>,string,string,int=50)` 返回稳定排序实体。桥接 `search.query {query,type}`；前端 `DesktopHubSearch.open()`、`refresh()`，`DesktopHubUsability.apply()`；从当前 settings / resource snapshot 汇集，不额外扫描文件。项目汇集由 Task 6 扩充。
 
-- [ ] 测试名称 / 首字母 / 同名异类排序、50 上限、旧结果和 IME；先失败后实现。
-- [ ] 实现本地汉字首字母匹配，许可证随分发；不限制成示例字表。
-- [ ] 接入顶部与 Ctrl+K、键盘 / 焦点恢复、失效操作、类型筛选。
-- [ ] 紧凑首页和文件库，提供持久密度设置；保留圆角及主题。
-- [ ] 运行新测试与 `node --test desktop/tests/*.test.mjs prototype/tests/state.test.mjs`，记录截图验收项后提交。
+- [x] 测试名称 / 首字母 / 同名异类排序、50 上限、旧结果和 IME；先失败后实现。
+- [x] 实现本地汉字首字母匹配，许可证随分发；不限制成示例字表。
+- [x] 接入顶部与 Ctrl+K、键盘 / 焦点恢复、失效操作、类型筛选。
+- [x] 紧凑首页和文件库，提供持久密度设置；保留圆角及主题。
+- [x] 运行新测试与 `node --test desktop/tests/*.test.mjs prototype/tests/state.test.mjs`，记录截图验收项后提交。
 
 ### Task 3: 批量资源交互与保存筛选
 
@@ -64,10 +64,10 @@
 
 **Interfaces:** 消费 Task 1 的 BatchAsync / SavedFilters；桥接 `resources.batch {resourceIds,operation,tagIds}`、`resources.filterSave {filter}`、`resources.filterDelete {id}`；新增查询排序字段与筛选失效状态。
 
-- [ ] 添加跨页选择、条件切换清空、后台实体消失、增量批量操作测试，先运行失败。
-- [ ] 实现选择工具条、标签选择确认、收藏及同类建议处理、保存 / 编辑 / 删除筛选。
-- [ ] 桥接验证 500 项及允许操作，后台刷新保留滚动；失效清理仍使用独立操作。
-- [ ] 运行资源 Core / 前端测试，提交并记录结果。
+- [x] 添加跨页选择、条件切换清空、后台实体消失、增量批量操作测试，先运行失败。
+- [x] 实现选择工具条、标签选择确认、收藏及同类建议处理、保存 / 编辑 / 删除筛选。
+- [x] 桥接验证 500 项及允许操作，后台刷新保留滚动；失效清理仍使用独立操作。
+- [x] 运行资源 Core / 前端测试，提交并记录结果。
 
 ### Task 4: 应用、入口与引导
 
@@ -75,11 +75,11 @@
 
 **Interfaces:** 消费 Task 1 分组 / Favorite；桥接 `apps.favorite`、`apps.groupSave`、`apps.groupRemove`、`apps.moveGroup`；`apps.scan` 增加 `startMenu` 和宿主拖放令牌模式。原生拖放事件 `apps.dropPreview` 仅含扫描对象。
 
-- [ ] 测试桌面 / 开始菜单统一去重、原生多选 / 令牌失效、组排序、收藏与固定四种组合，先失败。
-- [ ] 实现拖入、分组和拖动 / 键盘排序，保留现有桌面提示偏好与批量导入。
-- [ ] 简化 Dock 空分区并移出低频设置，按独立应用请求成功执行可选自动收起。
-- [ ] 引导调整为欢迎 → 添加启动应用 → 固定 → 可选文件 → 常驻设置 → 完成；旧完成记录不重播。
-- [ ] 运行 Core、desktop-adapter、onboarding 测试，提交与记录。
+- [x] 测试桌面 / 开始菜单统一去重、原生多选 / 令牌失效、组排序、收藏与固定四种组合，先失败。
+- [x] 实现拖入、分组和拖动 / 键盘排序，保留现有桌面提示偏好与批量导入。
+- [x] 简化 Dock 空分区并移出低频设置，按独立应用请求成功执行可选自动收起。
+- [x] 引导调整为欢迎 → 添加启动应用 → 固定 → 可选文件 → 常驻设置 → 完成；旧完成记录不重播。
+- [x] 运行 Core、desktop-adapter、onboarding 测试，提交与记录。
 
 ### Task 5: 简单场景、结果与失败重试
 
@@ -87,10 +87,10 @@
 
 **Interfaces:** 消费 Task 1 模式字段；`SceneExecutionService.Retry(string executionId)` 使用原快照与前次完成状态；桥接 `scenes.retry {executionId}`；简单顺序模式排序重建 completed 依赖。
 
-- [ ] 测试简单排序影响真实顺序、旧高级依赖保留、转换确认与快照失败重试不再启动成功项，先失败。
-- [ ] 实现批量选应用、简单 / 高级模式和执行方式；循环依赖继续校验。
-- [ ] 当前视口内结果面板、分层文案、修复入口、保留 Mini / Dock 摘要。
-- [ ] 运行场景测试和前端全部测试，记录后提交。
+- [x] 测试简单排序影响真实顺序、旧高级依赖保留、转换确认与快照失败重试不再启动成功项，先失败。
+- [x] 实现批量选应用、简单 / 高级模式和执行方式；循环依赖继续校验。
+- [x] 当前视口内结果面板、分层文案、修复入口、保留 Mini / Dock 摘要。
+- [x] 运行场景测试和前端全部测试，记录后提交。
 
 ### Task 6: 最近使用与项目集合
 
@@ -98,10 +98,10 @@
 
 **Interfaces:** `ActivityService.Record(string type,string id,string result)`、`Snapshot()`、`Clear()`；`ProjectService.Save(Project)`、`Remove(string)`、`Snapshot()`；文件 schema 1，原子存储。桥接 `activity.query/clear`、`projects.query/save/remove`；项目项只实体 ID 或验证 HTTP(S) URL。
 
-- [ ] 测试50项去重、失败不记录、删除实体不可执行、共享项目引用、项目删除只解除关联，先失败。
-- [ ] 实现首页6项与完整最近页、项目列表 / 详情 / 固定首页、按类型添加引用与排序。
-- [ ] 项目纳入统一搜索；浏览项目不批量打开任何关联内容。
-- [ ] 运行新增 Core 与前端测试，提交并记录。
+- [x] 测试50项去重、失败不记录、删除实体不可执行、共享项目引用、项目删除只解除关联，先失败。
+- [x] 实现首页6项与完整最近页、项目列表 / 详情 / 固定首页、按类型添加引用与排序。
+- [x] 项目纳入统一搜索；浏览项目不批量打开任何关联内容。
+- [x] 运行新增 Core 与前端测试，提交并记录。
 
 ### Task 7: 受限图片与 PDF 预览
 
