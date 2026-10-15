@@ -251,7 +251,7 @@
     'ap-import-existing': () => {
       if (!selection || writing) return; resumeType = selection.type; H.closeModal();
       if (resumeType === 'app') { H.navigate('home'); void H.actions['app-add']?.(); }
-      else if (resumeType === 'scene') { H.navigate('scenes'); H.actions['scene-new']?.(); }
+      else if (resumeType === 'scene') { H.navigate('scenes'); H.actions['new-scene']?.(); }
       else { H.navigate('library'); H.toast('请在文件库添加来源，完成后选择“返回项目草稿”。'); }
     },
     'ap-resume-draft': () => {

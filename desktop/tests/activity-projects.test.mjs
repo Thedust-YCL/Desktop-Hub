@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { randomUUID } from 'node:crypto';
 
-function setup(surface='workspace',history=false) {
+function setup(surface='workspace',history=false,composeScenes=false) {
   const requests=[],sent=[],events=new Map(),dom=new Map(),timers=new Map(),calls=[],nodes=new Map();let uid=0;
   const element=(id,value='')=>({id,value,checked:false,innerHTML:'',textContent:'',dataset:{},isConnected:true,disabled:false,focus(){document.activeElement=this;},querySelector(){return null;},querySelectorAll(){return [];},insertAdjacentHTML(position,html){this.innerHTML=position==='afterbegin'?html+this.innerHTML:this.innerHTML+html;},setAttribute(k,v){this[k]=v;},remove(){nodes.delete('#'+id);}});
   for(const id of ['ap-project-name','ap-project-description','ap-project-pin','ap-error','ap-error-diagnostic','ap-error-details','ap-candidates','ap-select-query','ap-web-url','ap-web-label'])nodes.set('#'+id,element(id));
@@ -13,13 +13,14 @@ function setup(surface='workspace',history=false) {
   const scenes={insertAdjacentHTML(position,html){assert.equal(position,'afterend');home.innerHTML=home.innerHTML.replace('</section>','</section>'+html);}};
   home.querySelector=s=>s==='.home-scenes'?scenes:null;
   const document={activeElement:null,readyState:'complete',documentElement:{dataset:{}},querySelector(s){if(s==='.workspace-content')return content;if(s==='.home-content')return home;if(s==='.home-scenes')return scenes;if(s==='.projects-home')return home.innerHTML.includes('projects-home')?{}:null;if(s==='.activity-home')return home.innerHTML.includes('activity-home')?{}:null;return nodes.get(s)||null;},querySelectorAll(){return [];},addEventListener(type,fn){if(!dom.has(type))dom.set(type,[]);dom.get(type).push(fn);}};
-  const settings={appEntries:[{id:'app-a',name:'App'}],scenes:[{id:'scene-a',name:'Scene',enabled:true,actions:[]}]};
+  const settings={appEntries:[{id:'app-a',name:'App'}],scenes:[{id:'scene-a',name:'Scene',enabled:true,actions:[],dependencies:[]}],launcherPins:[]};
   const H={ui:{page:'home',modal:null},state:{settings:{}},actions:{},pages:{home:()=>home.innerHTML},escape:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),icon:()=>'<svg/>',render(){content.innerHTML=(H.pages[H.ui.page]||H.pages.home)();},navigate(page){if(H.ui.page==='editor'&&H.ui.sceneDraftDirty&&page!=='editor'){H.showModal('离开场景编辑器？','','');return;}H.ui.page=page;H.closeModal();H.render();},showModal(title,body,footer){H.ui.modal={title,body,footer};},closeModal(){H.ui.modal=null;},toast(message){calls.push(['toast',message]);},restoreViewport(){calls.push(['viewport']);}};
   for(const action of ['app-launch','run-scene','edit-scene','nr-open'])H.actions[action]=async el=>{calls.push([action,structuredClone(el.dataset)]);return {success:true};};
   const bridge={on(type,fn){if(!events.has(type))events.set(type,[]);events.get(type).push(fn);},request(type,payload){sent.push({type,payload:structuredClone(payload)});return new Promise((resolve,reject)=>requests.push({type,payload,resolve,reject}));}};
   let resources={query:'',tagIds:[],folder:null};
-  const window={Hub:H,crypto:{randomUUID},DesktopHubNative:{bridge},DesktopHubDesktop:{getState:()=>({surface,hostState:{settings}})},DesktopHubResources:{repair:id=>calls.push(['repair',id]),browse:id=>calls.push(['browse',id]),getState:()=>({busy:false}),navigationState:()=>structuredClone(resources),restoreNavigation(state){resources=structuredClone(state);}}};
+  const window={Hub:H,crypto:{randomUUID},DesktopHubNative:{bridge},DesktopHubDesktop:{getState:()=>({surface,hostState:{settings}}),applyHostState(result){Object.assign(settings,result.settings);}},DesktopHubResources:{repair:id=>calls.push(['repair',id]),browse:id=>calls.push(['browse',id]),getState:()=>({busy:false}),navigationState:()=>structuredClone(resources),restoreNavigation(state){resources=structuredClone(state);}}};
   const context=vm.createContext({window,document,console,Date,URL,setTimeout(fn,ms){const id=++uid;timers.set(id,{fn,ms});return id;},clearTimeout(id){timers.delete(id);}});
+  if(composeScenes)for(const path of ['../../prototype/scenes.js','../scenes.js'])vm.runInContext(fs.readFileSync(new URL(path,import.meta.url),'utf8'),context);
   if(history)vm.runInContext(fs.readFileSync(new URL('../interactions.js',import.meta.url),'utf8'),context);
   const path=new URL('../activity-projects.js',import.meta.url);if(fs.existsSync(path))vm.runInContext(fs.readFileSync(path,'utf8'),context);
   return {window,H,settings,requests,sent,events,nodes,content,home,calls,document,emit(type,target,extra={}){for(const fn of dom.get(type)||[])fn({target,preventDefault(){},...extra});},event(type,data={}){for(const fn of events.get(type)||[])fn(data);},async timers(){const list=[...timers.values()];timers.clear();for(const {fn}of list)fn();await settle();}};
@@ -89,6 +90,61 @@ test('Task6 creation flow retains the draft and returns to type selection after 
   e.nodes.get('#ap-project-name').value='Retained';e.H.actions['ap-add-type']({dataset:{type:'app'}});e.H.actions['ap-import-existing']();
   assert.ok(e.calls.some(c=>c[0]==='import-app'));assert.equal(e.H.ui.page,'home');
   e.H.actions['ap-resume-draft']();assert.match(e.H.ui.modal.title,/应用/);e.H.actions['ap-editor-back']();assert.match(e.H.ui.modal.body,/Retained/);
+});
+
+test('Task6 project scene creation uses the native constructor and returns a usable scene to the retained project draft',async()=>{
+  // Keep both real constructors in index.html order: the legacy action still exists.
+  const e=setup('workspace',false,true);
+  e.H.actions['ap-new']();
+  e.nodes.get('#ap-project-name').value='Retained project';
+  e.nodes.get('#ap-project-description').value='Keep these notes';
+  e.nodes.get('#ap-project-pin').checked=true;
+  e.H.actions['ap-add-type']({dataset:{type:'web'}});
+  e.nodes.get('#ap-web-url').value='https://example.com/project';e.nodes.get('#ap-web-label').value='Project notes';
+  e.H.actions['ap-web-add']();
+  e.H.actions['ap-add-type']({dataset:{type:'app'}});
+  e.emit('input',e.nodes.get('#ap-select-query'));await e.timers();
+  await reply(e,'search.query',[{type:'app',id:'app-a',name:'App',status:'Active'}]);
+  e.H.actions['ap-select']({dataset:{id:'app-a'}});
+  e.H.actions['ap-add-type']({dataset:{type:'scene'}});e.H.actions['ap-import-existing']();
+
+  const scene=e.H.ui.sceneDraft;
+  assert.equal(e.H.ui.page,'editor');assert.equal(e.H.ui.modal,null);
+  assert.match(scene.id,/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  assert.notEqual(scene.id,'00000000-0000-0000-0000-000000000000');
+  assert.equal(scene.editorMode,'simple');assert.equal(scene.executionMode,'simultaneous');
+  assert.deepEqual(Array.from(scene.actions),[]);assert.deepEqual(Array.from(scene.dependencies),[]);
+  assert.match(e.content.innerHTML,/场景编辑器/);
+  e.H.actions['native-add-type']({dataset:{type:'application'}});
+  assert.equal(scene.actions.length,1);assert.equal(scene.actions[0].appEntryId,'app-a');
+  assert.equal(scene.actions[0].type,'application');assert.equal(scene.actions[0].target,'');
+  assert.match(e.H.pages.editor(),/native-action-config/);assert.match(e.content.innerHTML,/App/);
+  const saveScene=e.H.actions['native-scene-save']();
+  const nativeSave=e.sent.findLast(r=>r.type==='scenes.save');assert.ok(nativeSave);
+  assert.equal(nativeSave.payload.scene.id,scene.id);assert.equal(nativeSave.payload.scene.editorMode,'simple');
+  assert.equal(nativeSave.payload.scene.executionMode,'simultaneous');assert.deepEqual(nativeSave.payload.scene.dependencies,[]);
+  assert.equal(nativeSave.payload.scene.actions[0].appEntryId,'app-a');
+  await reply(e,'scenes.save',{settings:{...e.settings,scenes:[...e.settings.scenes,nativeSave.payload.scene]}});await saveScene;
+  assert.equal(e.H.ui.page,'scenes');assert.equal(e.H.ui.sceneDraftDirty,false);
+
+  e.H.actions['ap-resume-draft']();assert.match(e.H.ui.modal.title,/场景/);
+  e.emit('input',e.nodes.get('#ap-select-query'));await e.timers();
+  await reply(e,'search.query',[{type:'scene',id:scene.id,name:'New native scene',status:'Active'}]);
+  e.H.actions['ap-select']({dataset:{id:scene.id}});
+  assert.match(e.H.ui.modal.body,/Retained project/);assert.match(e.H.ui.modal.body,/Keep these notes/);
+  assert.match(e.H.ui.modal.body,/id="ap-project-pin"[^>]*checked/);
+  assert.match(e.H.ui.modal.body,/Project notes/);assert.match(e.H.ui.modal.body,/App/);
+  const saveProject=e.H.actions['ap-save']();
+  const candidate=e.sent.findLast(r=>r.type==='projects.save').payload.project;
+  assert.equal(candidate.name,'Retained project');assert.equal(candidate.description,'Keep these notes');assert.equal(candidate.pinnedToHome,true);
+  assert.deepEqual(candidate.items.map(({type,entityId,url,name})=>({type,entityId,url,name})),[
+    {type:'web',entityId:null,url:'https://example.com/project',name:'Project notes'},
+    {type:'app',entityId:'app-a',url:null,name:null},
+    {type:'scene',entityId:scene.id,url:null,name:null}
+  ]);
+  await reply(e,'projects.save',{project:candidate});await saveProject;
+  assert.equal(e.H.ui.page,'project');assert.equal(e.H.ui.modal,null);
+  assert.ok(!e.sent.some(r=>['scenes.run','apps.launch','resources.open'].includes(r.type)));
 });
 
 test('Task6 stale activity query cannot resurrect cleared rows and old project queries cannot undo saved names',async()=>{
