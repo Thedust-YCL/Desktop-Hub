@@ -53,6 +53,18 @@ test('request/response correlation and only selected native launch id crosses bo
   bridge.dispose();
 });
 
+test('scene snapshot retry routes send execution identity and exact script IDs without a snapshot retrieval route', async () => {
+  const view = fakeWebView(), bridge = createBridge(view);
+  for (const [type, payload] of [['scenes.retry', { executionId: 'retained-execution' }], ['scenes.retryScripts', { executionId: 'retained-execution', actionIds: ['original-script'] }]]) {
+    const pending = bridge.request(type, payload), sent = view.sent.at(-1);
+    assert.equal(sent?.type, type); assert.deepEqual(sent.payload, payload);
+    view.receive({ version: 1, id: sent.id, ok: true, result: { execution: { id: 'new-execution' } } });
+    assert.equal((await pending).execution.id, 'new-execution');
+  }
+  await assert.rejects(bridge.request('scenes.getExecutionScene', { executionId: 'retained-execution' }), error => error.code === 'UNKNOWN_MESSAGE');
+  await assert.rejects(bridge.request('scenes.retryTarget', { target: 'C:/forged.exe' }), error => error.code === 'UNKNOWN_MESSAGE'); bridge.dispose();
+});
+
 test('out-of-order responses resolve their original requests', async () => {
   const view = fakeWebView();
   const bridge = createBridge(view);

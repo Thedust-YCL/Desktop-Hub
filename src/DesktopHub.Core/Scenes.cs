@@ -37,7 +37,7 @@ public sealed record SceneAction
     public bool RunAsAdministrator { get; set; }
 }
 
-// Ordering is presentation only. Each edge names its prerequisite and required observation.
+// Advanced ordering is presentation only; simple sequential mode derives completed edges.
 public sealed record ActionDependency
 {
     public string ActionId { get; set; } = "";
@@ -50,6 +50,9 @@ public sealed record ActionExecution
 {
     public string ActionId { get; init; } = "";
     public string Name { get; init; } = "";
+    // Stable recovery identity from the frozen action; never resolve through an edited live scene.
+    public string ActionType { get; init; } = "";
+    public string? AppEntryId { get; init; }
     public string Status { get; set; } = "Pending";
     public string Code { get; set; } = "pending";
     public string Message { get; set; } = "等待执行";
@@ -57,6 +60,12 @@ public sealed record ActionExecution
     public string TargetPath { get; set; } = "";
     public string Diagnostic { get; set; } = "";
     public bool SatisfiesDependencies { get; set; }
+    // Immediate frozen prerequisite that failed or could no longer be observed.
+    public string? BlockedByActionId { get; set; }
+    // A successful non-skipped launch receipt, retained even if later observation fails.
+    public bool LaunchSubmitted { get; set; }
+    public bool CarriedForward { get; set; }
+    public bool RequiresScriptRepeat { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
 }
@@ -66,6 +75,8 @@ public sealed record SceneExecution
     public string Id { get; init; } = Guid.NewGuid().ToString("D");
     public string SceneId { get; init; } = "";
     public string SceneName { get; init; } = "";
+    public string? RetryOfExecutionId { get; init; }
+    public bool CanRetry { get; set; }
     public string Status { get; set; } = "Pending";
     public string Summary { get; set; } = "等待前一次场景执行完成";
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
@@ -165,8 +176,27 @@ public static class SceneValidator
         var visited = 0;
         while (ready.TryDequeue(out var id)) { visited++; foreach (var next in successors[id]) if (--remaining[next] == 0) ready.Enqueue(next); }
         if (visited != ids.Count) throw new SettingsValidationException("动作存在循环依赖，请移除环中的等待关系。");
+        // Validate the supplied graph before deriving simple edges. Invalid graphs must
+        // never become valid merely because normalization would replace them.
+        if (copy.EditorMode == "simple" && (copy.Actions.Any(action => action.Type == "script" || action.DelayMs != 0 ||
+            action.CompletionCondition != "submitted" || action.WaitTargetPath.Length != 0 || action.WindowTitle.Length != 0 ||
+            action.ArgumentList.Count != 0 || action.RunAsAdministrator) || copy.Dependencies.Any(edge => edge.Condition != "completed")))
+            throw new SettingsValidationException("简单模式不支持脚本、自定义等待或延迟，请使用高级模式。");
         copy.Name = copy.Name.Trim();
         copy.Actions = copy.Actions.OrderBy(action => action.DisplayOrder).Select((action, index) => action with { DisplayOrder = index }).ToList();
+        if (copy.EditorMode == "simple")
+        {
+            copy.Dependencies = [];
+            if (copy.ExecutionMode == "sequential")
+            {
+                SceneAction? previous = null;
+                foreach (var action in copy.Actions.Where(action => action.Enabled))
+                {
+                    if (previous is not null) copy.Dependencies.Add(new() { ActionId = action.Id, DependsOnActionId = previous.Id });
+                    previous = action;
+                }
+            }
+        }
         return copy;
     }
     private static void Id(string value) { if (!Guid.TryParseExact(value, "D", out var id) || id == Guid.Empty) throw new SettingsValidationException("场景或动作标识无效。"); }
@@ -181,6 +211,8 @@ public sealed class SceneLibraryService(SettingsStore store)
     {
         var scene = SceneValidator.Normalize(requested);
         foreach (var action in scene.Actions) action.ReferenceInvalid = action.AppEntryId is { } id && settings.AppEntries.All(app => app.Id != id);
+        if (scene.Actions.Any(action => action.ReferenceInvalid))
+            throw new SettingsValidationException("引用的应用已移除，请重新关联后再保存场景。");
         var index = settings.Scenes.FindIndex(item => item.Id == scene.Id);
         if (index < 0) settings.Scenes.Add(scene with { DisplayOrder = settings.Scenes.Count });
         else settings.Scenes[index] = scene with { DisplayOrder = settings.Scenes[index].DisplayOrder };

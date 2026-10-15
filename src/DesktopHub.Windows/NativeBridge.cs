@@ -194,6 +194,23 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
             case "scenes.run":
                 RequireKeys(payload, "sceneId");
                 return new { execution = host.Scenes.Start(String(payload, "sceneId", 96)), executions = host.Scenes.Snapshot() };
+            case "scenes.retry":
+                RequireKeys(payload, "executionId");
+                var retryId = String(payload, "executionId", 36);
+                if (!Guid.TryParseExact(retryId, "D", out var retryGuid) || retryGuid == Guid.Empty)
+                    throw new BridgeException("INVALID_PARAMS", "执行编号无效。");
+                return new { execution = host.Scenes.Retry(retryId), executions = host.Scenes.Snapshot() };
+            case "scenes.retryScripts":
+                RequireWorkspace(); RequireKeys(payload, "executionId", "actionIds");
+                var scriptRetryId = String(payload, "executionId", 36);
+                if (!Guid.TryParseExact(scriptRetryId, "D", out var scriptRetryGuid) || scriptRetryGuid == Guid.Empty ||
+                    !payload.TryGetProperty("actionIds", out var scriptRetryArray) || scriptRetryArray.ValueKind != JsonValueKind.Array || scriptRetryArray.GetArrayLength() is < 1 or > 500)
+                    throw new BridgeException("INVALID_PARAMS", "请选择有效执行及需要重复的脚本。");
+                var scriptRetryIds = StringArray(payload, "actionIds");
+                if (scriptRetryIds.Distinct(StringComparer.Ordinal).Count() != scriptRetryIds.Count ||
+                    scriptRetryIds.Any(id => !Guid.TryParseExact(id, "D", out var scriptGuid) || scriptGuid == Guid.Empty))
+                    throw new BridgeException("INVALID_PARAMS", "脚本编号无效、为空或重复。");
+                return new { execution = host.Scenes.RetryWithScriptRepeat(scriptRetryId, scriptRetryIds), executions = host.Scenes.Snapshot() };
             case "scenes.pickTarget":
                 RequireWorkspace(); RequireKeys(payload, "kind");
                 return await ChooseSceneTargetAsync(String(payload, "kind", 20));

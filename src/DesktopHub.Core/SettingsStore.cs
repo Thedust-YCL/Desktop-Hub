@@ -63,8 +63,12 @@ public sealed class SettingsStore
                         {
                             try
                             {
-                                var scene = SceneValidator.Normalize(item?.Deserialize<Scene>(JsonOptions)
-                                    ?? throw new SettingsValidationException("空场景"));
+                                var requested = item?.Deserialize<Scene>(JsonOptions)
+                                    ?? throw new SettingsValidationException("空场景");
+                                // Legacy graphs predate the simple editor. Establish their
+                                // advanced semantics before authoritative scene validation.
+                                if (parsed.SchemaVersion < 5) requested.EditorMode = "advanced";
+                                var scene = SceneValidator.Normalize(requested);
                                 if (scenes.Any(existing => existing.Id == scene.Id)) throw new SettingsValidationException("重复场景 ID");
                                 scenes.Add(scene);
                             }
