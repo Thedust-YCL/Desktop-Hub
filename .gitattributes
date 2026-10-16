@@ -1,0 +1,3 @@
+# Preserve fixed dependency hashes and byte offsets in binary preview fixtures.
+src/DesktopHub.Windows/ThirdParty/WebP/** -text
+tests/DesktopHub.Windows.Preview.Tests/Fixtures/** binary

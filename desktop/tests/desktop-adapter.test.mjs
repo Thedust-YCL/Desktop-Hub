@@ -13,7 +13,7 @@ const baseSettings = {
   hoverDelay: 500, allowForeground: true, schemaVersion: 2, appEntries: [], launcherPins: [],
   workspaceBounds: { left: 40, top: 40, width: 1200, height: 800 }
 };
-function setup(surface = 'workspace', responses = {}, withSearch = false) {
+function setup(surface = 'workspace', responses = {}, withSearch = false, restoring = false) {
   const sent = [], eventListeners = new Map(), domListeners = new Map(), windowListeners = new Map(), timers = new Map(), toasts = [], nodes = new Map(), storage = new Map();
   let timerId = 0;
   const settings = structuredClone(baseSettings);
@@ -68,7 +68,7 @@ function setup(surface = 'workspace', responses = {}, withSearch = false) {
     shell.children.push(content);nodes.set('.workspace', shell);nodes.set('.workspace-content', content);
   }
   const window = { Hub: H, DesktopHubNative: { bridge, NativeBridgeError }, localStorage: { getItem(key) { return storage.get(key) ?? null; } }, addEventListener(type, handler) { windowListeners.set(type, handler); } };
-  const context = vm.createContext({ window, document, location: { search: `?surface=${surface}` }, URLSearchParams, console,
+  const context = vm.createContext({ window, document, location: { search: `?surface=${surface}${restoring ? '&restoring=1' : ''}` }, URLSearchParams, TextEncoder, console,
     setTimeout(fn) { const id = ++timerId; timers.set(id, fn); return id; }, clearTimeout(id) { timers.delete(id); }
   });
   vm.runInContext(source, context, { filename: 'desktop.js' });
@@ -112,16 +112,52 @@ test('settings writes include only editable fields and never application records
   await env.initialize();
   env.H.state.settings.theme = 'dark';
   env.H.state.settings.uiDensity = 'comfortable';
+  env.H.state.settings.performanceMode = 'lightweight';
   env.H.state.settings.autoStart = true;
   env.H.save();
   await env.flushTimers();
   const saved = env.sent.find(item => item.type === 'settings.save').payload.settings;
   assert.equal(saved.theme, 'dark');
   assert.equal(saved.uiDensity, 'comfortable');
+  assert.equal('performanceMode' in saved, false);
   assert.equal('autoStart' in saved, false);
   assert.equal('appEntries' in saved, false);
   assert.equal('launcherPins' in saved, false);
   assert.equal('workspaceBounds' in saved, false);
+});
+
+test('hide guard retains queued appearance writes until their completion', async () => {
+  const env = setup(); await env.initialize();
+  env.H.state.settings.theme = 'light'; env.H.save();
+  assert.ok(env.window.DesktopHubDesktop.lifecycleBusyReasons().includes('settings-write'));
+  await env.flushTimers();
+  assert.deepEqual(Array.from(env.window.DesktopHubDesktop.lifecycleBusyReasons()), []);
+});
+
+test('a rebuilt surface leaves fresh state fetching to the ordered lifecycle restoration', async () => {
+  const env = setup('workspace', {}, false, true); await env.initialize();
+  assert.equal(env.sent.some(request => request.type === 'app.getState'), false);
+  assert.equal(env.window.DesktopHubDesktop.getState().hostState, null);
+  env.window.DesktopHubDesktop.applyHostState(env.state);
+  assert.equal(env.window.DesktopHubDesktop.getState().hostState.settings.theme, 'system');
+});
+
+test('preview Escape is consumed before a newer modal or the native window', async () => {
+  const env = setup(); await env.initialize(); let closed = false;
+  env.H.ui.modal = { locked: false };
+  env.window.DesktopHubPreview = { handleEscape() { closed = true; return true; } };
+  assert.equal(env.window.DesktopHubDesktop.handleEscape(), true);
+  assert.equal(closed, true);
+  assert.ok(env.H.ui.modal);
+});
+
+test('late automatic layout results reach the explicit result entry without opening a modal', async () => {
+  const env = setup(); await env.initialize(); let received = null;
+  env.window.DesktopHubWindowLayout = { receiveResults(results) { received = results; } };
+  const results = [{ executionId: 'frozen-execution', result: { entries: [{ status: 'needsChoice' }] } }];
+  env.emit('state.changed', { settings: env.state.settings, layoutResults: results });
+  assert.equal(received, results);
+  assert.equal(env.H.ui.modal, null);
 });
 
 const appEntry = (id, displayOrder = 0) => ({ id, name: `应用 ${id}`, target: `C:\\Tools\\${id}.exe`, arguments: '', workingDirectory: '', icon: null, displayOrder, pinnedToMini: false, pinnedToDock: true });
@@ -492,6 +528,46 @@ test('debounced appearance saves cannot overwrite explicitly saved native system
   assert.equal(env.state.settings.miniOpacity, .92);
   assert.equal(env.state.settings.workspaceOpacity, .65);
   assert.deepEqual(env.state.settings.foregroundBlocklist, ['game.exe']);
+});
+
+test('queued appearance save preserves a newer explicit performance-mode choice', async () => {
+  for (const [before, after] of [['quick', 'lightweight'], ['lightweight', 'quick']]) {
+    const env = setup();
+    env.state.settings.performanceMode = before;
+    env.H.pages.settings = () => '<div class="settings-layout"></div>';
+    await env.initialize();
+    env.loadAdapter('system.js');
+    env.H.state.settings.theme = 'light';
+    env.H.save();
+    assert.equal(await env.H.actions['sys-performance-mode']({ value: after }), true);
+    assert.equal(env.state.settings.performanceMode, after);
+    await env.flushTimers();
+    assert.equal(env.state.settings.performanceMode, after, 'queued appearance patch must preserve explicit mode');
+    assert.equal(env.window.DesktopHubDesktop.getState().hostState.settings.performanceMode, after);
+    assert.equal(env.state.settings.theme, 'light', 'the queued appearance change still saves');
+    const writes = env.sent.filter(item => item.type === 'settings.save');
+    assert.deepEqual(writes[0].payload.settings, { performanceMode: after });
+    assert.equal('performanceMode' in writes[1].payload.settings, false);
+  }
+});
+
+test('compact lifecycle rebuild fetches state without routing to Workspace', async () => {
+  for (const surface of ['dock', 'mini']) {
+    for (const snapshot of [null, { version: 1, page: 'home', resources: { query: 'old' }, projects: { projectId: 'old' }, history: { entries: [], index: -1 } }]) {
+      const env = setup(surface, {}, false, true);
+      env.window.requestAnimationFrame = fn => fn();
+      const restored = [];
+      env.window.DesktopHubResources = { restoreLifecycle: () => restored.push('resources'), captureLifecycle: () => ({ query: '' }) };
+      env.window.DesktopHubProjects = { restoreNavigation: () => restored.push('projects'), refresh: () => restored.push('projects-refresh') };
+      env.window.DesktopHubInteractions = { restoreLifecycle: () => restored.push('history'), checkpoint: () => restored.push('checkpoint') };
+      env.loadAdapter('lifecycle.js');
+      const result = await env.window.DesktopHubLifecycle.restore(snapshot, 'library');
+      assert.equal(result.ready, true);
+      assert.deepEqual(env.sent.map(item => item.type), ['app.getState']);
+      assert.equal(env.H.ui.surface, surface);
+      assert.deepEqual(restored, [], 'compact rebuild does not restore Workspace-only modules');
+    }
+  }
 });
 
 test('editing and removing one application preserve its neighbours and do not send any path execution', async () => {

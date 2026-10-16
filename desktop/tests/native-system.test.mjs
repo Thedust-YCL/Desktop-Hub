@@ -65,6 +65,27 @@ test('Task4 Dock launch auto-close is opt-in and saves only its dedicated settin
   assert.equal(env.state().settings.autoCloseDock,true);
 });
 
+test('performance mode choice saves the explicit preference and explains the hidden release delay', async () => {
+  const env = setup();
+  const markup = env.section('system');
+  assert.match(markup, /性能模式/);
+  assert.match(markup, /快速唤出/);
+  assert.match(markup, /轻量常驻/);
+  assert.match(markup, /60 秒/);
+  await env.H.actions['sys-performance-mode']({ value: 'lightweight' });
+  assert.deepEqual(env.sent.filter(x => x.type === 'settings.save').at(-1).payload, { settings: { performanceMode: 'lightweight' } });
+  assert.equal(env.state().settings.performanceMode, 'lightweight');
+});
+
+test('Workspace brand displays the connected host version after every state update', () => {
+  const env = setup(), label = { textContent: '' };
+  env.nodes.set('.workspace-header .brand small', label);
+  env.state().version = '0.3.0'; env.H.render();
+  assert.equal(label.textContent, '工作空间 · 0.3.0');
+  env.state().version = '0.3.1'; env.H.render();
+  assert.equal(label.textContent, '工作空间 · 0.3.1');
+});
+
 test('first hide transmits chosen exit policy; subsequent hide commands remain target-state writes', async () => {
   const env = setup();
   env.H.actions['sys-icons']({ dataset: { visible: 'false' } });

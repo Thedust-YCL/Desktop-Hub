@@ -21,6 +21,7 @@
   let favoritesOnly = false;
   let cleanupDraft = null, selectionBlocked = false;
   let navigationRevision = 0, navigationOperation = 0;
+  let queriesPaused = /[?&]restoring=1(?:&|$)/.test(window.location?.search || ''), lifecycleGeneration = 0, discoveryGeneration = 0;
   // Modal/page transitions supersede a deferred browse or tag-validation result,
   // including an editor opened and then closed while the native request was pending.
   const showModal = H.showModal, closeModal = H.closeModal;
@@ -55,6 +56,7 @@
   }
   async function request(type, payload = {}, timeoutMs = 120000) { return bridge.request(type, payload, { timeoutMs }); }
   async function reload() {
+    if (queriesPaused) return;
     const order = ++sequence; loading = true; error = '';
     const currentPage = H.ui.page, selectedVersion = selectionRevision;
     const selectedIds = [...selected], cleanupIds = [...cleanupSelected];
@@ -97,7 +99,7 @@
     const suggestions = grid ? suggestionsMarkup(item) : item.suggestions.length ? `<button class="nr-suggestion-summary" data-action="nr-detail" ${idAttr(r.id)}>${item.suggestions.length} 个标签建议</button>` : '';
     const selectable = invalid ? ['Missing','PendingRepair'].includes(r.status) : r.status === 'Active';
     const selection = invalid ? cleanupSelected : selected;
-    return `<${grid ? 'article' : 'div'} class="nr-resource ${grid ? 'nr-card' : 'nr-row'} ${browsable ? 'nr-browsable' : ''}" data-resource-id="${e(r.id)}">${browsable ? `<button class="nr-row-hit" data-action="nr-browse" ${idAttr(r.id)} aria-label="浏览文件夹 ${e(r.displayName)}" title="点击整行浏览文件夹"></button>` : ''}<div class="nr-resource-heading"><input type="checkbox" data-change="nr-select" ${idAttr(r.id)} ${selection.has(r.id) ? 'checked' : ''} ${!selectable || busy ? 'disabled' : ''} aria-label="选择${invalid ? '失效索引' : '资源'} ${e(r.displayName)}"><span class="nr-type-icon">${icon(typeIcon(r), grid ? 32 : 25)}</span><div class="nr-identity"><strong>${e(r.displayName)}</strong><small title="${e(r.canonicalPath)}">${e(r.canonicalPath)}</small></div>${browsable ? `<span class="nr-browse-hint">浏览 ${icon('arrow-right', 15)}</span>` : ''}</div><div class="nr-tag-cell"><div class="nr-tags">${tagsMarkup(item)}</div>${suggestions}</div><div class="nr-status">${stateMarkup(r)}</div>${controls(r)}</${grid ? 'article' : 'div'}>`;
+    return `<${grid ? 'article' : 'div'} class="nr-resource ${grid ? 'nr-card' : 'nr-row'} ${browsable ? 'nr-browsable' : ''}" data-resource-id="${e(r.id)}" tabindex="0" aria-selected="false">${browsable ? `<button class="nr-row-hit" data-action="nr-browse" ${idAttr(r.id)} aria-label="浏览文件夹 ${e(r.displayName)}" title="点击整行浏览文件夹"></button>` : ''}<div class="nr-resource-heading"><input type="checkbox" data-change="nr-select" ${idAttr(r.id)} ${selection.has(r.id) ? 'checked' : ''} ${!selectable || busy ? 'disabled' : ''} aria-label="选择${invalid ? '失效索引' : '资源'} ${e(r.displayName)}"><span class="nr-type-icon" ${grid && r.resourceType === 'file' && r.status === 'Active' && /\.(png|jpe?g|gif|webp|bmp|pdf)$/i.test(r.extension) ? `data-preview-thumb="${e(r.id)}"` : ''}>${icon(typeIcon(r), grid ? 32 : 25)}</span><div class="nr-identity"><strong>${e(r.displayName)}</strong><small title="${e(r.canonicalPath)}">${e(r.canonicalPath)}</small></div>${browsable ? `<span class="nr-browse-hint">浏览 ${icon('arrow-right', 15)}</span>` : ''}</div><div class="nr-tag-cell"><div class="nr-tags">${tagsMarkup(item)}</div>${suggestions}</div><div class="nr-status">${stateMarkup(r)}</div>${controls(r)}</${grid ? 'article' : 'div'}>`;
   }
   function sourceMarkup() {
     return `<details id="nr-sources" class="nr-sources" ${!result.sources.length ? 'open' : ''}><summary>索引来源 · ${result.sources.length} 个已授权目录</summary><div class="nr-source-body"><div class="toolbar">${btn('nr-source-add', '当前用户桌面', 'data-kind="desktop"')}${btn('nr-source-add', '公共桌面…', 'data-kind="publicDesktop"')}${btn('nr-source-add', icon('plus') + ' 选择目录…', 'data-kind="custom"', 'primary')}</div>${!result.sources.length ? '<p class="muted">先查看扫描预览，确认后才建立索引和监测。</p>' : result.sources.map(source => `<div class="nr-source"><div><strong>${e({ desktop: '当前用户桌面', publicDesktop: '公共桌面', custom: '自定义目录' }[source.sourceType])}</strong><p>${e(source.path)}</p><small>${source.recursiveEnabled ? '递归索引' : '仅直接子项'} · ${source.availabilityStatus === 'Active' ? '可访问' : '来源不可用'} · ${source.monitoringStatus === 'Watching' ? '正在监测' : source.monitoringStatus === 'Disabled' ? '监测关闭' : '监测需检查'}${source.lastReconciledAt ? ' · 核对 ' + e(new Date(source.lastReconciledAt).toLocaleTimeString()) : ''}</small>${source.error ? `<p class="form-error">${e(source.error)}</p>` : ''}</div><div class="toolbar">${btn('nr-source-recursive', source.recursiveEnabled ? '关闭递归…' : '开启递归…', `${idAttr(source.id)} data-recursive="${!source.recursiveEnabled}"`)}${btn('nr-source-remove', '移除来源…', idAttr(source.id))}</div></div>`).join('')}</div></details>`;
@@ -123,7 +125,7 @@
     return `<div class="nr-batch-bar" role="region" aria-label="批量整理资源"><span aria-live="polite">${selected.size ? `已选 ${selected.size} 项 · 跨页保留` : '选择正常资源以批量整理'}</span><div class="toolbar">${btn('nr-select-page','选择本页',busy || result.filterInvalid ? 'disabled' : '')}${selected.size ? `${btn('nr-select-clear','清空选择')}${btn('nr-batch-tags','添加标签…','data-operation="addTags"')}${btn('nr-batch-tags','移除标签…','data-operation="removeTags"')}${btn('nr-batch-favorite','收藏','data-operation="favorite"')}${btn('nr-batch-favorite','取消收藏','data-operation="unfavorite"')}${btn('nr-batch-suggestions','接受同类建议…')}` : ''}</div></div>`;
   }
   function libraryPage() {
-    if (!loaded && !loading) { loading = true; queueMicrotask(reload); }
+    if (!queriesPaused && !loaded && !loading) { loading = true; queueMicrotask(reload); }
     const title = { library: '文件资源库', favorites: '收藏', search: '快速搜索', missing: '失效资源' }[H.ui.page] || '文件资源库';
     let content = '';
 
@@ -379,6 +381,14 @@
       } catch (err) { if (currentNavigation(intent)) H.toast(err.message, 'error'); }
     },
     navigationState: () => ({ query, tagIds: [...tagIds], view, page, status, category, extension, folder,sort,filterId,favoritesOnly }),
-    restoreNavigation: value => { criteriaChanged();query = value.query; tagIds = [...value.tagIds]; view = value.view; page = value.page; status = value.status; category = value.category; extension = value.extension; folder = value.folder;sort=value.sort||'type';filterId=value.filterId||'';favoritesOnly=value.favoritesOnly||false;void reload(); }});
-  void request('resources.discover').then(value => { discovery=value; if(H.ui.page==='library')H.render(); }).catch(err => {error=err.message;});
+    lifecycleBusyReasons: () => [busy && 'resource-write', scan && 'resource-scan', preview && 'resource-import', folder && H.ui.page === 'folder' && 'unregistered-folder', H.ui.modal && batchDraft && 'resource-draft', H.ui.modal && filterDraft && 'resource-filter-draft', H.ui.modal && cleanupDraft && 'resource-cleanup-draft'].filter(Boolean),
+    lifecycleBusy: () => !!(busy || scan || preview || (folder && H.ui.page === 'folder') || (H.ui.modal && (batchDraft || filterDraft || cleanupDraft))),
+    captureLifecycle: () => ({query,tagIds:[...tagIds],view,page,status,category,extension,sort,filterId,favoritesOnly}),
+    quiesceLifecycle: generation => { lifecycleGeneration = generation; queriesPaused = true; ++discoveryGeneration; clearTimeout(searchTimer); clearTimeout(reloadTimer); ++sequence; loading = false; window.DesktopHubPreview?.suspend(); },
+    suspendQueries: () => { queriesPaused = true; ++discoveryGeneration; clearTimeout(searchTimer); clearTimeout(reloadTimer); ++sequence; loading = false; },
+    resumeQueries: async () => { queriesPaused = false; await discover(); window.DesktopHubPreview?.resume(); await reload(); },
+    restoreLifecycle: async (value, options = {}) => { if (options.generation && options.generation < lifecycleGeneration) return; lifecycleGeneration = options.generation || lifecycleGeneration; queriesPaused = false; criteriaChanged();query=value.query||'';tagIds=[...(value.tagIds||[])];view=value.view||'list';page=value.page||0;status=value.status||'';category=value.category||'';extension=value.extension||'';sort=value.sort||'type';filterId=value.filterId||'';favoritesOnly=value.favoritesOnly||false;folder=null;await discover();await reload();window.DesktopHubPreview?.resume(); },
+    restoreNavigation: async value => { criteriaChanged();query = value.query; tagIds = [...value.tagIds]; view = value.view; page = value.page; status = value.status; category = value.category; extension = value.extension; folder = value.folder;sort=value.sort||'type';filterId=value.filterId||'';favoritesOnly=value.favoritesOnly||false;await reload(); }});
+  async function discover() { if (queriesPaused || discovery) return; const revision = ++discoveryGeneration; try { const value=await request('resources.discover');if(revision!==discoveryGeneration||queriesPaused)return;discovery=value;if(H.ui.page==='library')H.render(); }catch(err){if(revision===discoveryGeneration&&!queriesPaused)error=err.message;} }
+  if (!queriesPaused) void discover();
 }());

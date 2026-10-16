@@ -234,3 +234,10 @@ test('a rejected script request cannot revive its stale confirmation over a newe
   reject(new Error('BUSY')); await pending; await env.H.actions['scene-repeat-confirm']();
   assert.equal(env.sent.length, 1); assert.equal(env.H.ui.modal, modal); assert.equal(env.H.modal.title, '新的导入'); assert.equal(env.window.DesktopHubScenes.getState().retryBusy, false);
 });
+test('Task8 scene restore reconstructs only saved editor state and current execution selection without action replay',()=>{
+  const env=setup();const saved=create(env,1);saved.id='saved-scene';env.settings.scenes=[structuredClone(saved)];env.H.ui.sceneDraftDirty=true;
+  assert.ok(env.window.DesktopHubScenes.lifecycleBusyReasons().includes('scene-draft'));
+  env.H.ui.sceneDraftDirty=false;const snapshot=env.window.DesktopHubScenes.captureLifecycle();snapshot.sceneId='saved-scene';env.H.ui.sceneDraft=null;
+  env.window.DesktopHubScenes.restoreLifecycle(snapshot);assert.equal(env.H.ui.sceneDraft.id,'saved-scene');assert.equal(env.H.ui.sceneDraftDirty,false);assert.equal(env.sent.length,0);
+  env.window.DesktopHubScenes.restoreLifecycle({...snapshot,sceneId:'deleted-scene'});assert.equal(env.H.ui.sceneDraft,null);assert.match(env.H.lastToast,/已删除/);
+});

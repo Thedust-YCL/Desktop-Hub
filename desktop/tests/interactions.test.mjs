@@ -69,3 +69,15 @@ test('resize handles request an enumerated native edge', async () => {
   const env = setup(); env.emit('pointerdown', { button: 0, target: { closest: () => ({ dataset: { resizeEdge: 'bottom-right' } }) } });
   await Promise.resolve(); assert.deepEqual(structuredClone(env.sent[0]), { type: 'window.beginResize', payload: { edge: 'bottom-right' } });
 });
+test('Task8 lifecycle history is bounded and never exports session folder authorization or editor actions', () => {
+  const env=setup();env.H.navigate('library');env.resources().folder={path:'C:/private',token:'lease'};env.H.navigate('folder');env.H.navigate('editor');
+  for(let i=0;i<40;i++)env.H.navigate(i%2?'settings':'projects');
+  const state=env.window.DesktopHubInteractions.captureLifecycle();assert.equal(state.entries.length,32);assert.equal(state.index,31);
+  assert.doesNotMatch(JSON.stringify(state),/private|lease|folder|editor/);
+  const rebuilt=setup();assert.equal(rebuilt.window.DesktopHubInteractions.restoreLifecycle(state),true);rebuilt.window.DesktopHubInteractions.navigateHistory(-1);assert.equal(rebuilt.H.ui.page,'projects');
+});
+test('Task8 bounded lifecycle history keeps the current route when it is far behind the newest entry',()=>{
+ const env=setup();for(let i=0;i<40;i++){env.resources().query='q'+i;env.H.navigate(i%2?'settings':'library');}
+ for(let i=0;i<35;i++)env.window.DesktopHubInteractions.navigateHistory(-1);
+ const current=env.resources().query;const state=env.window.DesktopHubInteractions.captureLifecycle();assert.equal(state.entries[state.index].resources.query,current);
+});

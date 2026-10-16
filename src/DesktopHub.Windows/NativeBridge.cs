@@ -13,7 +13,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
 {
     private readonly HashSet<string> pending = new();
     private static readonly HashSet<string> Editable = new(StringComparer.Ordinal)
-    { "theme", "reducedMotion", "uiDensity", "autoCloseDock", "onboardingCompleted", "suppressDesktopLocationNotice", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
+    { "theme", "reducedMotion", "uiDensity", "performanceMode", "autoCloseDock", "onboardingCompleted", "suppressDesktopLocationNotice", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
     private static readonly HashSet<string> Pages = new(StringComparer.Ordinal)
     { "home", "scenes", "library", "tags", "favorites", "search", "settings", "activity", "projects", "project" };
     private bool pickerOpen, launching;
@@ -194,6 +194,22 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                     ?? throw new BridgeException("INVALID_PARAMS", "场景内容为空。");
                 var sceneSaved = host.SceneLibrary.Save(scene);
                 host.SettingsChanged(); return new { settings = sceneSaved };
+            case "scenes.layoutCapture":
+                RequireWorkspace();
+                return await host.WindowLayouts.CaptureAsync(window.LayoutOwner, LayoutRequestParser.ParseSceneId(payload));
+            case "scenes.layoutSave":
+                RequireWorkspace();
+                var layoutSaved = await host.WindowLayouts.SaveAsync(window.LayoutOwner, LayoutRequestParser.ParseSave(payload));
+                host.SettingsChanged(); return new { settings = layoutSaved };
+            case "scenes.layoutRestore":
+                RequireWorkspace();
+                var layoutRestored = await host.WindowLayouts.RestoreAsync(window.LayoutOwner, LayoutRequestParser.ParseSceneId(payload), CancellationToken.None);
+                return host.RecordManualLayoutResult(layoutRestored);
+            case "scenes.layoutChoose":
+                RequireWorkspace();
+                var layoutChoice = LayoutRequestParser.ParseChoose(payload);
+                var layoutChosen = await host.WindowLayouts.ChooseAsync(host.LayoutOwnerForRestoreToken(window, layoutChoice.RestoreToken), layoutChoice);
+                return host.RecordLayoutChoiceResult(layoutChoice.RestoreToken, layoutChosen);
             case "scenes.remove":
                 RequireWorkspace(); RequireKeys(payload, "sceneId");
                 var sceneRemoved = host.SceneLibrary.Remove(String(payload, "sceneId", 96));
@@ -388,6 +404,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
     }
     private void Reply(object response)
     {
+        if (window.IsDisposed) return;
         try { window.Browser.CoreWebView2?.PostWebMessageAsJson(JsonSerializer.Serialize(response, HubApplication.Json)); }
         catch (ObjectDisposedException) { }
         catch (InvalidOperationException) { }

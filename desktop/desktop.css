@@ -262,4 +262,4 @@ html[data-desktop-host] .workspace-header { user-select: none; }
 .favorite-applications .muted, .app-group > .muted { font-size: 13px; line-height: 1.6; }
 .native-dock-launch.is-empty { padding: 8px 0; margin: 0; }
 .native-dock-launch.is-empty .native-launch-status:empty { display: none; }
-.dock-add-app, .dock-add-scene { min-height: 32px; font-size: 13px; }
+.dock-add-app, .dock-add-scene { min-height: 32px; padding: 5px 0; gap: 8px; justify-content: flex-start; font-size: 13px; }

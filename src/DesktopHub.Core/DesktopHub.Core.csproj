@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="DesktopHub.Core.Tests" />
     <EmbeddedResource Include="ThirdParty\Pinyin\pinyin.txt" LogicalName="DesktopHub.PinyinData" />
   </ItemGroup>
 </Project>

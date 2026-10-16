@@ -58,7 +58,7 @@ internal sealed class SchemaOneStore<T> where T : class, new()
                 output.Write(bytes);
                 output.Flush(flushToDisk: true);
             }
-            if (File.Exists(_path)) File.Replace(temporary, _path, null);
+            if (File.Exists(_path)) AtomicFileReplacement.Replace(temporary, _path);
             else File.Move(temporary, _path);
             Current = normalized;
             RecoveryWarning = null;

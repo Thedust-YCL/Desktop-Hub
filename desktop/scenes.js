@@ -154,7 +154,7 @@
   }
   H.pages.scenes = () => `<div class="page-heading"><div><h1 class="page-title" tabindex="-1">场景中心</h1><p class="subtitle">把常用应用和操作组合起来，一次开始。</p></div>${btn('new-scene', icon('plus') + ' 新建场景', '', 'primary')}</div><div class="scene-toolbar"><p class="subtitle">${scenes().length} 个场景</p>${btn('launcher-manage', '管理固定入口', 'data-surface="dock"', 'quiet')}</div><div class="scenes-grid">${scenes().map((scene, index) => {
     const invalid = scene.actions.some(action => action.appEntryId && !apps().some(app => app.id === action.appEntryId));
-    return `<article class="scene-card"><div class="scene-card-header"><span class="scene-icon">${sceneSymbol(scene, 26)}</span><div><h2>${e(scene.name)}</h2><p>${scene.actions.length} 个动作 · ${scene.enabled ? '已启用' : '已停用'}</p></div>${btn('edit-scene', icon('edit'), `data-id="${e(scene.id)}" aria-label="编辑 ${e(scene.name)}"`, 'quiet')}</div><p class="scene-card-description">${e(scene.actions.map(action => action.name).join(' · ') || '添加应用、网页或其他动作')}</p>${invalid ? '<p class="native-warning">应用引用待修复，请编辑场景重新关联。</p>' : ''}<div class="scene-card-meta"><span class="badge">${scene.dependencies.length ? `${scene.dependencies.length} 条依赖` : '动作彼此独立'}</span><span>${pin('mini', scene.id) ? 'Mini ' : ''}${pin('dock', scene.id) ? 'Dock' : ''}</span></div><div class="scene-card-footer">${btn('run-scene', icon('play') + ' 执行场景', `data-id="${e(scene.id)}" ${!scene.enabled ? 'disabled' : ''}`, 'primary')}${btn('scene-pin', icon('pin'), `data-id="${e(scene.id)}" aria-label="${pin('mini', scene.id) ? '取消' : ''}固定到 Mini"`, 'quiet')}${btn('scene-dock-pin', 'Dock', `data-id="${e(scene.id)}" aria-pressed="${!!pin('dock', scene.id)}"`, 'quiet')}${btn('scene-move', '↑', `data-id="${scene.id}" data-direction="-1" aria-label="上移场景" ${index === 0 ? 'disabled' : ''}`, 'quiet')}${btn('scene-move', '↓', `data-id="${scene.id}" data-direction="1" aria-label="下移场景" ${index === scenes().length - 1 ? 'disabled' : ''}`, 'quiet')}${btn('scene-delete', icon('trash'), `data-id="${scene.id}" aria-label="删除场景"`, 'quiet')}</div></article>`;
+    return `<article class="scene-card"><div class="scene-card-header"><span class="scene-icon">${sceneSymbol(scene, 26)}</span><div><h2>${e(scene.name)}</h2><p>${scene.actions.length} 个动作 · ${scene.enabled ? '已启用' : '已停用'}</p></div>${btn('edit-scene', icon('edit'), `data-id="${e(scene.id)}" aria-label="编辑 ${e(scene.name)}"`, 'quiet')}</div><p class="scene-card-description">${e(scene.actions.map(action => action.name).join(' · ') || '添加应用、网页或其他动作')}</p>${invalid ? '<p class="native-warning">应用引用待修复，请编辑场景重新关联。</p>' : ''}<div class="scene-card-meta"><span class="badge">${scene.dependencies.length ? `${scene.dependencies.length} 条依赖` : '动作彼此独立'}</span><span>${pin('mini', scene.id) ? 'Mini ' : ''}${pin('dock', scene.id) ? 'Dock' : ''}</span></div><div class="scene-card-footer">${btn('run-scene', icon('play') + ' 执行场景', `data-id="${e(scene.id)}" ${!scene.enabled ? 'disabled' : ''}`, 'primary')}${btn('scene-pin', icon('pin'), `data-id="${e(scene.id)}" aria-label="${pin('mini', scene.id) ? '取消' : ''}固定到 Mini"`, 'quiet')}${btn('scene-dock-pin', 'Dock', `data-id="${e(scene.id)}" aria-pressed="${!!pin('dock', scene.id)}"`, 'quiet')}${btn('scene-move', '↑', `data-id="${scene.id}" data-direction="-1" aria-label="上移场景" ${index === 0 ? 'disabled' : ''}`, 'quiet')}${btn('scene-move', '↓', `data-id="${scene.id}" data-direction="1" aria-label="下移场景" ${index === scenes().length - 1 ? 'disabled' : ''}`, 'quiet')}${btn('scene-delete', icon('trash'), `data-id="${scene.id}" aria-label="删除场景"`, 'quiet')}</div>${window.DesktopHubWindowLayout?.controls?.(scene.id) || ''}</article>`;
   }).join('') || `<div class="launcher-empty"><h3>准备你的第一个场景</h3><p>从应用库选择多个应用，再按需要加入网页、文件或脚本。</p>${btn('new-scene', '新建场景', '', 'primary')}</div>`}</div>`;
 
   function field(label, name, value, type = 'text', attributes = '') {
@@ -314,5 +314,18 @@
     const id = event.target.dataset?.sceneResultDetail, executionId = event.target.closest?.('.scene-execution')?.dataset.executionId;
     if (id && executionId) { const key = executionId + '/' + id; if (event.target.open) expandedResults.add(key); else expandedResults.delete(key); }
   }, true);
-  window.DesktopHubScenes = Object.freeze({ getExecutions: () => copy(executions), getState: () => ({ selectedExecution, resultOpen, retryBusy }), executionMarkup, sceneSymbol, acceptExecutions });
+  window.DesktopHubScenes = Object.freeze({ getExecutions: () => copy(executions), getState: () => ({ selectedExecution, resultOpen, retryBusy }), executionMarkup, sceneSymbol, acceptExecutions,
+    lifecycleBusyReasons: () => [...(H.ui.sceneDraftDirty ? ['scene-draft'] : []), ...(saving || retryBusy ? ['scene-write'] : [])],
+    captureLifecycle: () => ({ sceneId: H.ui.page === 'editor' ? draft()?.id || '' : '', actionId: H.ui.selectedActionId || '', selectedExecutionId: selectedExecution || '', expandedResultIds: [...expandedResults].slice(-32), resultOpen }),
+    restoreLifecycle(state) {
+      selectedExecution = executions.some(item => item.id === state.selectedExecutionId) ? state.selectedExecutionId : '';
+      resultOpen = !!state.resultOpen; expandedResults.clear();
+      for (const id of (state.expandedResultIds || []).slice(0,32)) expandedResults.add(id);
+      if (state.sceneId) {
+        const saved = scenes().find(item => item.id === state.sceneId);
+        if (saved) { H.ui.sceneDraft = copy(saved); H.ui.sceneDraftDirty = false; H.ui.selectedActionId = saved.actions.some(a => a.id === state.actionId) ? state.actionId : saved.actions[0]?.id; }
+        else { H.ui.sceneDraft = null; H.toast('场景已删除，已返回场景中心。'); }
+      }
+    }
+  });
 }());

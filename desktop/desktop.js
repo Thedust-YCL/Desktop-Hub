@@ -7,12 +7,12 @@
   const requestedSurface = new URLSearchParams(location.search).get('surface');
   const surface = surfaces.has(requestedSurface) ? requestedSurface : 'workspace';
   const editableSettings = [
-    'theme', 'reducedMotion', 'uiDensity', 'transparency', 'miniPosition', 'miniSize', 'miniMode', 'miniEnabled', 'miniOpacity', 'workspaceOpacity',
+    'theme', 'reducedMotion', 'uiDensity', 'performanceMode', 'transparency', 'miniPosition', 'miniSize', 'miniMode', 'miniEnabled', 'miniOpacity', 'workspaceOpacity',
     'dockPosition', 'dockSize', 'dockIconSize', 'hoverEnabled', 'hoverDelay', 'allowForeground', 'foregroundBlocklist'
   ];
   // These preferences use their own explicit saves. Including them in the
   // debounced appearance snapshot could overwrite a newer system-setting reply.
-  const dedicatedSettings = new Set(['miniEnabled', 'miniOpacity', 'workspaceOpacity', 'foregroundBlocklist']);
+  const dedicatedSettings = new Set(['performanceMode', 'miniEnabled', 'miniOpacity', 'workspaceOpacity', 'foregroundBlocklist']);
   const pages = new Set(['home', 'scenes', 'library', 'tags', 'favorites', 'search', 'settings']);
   const prototypeStorageKey = 'desktop-hub-m0-v07';
   const originalRender = H.render;
@@ -89,6 +89,7 @@
     if (!next || typeof next !== 'object' || !next.settings || typeof next.settings !== 'object') return;
     hostState = { ...hostState, ...next };
     if (next.executions) window.DesktopHubScenes?.acceptExecutions(next.executions);
+    if (Array.isArray(next.layoutResults)) window.DesktopHubWindowLayout?.receiveResults(next.layoutResults);
     if (Array.isArray(next.settings.scenes)) H.state.scenes = next.settings.scenes.map(scene => ({ ...scene,
       pinned: next.settings.launcherPins?.some(pin => pin.enabled && pin.itemType === 'scene' && pin.itemId === scene.id) }));
     syncSceneMetadata();
@@ -406,7 +407,7 @@
       if (sceneArea) sceneArea.innerHTML = pins('dock').filter(pin => pin.itemType === 'scene').map(pin => {
         const scene = pinItem(pin);
         return scene ? `<button class="dock-scene" data-action="run-scene" data-id="${e(scene.id)}" ${scene.enabled === false ? 'disabled' : ''}><span class="scene-icon">${window.DesktopHubScenes?.sceneSymbol(scene, 23) || icon(scene.icon, 23)}</span><span><strong>${e(scene.name)}</strong><small>${scene.actions?.length || 0} 个动作${scene.enabled === false ? ' · 已停用' : ''}</small></span>${icon('play', 17)}</button>` : '<p class="muted launcher-missing">固定的场景已移除，请重新选择。</p>';
-      }).join('') || '<button class="text-button dock-add-scene" data-action="native-open-scenes">添加场景入口 +</button>';
+      }).join('') || '<button class="text-button dock-add-scene" data-action="native-open-scenes">添加场景入口 ' + icon('plus', 15) + '</button>';
       const shortcut = document.querySelector('.dock-workspace small');
       if (shortcut) shortcut.textContent = 'Launchpad';
     } else {
@@ -761,13 +762,20 @@
     return scanApplications('drop',scan.scanId);
   });
   function handleEscape() {
+    if (window.DesktopHubPreview?.handleEscape()) return true;
     if (H.ui.modal) {
       if (!H.ui.modal.locked) H.closeModal();
       return true;
     }
     return false;
   }
-  window.DesktopHubDesktop = Object.freeze({ handleEscape, applyHostState, favoriteApplicationsMarkup, reportLaunchOutcome, isImporting: () => !!importDraft, getState: () => ({ surface, hostState, launch }) });
+  const lifecycleBusyReasons = () => [
+    ...(saveInFlight || pendingVisualSettings ? ['settings-write'] : []),
+    ...(importDraft || adding ? ['application-import'] : []),
+    ...(mutationInFlight ? ['application-write'] : []),
+    ...(pinDraft ? ['launcher-draft'] : [])
+  ];
+  window.DesktopHubDesktop = Object.freeze({ handleEscape, applyHostState, favoriteApplicationsMarkup, reportLaunchOutcome, lifecycleBusyReasons, isImporting: () => !!importDraft, getState: () => ({ surface, hostState, launch }) });
   document.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     event.preventDefault();
@@ -801,6 +809,7 @@
       document.body.insertAdjacentHTML('beforeend', '<p class="native-offline-warning" role="alert">原生宿主未连接。请运行 Desktop Hub Windows 应用。</p>');
       return;
     }
+    if (new URLSearchParams(location.search).get('restoring') === '1') return;
     try {
       const state = await bridge.request('app.getState', {});
       applyHostState(state);

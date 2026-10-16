@@ -20,7 +20,17 @@ internal static class ResourceUsageProbe
     private static readonly List<object> Summaries = new();
     private static readonly string Output = Path.Combine(AppContext.BaseDirectory, "resource-evidence");
     private static readonly Stopwatch Clock = new();
-    private static readonly DateTimeOffset Started = DateTimeOffset.UtcNow;
+    private static DateTimeOffset Started;
+    private static readonly List<object> Latencies = new();
+    private static long processStart;
+    private static double preManagedMilliseconds;
+    internal static void MarkProcessStart()
+    {
+        processStart = Stopwatch.GetTimestamp();
+        using var process = Process.GetCurrentProcess();
+        preManagedMilliseconds = Math.Max(0, (DateTime.UtcNow - process.StartTime.ToUniversalTime()).TotalMilliseconds);
+    }
+    private static string Version => typeof(HubApplication).Assembly.GetName().Version?.ToString() ?? "unknown";
 
     public static void Prepare(string directory)
     {
@@ -30,23 +40,32 @@ internal static class ResourceUsageProbe
         if (File.Exists(summary)) File.Delete(summary);
         var area = SystemParameters.WorkArea;
         var store = new SettingsStore(directory);
-        store.Save(new AppSettings
+        var settings = new AppSettings
         {
             Theme = "dark", ReducedMotion = false, Transparency = true, HoverEnabled = false,
             WorkspaceBounds = new WindowBounds { Left = area.Left + 32, Top = area.Top + 24, Width = area.Width - 64, Height = area.Height - 48 }
-        });
+        };
+        // This opt-in diagnostic is also copied to the immutable product source's
+        // supplementary build; reflection keeps its older settings schema intact.
+        var mode = Environment.GetEnvironmentVariable("DESKTOP_HUB_PROBE_MODE") ?? "quick";
+        if (mode is not ("quick" or "lightweight")) throw new ArgumentException("Unknown diagnostic performance mode.");
+        var modeProperty = typeof(AppSettings).GetProperty("PerformanceMode");
+        if (mode == "lightweight" && modeProperty is null) throw new InvalidOperationException("The baseline has no lightweight mode.");
+        modeProperty?.SetValue(settings, mode);
+        store.Save(settings);
     }
 
     public static async Task RunAsync(HubApplication host)
     {
         try
         {
-            Clock.Start();
+            Started = DateTimeOffset.UtcNow; Clock.Restart(); Samples.Clear(); Summaries.Clear(); Latencies.Clear();
             await WaitFrontend(host.Mini);
+            if (processStart != 0) Latencies.Add(new { scenario = "process-cold", summary = ResourceProbeStatistics.Latency([preManagedMilliseconds + Stopwatch.GetElapsedTime(processStart).TotalMilliseconds]) });
             var dpi = VisualTreeHelper.GetDpi(host.Mini);
             Write("environment.json", new
             {
-                version = "M1 / 0.1.0", startedUtc = Started, hostProcessId = Environment.ProcessId,
+                version = Version, startedUtc = Started, hostProcessId = Environment.ProcessId,
                 os = RuntimeInformation.OSDescription, osVersion = Environment.OSVersion.Version.ToString(),
                 framework = RuntimeInformation.FrameworkDescription, logicalProcessorCount = Environment.ProcessorCount,
                 webView2Runtime = host.Mini.Browser.CoreWebView2.Environment.BrowserVersionString,
@@ -57,17 +76,50 @@ internal static class ResourceUsageProbe
                 intervalTargetSeconds = 1, profile = "isolated resource-data, reusable WebView2 disk cache",
                 attribution = "Environment.GetProcessInfos() plus msedgewebview2 descendants (includes crashpad), deduplicated PID/start time",
                 cpuDefinition = "100 * sum(delta processor seconds) / actual interval seconds / logical processors",
-                notMeasured = new[] { "GPU memory/utilization", "disk IO", "network", "cold-start latency", "exact physical RAM" }
+                latencyDefinition = "Stopwatch through fresh state and two renderer frames; nearest-rank p95 only when n>=20; OS file cache not cleared",
+                processStartDefinition = "OS creation UTC to managed entry offset, followed by monotonic Stopwatch to UI ready",
+                notMeasured = new[] { "GPU memory/utilization", "disk IO", "network", "exact physical RAM", "cold surface p95 (one first construction per run)" }
             });
+            if (Environment.GetEnvironmentVariable("DESKTOP_HUB_PROBE_LATENCY_ONLY") == "1")
+            {
+                var firstSurface = Stopwatch.GetTimestamp();
+                await host.OpenDockAsync(); await WaitFrontend(host.Dock!);
+                Latencies.Add(new { scenario = "dock-surface-cold", summary = ResourceProbeStatistics.Latency([Stopwatch.GetElapsedTime(firstSurface).TotalMilliseconds]) });
+                host.CloseDock(); firstSurface = Stopwatch.GetTimestamp();
+                await host.OpenWorkspaceAsync("home"); await WaitFrontend(host.Workspace!);
+                Latencies.Add(new { scenario = "workspace-surface-cold", summary = ResourceProbeStatistics.Latency([Stopwatch.GetElapsedTime(firstSurface).TotalMilliseconds]) });
+                Write("latency.json", Latencies);
+                Write("summary.json", new { version = Version, startedUtc = Started, finishedUtc = DateTimeOffset.UtcNow, latencies = Latencies, scope = "new process and first native surface creation; retained WebView2 disk profile and OS file cache" });
+                host.Exit(); return;
+            }
             await MeasureStage(host, "mini-first", false, false);
+            var surfaceStart = Stopwatch.GetTimestamp();
             await host.OpenDockAsync(); await WaitFrontend(host.Dock!);
+            Latencies.Add(new { scenario = "dock-surface-cold", summary = ResourceProbeStatistics.Latency([Stopwatch.GetElapsedTime(surfaceStart).TotalMilliseconds]) });
             await MeasureStage(host, "dock-open", true, false);
-            host.CloseDock(); await host.OpenWorkspaceAsync("home"); await WaitFrontend(host.Workspace!);
+            host.CloseDock(); surfaceStart = Stopwatch.GetTimestamp();
+            await host.OpenWorkspaceAsync("home"); await WaitFrontend(host.Workspace!);
+            Latencies.Add(new { scenario = "workspace-surface-cold", summary = ResourceProbeStatistics.Latency([Stopwatch.GetElapsedTime(surfaceStart).TotalMilliseconds]) });
             await MeasureStage(host, "workspace-home", false, true);
             host.CloseWorkspace();
+            // Both modes use the actual product's sixty-second hide deadline and
+            // the same subsequent settling interval. No forced GC or trim.
+            Progress("mini-after-use: waiting real hidden 60 seconds"); await Task.Delay(60000);
             await MeasureStage(host, "mini-after-use", false, false);
+            var reopenStart = Stopwatch.GetTimestamp(); var wasReleased = host.Workspace is null;
+            await host.OpenWorkspaceAsync("home"); await WaitFrontend(host.Workspace!);
+            Latencies.Add(new { scenario = wasReleased ? "workspace-released-reopen" : "workspace-retained-reopen", summary = ResourceProbeStatistics.Latency([Stopwatch.GetElapsedTime(reopenStart).TotalMilliseconds]) });
+            var hot = new List<double>();
+            for (var index = 0; index < 20; index++)
+            {
+                host.CloseWorkspace(); await Task.Delay(200);
+                reopenStart = Stopwatch.GetTimestamp(); await host.OpenWorkspaceAsync("home"); await WaitFrontend(host.Workspace!);
+                hot.Add(Stopwatch.GetElapsedTime(reopenStart).TotalMilliseconds);
+            }
+            Latencies.Add(new { scenario = "workspace-retained-hot", summary = ResourceProbeStatistics.Latency(hot), rawMilliseconds = hot });
+            Write("latency.json", Latencies);
             Write("samples.json", Samples);
-            Write("summary.json", new { version = "M1", startedUtc = Started, finishedUtc = DateTimeOffset.UtcNow, scenarios = Summaries });
+            Write("summary.json", new { version = Version, startedUtc = Started, finishedUtc = DateTimeOffset.UtcNow, scenarios = Summaries, latencies = Latencies });
             var validCpuIntervals = Samples.Count(s => s.Index > 0 && s.CpuMachinePercent.HasValue);
             File.WriteAllText(Path.Combine(Output, "summary.txt"), $"4 real-window scenarios completed; {Samples.Count} memory frames, {validCpuIntervals}/{4 * SampleCount} valid CPU intervals. See summary.json for skipped intervals.\n", Encoding.UTF8);
             Progress("completed"); host.Exit();
@@ -82,9 +134,10 @@ internal static class ResourceUsageProbe
 
     private static async Task WaitFrontend(HubWindow window)
     {
+        await window.Browser.ExecuteScriptAsync("window.__resourceProbeReady=false;window.DesktopHubNative.bridge.request('app.getState',{}).then(state=>{window.DesktopHubDesktop.applyHostState(state);requestAnimationFrame(()=>requestAnimationFrame(()=>{window.__resourceProbeReady=true}))})");
         for (var i = 0; i < 200; i++)
         {
-            if (await window.Browser.ExecuteScriptAsync("Boolean(window.DesktopHubDesktop?.getState().hostState)") == "true") return;
+            if (await window.Browser.ExecuteScriptAsync("Boolean(window.DesktopHubDesktop?.getState().hostState && window.__resourceProbeReady)") == "true") return;
             await Task.Delay(100);
         }
         throw new TimeoutException("Frontend handshake: " + window.Surface);
@@ -116,6 +169,7 @@ internal static class ResourceUsageProbe
         Summaries.Add(new
         {
             scenario, startedUtc = stage[0].TimestampUtc, endedUtc = stage[^1].TimestampUtc,
+            dockReleased = host.Dock is null, workspaceReleased = host.Workspace is null,
             settleSeconds = SettleSeconds, memorySamples = SampleCount + 1, cpuIntervals = cpu.Length,
             skippedCpuIntervals = SampleCount - cpu.Length, measuredSeconds = stage[^1].ElapsedSeconds - baseline,
             hostPrivateMiBMean = stage.Average(s => s.HostPrivateBytes) / 1048576.0,

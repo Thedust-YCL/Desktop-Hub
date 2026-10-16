@@ -11,6 +11,8 @@
     'apps.add', 'apps.scan', 'apps.icons', 'apps.import', 'apps.update', 'apps.replaceTarget', 'apps.remove',
     'apps.favorite', 'apps.groupSave', 'apps.groupRemove', 'apps.moveGroup', 'apps.groupReorder', 'apps.reorder', 'apps.launch', 'launcher.setPins',
     'scenes.save', 'scenes.remove', 'scenes.reorder', 'scenes.run', 'scenes.retry', 'scenes.retryScripts', 'scenes.pickTarget',
+    'scenes.layoutCapture', 'scenes.layoutSave', 'scenes.layoutRestore', 'scenes.layoutChoose',
+    'resources.previewContent', 'resources.previewCancel',
     'resources.query', 'resources.discover', 'resources.preview', 'resources.cancel',
     'resources.confirm', 'resources.refresh', 'resources.removeSource', 'resources.favorite',
     'resources.beginRepair', 'resources.repair', 'resources.clean', 'resources.saveTag',
@@ -102,7 +104,7 @@
       subscribers.clear();
     }
 
-    return Object.freeze({ available, request, on, dispose });
+    return Object.freeze({ available, request, on, dispose, pendingCount: () => pending.size });
   }
 
   root.DesktopHubNative = Object.freeze({

@@ -15,6 +15,15 @@ internal sealed class ResourceBridge(HubApplication host, HubWindow window)
         var service = await host.GetResourcesAsync();
         switch (type)
         {
+            case "resources.previewContent":
+                var contentPreview = PreviewRequestParser.Content(payload);
+                var previewService = await host.GetPreviewsAsync();
+                if (window.IsDisposed || !window.IsVisible) throw new OperationCanceledException("窗口已隐藏，预览已取消。");
+                return await previewService.StartRenderAsync(window, contentPreview.RequestId, contentPreview.ResourceId, contentPreview.Thumbnail);
+            case "resources.previewCancel":
+                var previewRequestId = PreviewRequestParser.Cancel(payload);
+                (await host.GetPreviewsAsync()).Cancel(window, previewRequestId);
+                return new { cancelled = true };
             case "resources.query":
                 var query = ResourceRequestParser.Query(payload);
                 return await Task.Run(() => Query(service, query));

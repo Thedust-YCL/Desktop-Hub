@@ -17,6 +17,7 @@ public static class Program
         var indexRestart = args.Contains("--index-smoke-restart");
         var indexSmoke = args.Contains("--index-smoke") || indexRestart;
         var resourceTest = args.Contains("--resource-test");
+        if (resourceTest) ResourceUsageProbe.MarkProcessStart();
         var systemRestart = args.Contains("--system-smoke-restart");
         var systemSmoke = args.Contains("--system-smoke") || systemRestart;
         var diagnostic = smoke || resourceTest || sceneSmoke || indexSmoke || systemSmoke;

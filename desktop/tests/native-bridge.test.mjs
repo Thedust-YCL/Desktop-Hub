@@ -30,6 +30,39 @@ function fakeWebView() {
   };
 }
 
+test('preview and layout routes use IDs and owned tokens through the native boundary', async () => {
+  const view = fakeWebView(), bridge = createBridge(view);
+  for (const [type, payload] of [
+    ['resources.previewContent', { resourceId: 'registered', thumbnail: false, requestId: 'owned' }],
+    ['resources.previewCancel', { requestId: 'owned' }],
+    ['scenes.layoutCapture', { sceneId: 'saved' }],
+    ['scenes.layoutSave', { sceneId: 'saved', captureToken: 'capture', selections: [] }],
+    ['scenes.layoutRestore', { sceneId: 'saved' }],
+    ['scenes.layoutChoose', { restoreToken: 'restore', choices: [] }]
+  ]) {
+    const promise = bridge.request(type, payload); promise.catch(() => {});
+    const sent = view.sent.at(-1);
+    assert.equal(sent?.type, type); assert.deepEqual(sent.payload, payload);
+    view.receive({ version: 1, id: sent.id, ok: true, result: { accepted: true } });
+    assert.equal((await promise).accepted, true);
+  }
+  await assert.rejects(bridge.request('resources.readFile', { path: 'C:/unapproved' }), error => error.code === 'UNKNOWN_MESSAGE');
+  await assert.rejects(bridge.request('windows.move', { hwnd: 1 }), error => error.code === 'UNKNOWN_MESSAGE');
+  bridge.dispose();
+});
+
+test('pending count protects renderer teardown through completion, failure and disposal', async () => {
+  const view = fakeWebView(), bridge = createBridge(view);
+  assert.equal(bridge.pendingCount(), 0);
+  const first = bridge.request('app.getState'), second = bridge.request('settings.get');
+  second.catch(() => {});
+  assert.equal(bridge.pendingCount(), 2);
+  view.receive({ version: 1, id: view.sent[0].id, ok: true, result: {} }); await first;
+  assert.equal(bridge.pendingCount(), 1);
+  bridge.dispose(); await assert.rejects(second);
+  assert.equal(bridge.pendingCount(), 0);
+});
+
 test('Task6 explicit activity/project routes and metadata events reach the host without a history-write or arbitrary URL route', async () => {
   const view = fakeWebView(), bridge = createBridge(view), events = [];
   for (const type of ['activity.changed', 'projects.changed']) bridge.on(type, payload => events.push([type, payload.changed]));

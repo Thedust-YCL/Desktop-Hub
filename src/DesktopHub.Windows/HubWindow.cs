@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,14 +17,24 @@ public sealed class HubWindow : Window, IDisposable
 {
     public const string Origin = "https://desktop-hub.local";
     public string Surface { get; }
+    public string LayoutOwner { get; } = Guid.NewGuid().ToString("D");
     public IWebView2 Browser { get; }
     public TaskCompletionSource Ready { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource BrowserReady { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public bool IsDisposed => disposing;
+    public HiddenSurfaceState LifecycleState => lifecycle.State;
     public nint Handle => new WindowInteropHelper(this).Handle;
     private readonly HubApplication host;
     private readonly NativeBridge bridge;
     private string? position;
     private bool disposing;
     private int activeNativeRequests;
+    private readonly HiddenSurfaceLifecycle lifecycle = new();
+    private CancellationTokenSource? visibilityWork;
+    private long handshakeRevision;
+    private HwndSource? hwndSource;
+    private HwndSourceHook? hwndHook;
+    private static long Now => (long)Stopwatch.GetElapsedTime(0).TotalMilliseconds;
 
     public HubWindow(HubApplication application, string surface)
     {
@@ -54,26 +65,8 @@ public sealed class HubWindow : Window, IDisposable
             var content = (FrameworkElement)Browser;
             content.SizeChanged += (_, _) => content.Clip = new RectangleGeometry(new Rect(0, 0, content.ActualWidth, content.ActualHeight), 18, 18);
         }
-        IsVisibleChanged += async (_, _) =>
-        {
-            if (Browser.CoreWebView2 is null || disposing) return;
-            try
-            {
-                if (IsVisible)
-                {
-                    ((FrameworkElement)Browser).Visibility = Visibility.Visible;
-                    Browser.CoreWebView2.Resume();
-                    SendEvent("state.changed", host.State(this));
-                }
-                else
-                {
-                    ((FrameworkElement)Browser).Visibility = Visibility.Hidden;
-                    await Task.Delay(150);
-                    if (!IsVisible && !disposing && activeNativeRequests == 0) host.Log("Suspend", Surface + ":" + await Browser.CoreWebView2.TrySuspendAsync());
-                }
-            }
-            catch (Exception e) { host.Log("Suspend", Surface + ":" + e.Message); }
-        };
+        lifecycle.SetMode(host.Store.Current.PerformanceMode == "lightweight");
+        IsVisibleChanged += (_, _) => VisibilityChanged();
         bridge = new NativeBridge(host, this);
         if (surface == "workspace")
         {
@@ -96,7 +89,8 @@ public sealed class HubWindow : Window, IDisposable
         SourceInitialized += (_, _) =>
         {
             ApplyNativeTheme();
-            HwndSource.FromHwnd(Handle)?.AddHook((nint hwnd, int message, nint wParam, nint lParam, ref bool handled) =>
+            hwndSource = HwndSource.FromHwnd(Handle);
+            hwndHook = (nint hwnd, int message, nint wParam, nint lParam, ref bool handled) =>
             {
                 if (surface == "mini" && message == 0x21) { handled = true; return 3; } // WM_MOUSEACTIVATE / MA_NOACTIVATE
                 if (surface == "workspace" && message == 0x0319) // WM_APPCOMMAND / browser back & forward
@@ -112,7 +106,8 @@ public sealed class HubWindow : Window, IDisposable
                 if (message is 0x02E0 or 0x007E) // WM_DPICHANGED / WM_DISPLAYCHANGE, after WPF processes DPI.
                     _ = Dispatcher.BeginInvoke(() => { if (!disposing) ClampToWorkArea(Left, Top); });
                 return 0;
-            });
+            };
+            hwndSource?.AddHook(hwndHook);
         };
         Closing += (_, e) =>
         {
@@ -141,7 +136,7 @@ public sealed class HubWindow : Window, IDisposable
         };
     }
 
-    public async Task InitializeAsync(CoreWebView2Environment environment)
+    public async Task InitializeAsync(CoreWebView2Environment environment, BrowserViewSnapshot? snapshot = null, string? pageOverride = null)
     {
         try
         {
@@ -173,10 +168,121 @@ public sealed class HubWindow : Window, IDisposable
             if (!e.IsSuccess) Ready.TrySetException(new InvalidOperationException("本地 UI 加载失败：" + e.WebErrorStatus));
         };
         core.DOMContentLoaded += (_, _) => Ready.TrySetResult();
-        core.Navigate($"{Origin}/desktop/index.html?surface={Surface}");
+        core.Navigate($"{Origin}/desktop/index.html?surface={Surface}&restoring=1");
         await Ready.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        // ExecuteScriptAsync does not await a Promise. Poll only this initial, bounded ready handshake.
+        // A fixed script owns the promise and exposes a small acknowledgement.
+        await WaitForBrowserReadyAsync(snapshot, pageOverride);
+        BrowserReady.TrySetResult();
+        if (!IsVisible && !disposing) VisibilityChanged();
         }
-        catch (Exception e) { Ready.TrySetException(e); throw; }
+        catch (Exception e) { Ready.TrySetException(e); BrowserReady.TrySetException(e); throw; }
+    }
+
+    private async Task WaitForBrowserReadyAsync(BrowserViewSnapshot? snapshot, string? pageOverride)
+    {
+        await Browser.ExecuteScriptAsync("window.__hubLifecycleReady=null; Promise.resolve(window.DesktopHubLifecycle.restore(" + (snapshot?.Value.GetRawText() ?? "null") + "," + JsonSerializer.Serialize(pageOverride) + ")).then(v=>window.__hubLifecycleReady=v,()=>window.__hubLifecycleReady={ready:false})");
+        var deadline = Now + 15000;
+        while (!disposing && Now < deadline)
+        {
+            var reply = await Browser.ExecuteScriptAsync("window.__hubLifecycleReady");
+            if (reply != "null")
+            {
+                using var result = JsonDocument.Parse(reply);
+                if (result.RootElement.TryGetProperty("ready", out var ready) && ready.ValueKind == JsonValueKind.True) return;
+                throw new InvalidOperationException("界面恢复未完成，请重新打开。");
+            }
+            await Task.Delay(25);
+        }
+        throw new TimeoutException("界面恢复超时。");
+    }
+
+    private void CancelVisibilityWork()
+    {
+        ++handshakeRevision;
+        visibilityWork?.Cancel(); visibilityWork?.Dispose(); visibilityWork = null;
+    }
+
+    private void VisibilityChanged()
+    {
+        if (disposing) return;
+        CancelVisibilityWork();
+        if (IsVisible)
+        {
+            lifecycle.Show();
+            ((FrameworkElement)Browser).Visibility = Visibility.Visible;
+            if (Browser.CoreWebView2 is { } core)
+            {
+                core.Resume();
+                if (BrowserReady.Task.IsCompletedSuccessfully)
+                {
+                    _ = Browser.ExecuteScriptAsync("window.DesktopHubLifecycle?.resume(" + lifecycle.Generation + ")");
+                    SendEvent("state.changed", host.State(this));
+                }
+            }
+            return;
+        }
+        // Native cancellation precedes every renderer handshake, including Mini visibility transitions.
+        host.CancelSurfacePreviews(this);
+        var generation = lifecycle.Hide(Now);
+        ((FrameworkElement)Browser).Visibility = Visibility.Hidden;
+        visibilityWork = new CancellationTokenSource();
+        if (Browser.CoreWebView2 is null || !BrowserReady.Task.IsCompletedSuccessfully) return;
+        _ = PrepareHiddenAsync(generation, visibilityWork.Token);
+        if (Surface != "mini" && lifecycle.Lightweight) _ = ReleaseAtDeadlineAsync(generation, visibilityWork.Token);
+    }
+
+    internal void PerformanceModeChanged()
+    {
+        var lightweight = host.Store.Current.PerformanceMode == "lightweight";
+        if (lifecycle.Lightweight == lightweight) return;
+        lifecycle.SetMode(lightweight);
+        if (!IsVisible) VisibilityChanged();
+    }
+
+    private async Task PrepareHiddenAsync(long generation, CancellationToken cancellation)
+    {
+        var revision = ++handshakeRevision;
+        try
+        {
+            // Let a native response and its JS finally block settle before asking about pending work.
+            await Task.Delay(150, cancellation);
+            if (!lifecycle.Current(generation) || disposing || IsVisible || revision != handshakeRevision || Browser.CoreWebView2 is not { } core) return;
+            core.Resume();
+            var json = await Browser.ExecuteScriptAsync("window.DesktopHubLifecycle?.prepareHide(" + generation + ")").WaitAsync(TimeSpan.FromSeconds(2), cancellation);
+            if (!lifecycle.Current(generation) || disposing || IsVisible || revision != handshakeRevision) return;
+            using var document = JsonDocument.Parse(json);
+            var ack = document.RootElement;
+            BrowserViewSnapshot? snapshot = null;
+            var trusted = ack.ValueKind == JsonValueKind.Object && ack.TryGetProperty("version", out var v) && v.TryGetInt32(out var version) && version == 1 && ack.TryGetProperty("generation", out var g) && g.TryGetInt64(out var returned) && returned == generation && ack.TryGetProperty("quiesced", out var q) && q.ValueKind == JsonValueKind.True && ack.TryGetProperty("busyReasons", out var reasons) && reasons.ValueKind == JsonValueKind.Array && reasons.GetArrayLength() <= 32 && reasons.EnumerateArray().All(reason => reason.ValueKind == JsonValueKind.String) && ack.TryGetProperty("snapshot", out var saved) && BrowserViewSnapshot.TryParse(saved.GetRawText(), out snapshot);
+            var busy = !trusted || ack.GetProperty("busyReasons").GetArrayLength() != 0;
+            if (!lifecycle.Acknowledge(generation, snapshot, busy, activeNativeRequests)) return;
+            if (TryRelease(generation)) return;
+            var suspended = await core.TrySuspendAsync();
+            if (!disposing && (IsVisible || activeNativeRequests != 0 || !lifecycle.Current(generation) || revision != handshakeRevision)) core.Resume();
+            host.Log("Suspend", Surface + ":" + suspended);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            if (lifecycle.Current(generation) && revision == handshakeRevision) lifecycle.Acknowledge(generation, null, true, activeNativeRequests);
+            if (!disposing) host.Log("LifecycleRetained", Surface + ":" + ex.Message);
+        }
+    }
+
+    private async Task ReleaseAtDeadlineAsync(long generation, CancellationToken cancellation)
+    {
+        try
+        {
+            if (await lifecycle.WaitForDeadlineAsync(generation, () => Now, Task.Delay, cancellation)) TryRelease(generation);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private bool TryRelease(long generation)
+    {
+        if (Surface == "mini" || disposing || IsVisible || host.IsExiting || !lifecycle.TryRelease(generation, Now, activeNativeRequests)) return false;
+        return host.ReleaseHiddenSurface(this, lifecycle.Snapshot!);
     }
 
     internal static bool IsAllowedPage(string value) => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
@@ -262,22 +368,24 @@ public sealed class HubWindow : Window, IDisposable
         host.SaveWindow(this);
     }
 
-    internal void BeginNativeRequest() => activeNativeRequests++;
-    internal async void EndNativeRequest()
+    internal void BeginNativeRequest() { if (disposing) return; activeNativeRequests++; lifecycle.Invalidate(); }
+    internal void EndNativeRequest()
     {
-        activeNativeRequests--;
-        if (activeNativeRequests != 0 || IsVisible || disposing) return;
-        try
-        {
-            // Allow an opening request's reply to reach its original surface before suspension.
-            await Task.Delay(150);
-            if (activeNativeRequests == 0 && !IsVisible && !disposing && Browser.CoreWebView2 is { } core)
-                await core.TrySuspendAsync();
-        }
-        catch (Exception ex) { host.Log("Suspend", Surface + ":" + ex.Message); }
+        activeNativeRequests = Math.Max(0, activeNativeRequests - 1);
+        if (activeNativeRequests == 0 && !IsVisible && !disposing && visibilityWork is { } work && BrowserReady.Task.IsCompletedSuccessfully)
+            _ = PrepareHiddenAsync(lifecycle.Generation, work.Token);
     }
 
-    public void Dispose() { disposing = true; Browser.Dispose(); Close(); }
+    public void Dispose()
+    {
+        if (disposing) return;
+        disposing = true; CancelVisibilityWork(); lifecycle.Dispose();
+        host.CancelSurfacePreviews(this);
+        BrowserReady.TrySetCanceled(); Ready.TrySetCanceled();
+        if (hwndSource is not null && hwndHook is not null) hwndSource.RemoveHook(hwndHook);
+        hwndSource = null; hwndHook = null;
+        Browser.Dispose(); Content = null; Close();
+    }
 
     private static class NativeDrag
     {

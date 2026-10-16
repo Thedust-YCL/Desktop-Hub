@@ -101,6 +101,7 @@ public static class SceneValidator
         if (scene.WindowLayout is { } layout)
         {
             Range(layout.WaitTimeoutMs, 1, 600000);
+            if (layout.Windows is { Count: > 32 }) throw new SettingsValidationException("窗口布局最多保存 32 个窗口。");
             if (layout.Windows is null || layout.Windows.Any(window => window is null || window.Bounds is null)) throw new SettingsValidationException("窗口布局包含空记录。");
             foreach (var window in layout.Windows)
             {

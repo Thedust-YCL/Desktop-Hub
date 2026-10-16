@@ -223,3 +223,8 @@ test('Task6 ordinary reentry to the same project supersedes an earlier history r
   assert.equal(e.H.ui.page,'project');assert.equal(e.content.scrollTop,31);
   const history=e.window.DesktopHubInteractions.getState();assert.equal(history.entries[history.index].key,'project:project-b');assert.equal(history.entries[history.index].scroll,31);
 });
+test('Task8 return-to-project draft remains busy outside its modal and snapshot contains only saved identity',async()=>{
+  const e=setup();e.H.actions['ap-new']();e.H.actions['ap-add-type']({dataset:{type:'scene'}});e.H.actions['ap-import-existing']();
+  assert.equal(e.H.ui.modal,null);assert.ok(e.window.DesktopHubProjects.lifecycleBusyReasons().includes('project-draft'));
+  assert.deepEqual(structuredClone(e.window.DesktopHubProjects.captureLifecycle()),{projectId:null});
+});

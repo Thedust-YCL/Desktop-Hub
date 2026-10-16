@@ -294,10 +294,12 @@
   let currentMetadata = metadataKey(window.DesktopHubDesktop.getState().hostState);
   bridge.on('state.changed', state => { const next = metadataKey(state); if (next !== currentMetadata) { currentMetadata = next; void refreshActivity(); void refreshProjects(); } });
   window.DesktopHubActivity = Object.freeze({ refresh: refreshActivity });
-  window.DesktopHubProjects = Object.freeze({ open, refresh: refreshProjects, navigationState: () => ({ projectId }), restoreNavigation(state) {
+  window.DesktopHubProjects = Object.freeze({ open, refresh: refreshProjects, captureLifecycle: () => ({ projectId }),
+    lifecycleBusyReasons: () => [...(writing ? ['project-write'] : []), ...(resumeType ? ['project-draft'] : [])],
+    navigationState: () => ({ projectId }), restoreNavigation(state) {
     ++intent; ++projectGeneration; ++restoreToken;
     projectId = state?.projectId || null; selected = null; resolved = []; projectsLoaded = false;
     pendingRestore = projectId && Number.isFinite(state?.scroll) ? { page: 'project', projectId, token: restoreToken, scroll: state.scroll, awaitingNavigation: true } : null;
-    if (projectId) void refreshProjects();
+    return refreshProjects();
   } });
 }());

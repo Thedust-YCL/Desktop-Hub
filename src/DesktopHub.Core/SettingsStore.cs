@@ -146,7 +146,7 @@ public sealed class SettingsStore
                     output.Write(bytes);
                     output.Flush(flushToDisk: true);
                 }
-                if (File.Exists(SettingsPath)) File.Replace(temporary, SettingsPath, null);
+                if (File.Exists(SettingsPath)) AtomicFileReplacement.Replace(temporary, SettingsPath);
                 else File.Move(temporary, SettingsPath);
                 _current = normalized;
             }

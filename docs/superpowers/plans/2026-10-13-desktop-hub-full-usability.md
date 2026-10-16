@@ -109,10 +109,10 @@
 
 **Interfaces:** `ResourcePreviewService.RenderAsync(string resourceId,bool thumbnail,CancellationToken)` 返回受控 PNG 与元信息；`Cancel(string requestId)`；桥接 `resources.previewContent {resourceId,thumbnail,requestId}`、`resources.previewCancel {requestId}`。
 
-- [ ] 测试资源授权、损坏 / 移走 / 云占位、尺寸预算、取消及缓存键，先失败。
-- [ ] 原生 WPF 图像解码与 Windows PDF 首页渲染，遵守全部预算；只可见图标加载缩略。
-- [ ] 单项选择与空格 / Esc、输入框避让、不可预览提示及外部打开。
-- [ ] 真实图片与 PDF 原生验收、前端测试、缓存测量，提交与记录。
+- [x] 测试资源授权、损坏 / 移走 / 云占位、尺寸预算、取消及缓存键，先失败。
+- [x] 原生 WPF 图像解码与 Windows PDF 首页渲染，遵守全部预算；只可见图标加载缩略。
+- [x] 单项选择与空格 / Esc、输入框避让、不可预览提示及外部打开。
+- [x] 真实图片与 PDF 原生验收、前端测试、缓存测量，提交与记录。
 
 ### Task 8: 窗口布局与轻量生命周期
 
@@ -120,10 +120,10 @@
 
 **Interfaces:** `Capture(string sceneId)` 枚举可选窗口；`Save(string sceneId,IReadOnlyList<WindowLayoutEntry>)`；`RestoreAsync(string sceneId,CancellationToken)` 返回每项结果；桥接 `scenes.layoutCapture/layoutSave/layoutRestore`。仅会话识别窗口句柄，持久记录 exe / 标题 / 应用 ID 与相对工作区。
 
-- [ ] 测试多候选不自动移动、DPI / 显示器回退、最大化、高权限 / 全屏跳过，先失败。
-- [ ] 实现保存与显式 / 场景执行后恢复，独立反馈布局结果。
-- [ ] 测试隐藏60秒释放、草稿 / 文件选择器 / 导入 / 写入忙状态保护、重建导航和后台执行，先失败后实现。
-- [ ] 测量与修改前构建同条件的内存 / CPU / 进程数、冷热唤出，目标与实测分开；提交并记录。
+- [x] 测试多候选不自动移动、DPI / 显示器回退、最大化、高权限 / 全屏跳过，先失败。
+- [x] 实现保存与显式 / 场景执行后恢复，独立反馈布局结果。
+- [x] 测试隐藏60秒释放、草稿 / 文件选择器 / 导入 / 写入忙状态保护、重建导航和后台执行，先失败后实现。
+- [x] 测量与修改前构建同条件的内存 / CPU / 进程数、冷热唤出，目标与实测分开；提交并记录。
 
 ### Task 9: 全量验收、审查与发布
 

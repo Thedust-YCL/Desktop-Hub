@@ -36,7 +36,7 @@ try {
         $taskActivityProjectTests = Join-Path $taskRoot 'tests/DesktopHub.ActivityProject.Tests/DesktopHub.ActivityProject.Tests.csproj'
         Invoke-Dotnet -Arguments @('restore', $taskActivityProjectTests, '--source', $taskFeed, '--packages', $taskPackages, '-p:NuGetAudit=false')
         Invoke-Dotnet -Arguments @('run', '--project', $taskActivityProjectTests, '-c', 'Release', '--no-restore')
-        foreach ($taskSystemProject in @('tests/DesktopHub.System.Tests/DesktopHub.System.Tests.csproj', 'tests/DesktopHub.Windows.Lifecycle.Tests/DesktopHub.Windows.Lifecycle.Tests.csproj')) {
+        foreach ($taskSystemProject in @('tests/DesktopHub.System.Tests/DesktopHub.System.Tests.csproj', 'tests/DesktopHub.Windows.Lifecycle.Tests/DesktopHub.Windows.Lifecycle.Tests.csproj', 'tests/DesktopHub.Windows.Preview.Tests/DesktopHub.Windows.Preview.Tests.csproj', 'tests/DesktopHub.Windows.Layout.Tests/DesktopHub.Windows.Layout.Tests.csproj', 'tests/DesktopHub.Diagnostics.Tests/DesktopHub.Diagnostics.Tests.csproj')) {
             $taskSystemTests = Join-Path $taskRoot $taskSystemProject
             Invoke-Dotnet -Arguments @('restore', $taskSystemTests, '--source', $taskFeed, '--packages', $taskPackages, '-p:NuGetAudit=false')
             Invoke-Dotnet -Arguments @('run', '--project', $taskSystemTests, '-c', 'Release', '--no-restore')

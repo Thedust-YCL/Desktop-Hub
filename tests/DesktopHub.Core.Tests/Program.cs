@@ -11,6 +11,7 @@ var launcher = new NativeLaunchService();
 try
 {
     UnifiedSearchChecks.Run(Check);
+    AtomicFileReplacementChecks.Run(Check, testRoot);
     Task4Checks.Run(Check, testRoot);
     Task4BoundaryChecks.Run(Check);
     Check("Schema four migration preserves Dock pins, dependencies and preferences and derives favorites once", () =>

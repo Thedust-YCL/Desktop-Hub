@@ -122,7 +122,7 @@ public sealed class ResourceStore
             {
                 using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
                 { stream.Write(bytes); stream.Flush(true); }
-                if (File.Exists(FilePath)) File.Replace(temporary, FilePath, null); else File.Move(temporary, FilePath);
+                if (File.Exists(FilePath)) AtomicFileReplacement.Replace(temporary, FilePath); else File.Move(temporary, FilePath);
                 current = next;
             }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }

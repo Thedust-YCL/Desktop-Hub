@@ -9,13 +9,17 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.2.3</Version>
+    <Version>0.3.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PlatformTarget>x64</PlatformTarget>
     <!-- The host is WPF; its PerMonitorV2 manifest governs DPI. NotifyIcon does not start a WinForms application. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="ThirdParty\WebP\desktop_hub_webp.dll;ThirdParty\WebP\COPYING;ThirdParty\WebP\PATENTS;ThirdParty\WebP\provenance.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <Content Include="..\DesktopHub.Core\ThirdParty\Pinyin\LICENSE">
       <Link>licenses\pinyin-data-LICENSE.txt</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
