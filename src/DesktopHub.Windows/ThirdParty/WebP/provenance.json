@@ -1,0 +1,109 @@
+{
+  "status": "Bundled static WebP1.6.0 and DesktopHub native CPU WIC/Windows PDF WARP boundary; isolated harness and finalization tested",
+  "retrievedAt": "2026-10-13",
+  "upstream": "https://developers.google.com/speed/webp/download",
+  "version": "1.6.0",
+  "windowsArchive": {
+    "url": "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0-windows-x64.zip",
+    "sha256": "48886f506b21f62e4661f0f4cbfca19800897c385128e8902542d29a950c93f1"
+  },
+  "sourceArchive": {
+    "url": "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz",
+    "sha256": "e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564"
+  },
+  "license": "BSD-3-Clause, COPYING plus PATENTS",
+  "files": [
+    {
+      "path": "lib_libwebp.lib",
+      "sha256": "f7ccc6f78850640593ad071bb24415b4addde3f70cf611cda1fe17510b7a65fd"
+    },
+    {
+      "path": "lib_libwebpdemux.lib",
+      "sha256": "8f041b85e097ec1e0bab68b8c941f30f4542c4bdf9d4521c5c646dfbea3ab278"
+    },
+    {
+      "path": "bin_dwebp.exe",
+      "sha256": "17c1488bf84b7834e9aa908bb40afd0be2e55d57567d210e96336c56bb6ae993"
+    },
+    {
+      "path": "libwebp-1.6.0/COPYING",
+      "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf"
+    },
+    {
+      "path": "libwebp-1.6.0/PATENTS",
+      "sha256": "cc3273e0694ea5896145e0677699b53471b03ea43021ddc50e7923fbb9f5023c"
+    }
+  ],
+  "shim": {
+    "file": "desktop_hub_webp.dll",
+    "architecture": "x64",
+    "runtime": "MSVC /MT; Windows system imports only; no redistributable VC runtime",
+    "sources": [
+      "shim.c",
+      "pdf.cpp"
+    ],
+    "recipe": "scripts/build-preview-decoder.ps1",
+    "linkFlags": "/Brepro",
+    "sha256": "27e9af2092d56154b2f7c8a5e7232e41b28c658955db074c6dc769172f359502",
+    "buildCompiler": "MSVC19.44.35229; Visual Studio2022BuildTools17.14.41",
+    "sdk": "Windows SDK10.0.26100.0",
+    "imports": [
+      "api-ms-win-core-file-l1-1-0.dll",
+      "api-ms-win-core-handle-l1-1-0.dll",
+      "api-ms-win-core-errorhandling-l1-1-0.dll",
+      "api-ms-win-core-synch-l1-2-0.dll",
+      "api-ms-win-core-processthreads-l1-1-0.dll",
+      "api-ms-win-core-com-l1-1-0.dll",
+      "api-ms-win-shcore-stream-winrt-l1-1-0.dll",
+      "api-ms-win-core-winrt-l1-1-0.dll",
+      "d3d11.dll",
+      "Windows.Data.Pdf.dll",
+      "api-ms-win-core-synch-l1-1-0.dll",
+      "KERNEL32.dll",
+      "api-ms-win-core-rtlsupport-l1-1-0.dll",
+      "api-ms-win-core-interlocked-l1-1-0.dll",
+      "api-ms-win-core-util-l1-1-0.dll",
+      "api-ms-win-core-libraryloader-l1-2-0.dll",
+      "api-ms-win-core-heap-l1-1-0.dll",
+      "api-ms-win-core-console-l1-1-0.dll",
+      "api-ms-win-core-fibers-l1-1-0.dll",
+      "api-ms-win-core-memory-l1-1-0.dll",
+      "api-ms-win-core-string-l1-1-0.dll",
+      "api-ms-win-core-localization-l1-2-0.dll",
+      "api-ms-win-core-processenvironment-l1-1-0.dll",
+      "api-ms-win-core-winrt-error-l1-1-1.dll",
+      "OLEAUT32.dll"
+    ],
+    "pdfAPI": "Windows.Data.Pdf loader + PdfCreateRenderer/RenderPageToSurface on private D3D11 WARP device; CPU WIC PNG encoder",
+    "pdfInput": "DuplicateHandle of the same host-validated read-only handle through private IStream; no path reopen",
+    "pdfLifetime": "Native RAII references released before RoUninitialize; no projected PDF objects retained by CLR",
+    "explicitDecodedBudgetBytes": 16777216,
+    "totalPrivateMemoryHardCap": false
+  },
+  "currentSourceHashes": [
+    {
+      "path": "shim.c",
+      "sha256": "2eb0f78b157203484f8dfc94a94b0a45e9ad61e9ca1b9431b2aa000c42af685d"
+    },
+    {
+      "path": "pdf.cpp",
+      "sha256": "e84eaa82654b210492ca296f8822af04913d4f287283643104fef7ceba22e359"
+    },
+    {
+      "path": "COPYING",
+      "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf"
+    },
+    {
+      "path": "PATENTS",
+      "sha256": "cc3273e0694ea5896145e0677699b53471b03ea43021ddc50e7923fbb9f5023c"
+    },
+    {
+      "path": "lib/libwebp.lib",
+      "sha256": "f7ccc6f78850640593ad071bb24415b4addde3f70cf611cda1fe17510b7a65fd"
+    },
+    {
+      "path": "lib/libwebpdemux.lib",
+      "sha256": "8f041b85e097ec1e0bab68b8c941f30f4542c4bdf9d4521c5c646dfbea3ab278"
+    }
+  ]
+}

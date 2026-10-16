@@ -1,2 +1,0 @@
-26 real Windows resource checks passed.
-29 real Windows resource checks passed.

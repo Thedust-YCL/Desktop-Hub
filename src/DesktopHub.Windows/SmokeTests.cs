@@ -36,7 +36,7 @@ internal static class SmokeTests
         if (!passed) throw new InvalidOperationException("Smoke assertion failed: " + name);
     }
 
-    public static async Task RunAsync(HubApplication host, bool restart = false)
+    public static async Task RunAsync(HubApplication host, bool restart = false, bool applicationImportOnly = false)
     {
         output = Path.Combine(AppContext.BaseDirectory, "m15-smoke-evidence"); Directory.CreateDirectory(output);
         checks.Clear();
@@ -52,6 +52,19 @@ internal static class SmokeTests
             await WaitJs(host.Mini, "Boolean(window.DesktopHubDesktop?.getState().hostState)");
             if (restart)
             {
+                if (applicationImportOnly)
+                {
+                    await Request(host.Mini, "window.openWorkspace", new { page = "home" });
+                    var reloadedWindow = host.Workspace!;
+                    await WaitJs(reloadedWindow, "Boolean(window.DesktopHubDesktop?.getState().hostState)");
+                    Check("Actual restarted host retains suppression and an unchanged empty test library", host.Store.Current.SuppressDesktopLocationNotice && host.Store.Current.AppEntries.Count == 0);
+                    await Click(reloadedWindow, "[data-action=app-add]");
+                    await WaitJs(reloadedWindow, "Boolean(document.querySelector('#app-import-query')) && !document.querySelector('#app-import-query').disabled");
+                    Check("Actual restarted host opens discovery without the suppressed notice", (await Js(reloadedWindow, "!document.querySelector('.app-desktop-notice')")).GetBoolean());
+                    await Capture(reloadedWindow, "application-discovery-after-restart.png");
+                    File.WriteAllText(Path.Combine(output, "summary.txt"), $"{checks.Count} application import native checks passed, including actual host restart.\n");
+                    host.Exit(); return;
+                }
                 await VerifyRestartAsync(host);
                 File.WriteAllText(Path.Combine(output, "summary.txt"), $"{checks.Count} M1.5 native integration checks passed, including an actual host restart.\n");
                 host.Exit(); return;
@@ -76,8 +89,18 @@ internal static class SmokeTests
             await Request(workspace, "settings.save", new { settings = new { theme = "dark", reducedMotion = true } });
             await WaitJs(workspace, "document.documentElement.dataset.theme === 'dark'");
             await Capture(workspace, "workspace-dark.png");
-            await CaptureNativeFrame(workspace, "dark");
-            CheckNativeResizeHitTests(workspace);
+            if (!applicationImportOnly)
+            {
+                await CaptureNativeFrame(workspace, "dark");
+                CheckNativeResizeHitTests(workspace);
+            }
+            await VerifyApplicationDiscoveryAsync(workspace, host);
+            if (applicationImportOnly)
+            {
+                File.Copy(Path.Combine(output, "results.json"), Path.Combine(output, "phase1-results.json"), true);
+                File.WriteAllText(Path.Combine(output, "phase1-summary.txt"), $"{checks.Count} application import native checks passed before restart.\n");
+                host.Exit(); return;
+            }
             var systemDirectory = Environment.GetFolderPath(Environment.SpecialFolder.System);
             var systemTargets = new[] { "winver.exe", "charmap.exe", "mstsc.exe", "msinfo32.exe", "colorcpl.exe" }
                 .Select(name => Path.Combine(systemDirectory, name)).ToArray();
@@ -322,13 +345,77 @@ internal static class SmokeTests
         return result.GetProperty("result").Clone();
     }
 
+    private static async Task VerifyApplicationDiscoveryAsync(HubWindow window, HubApplication host)
+    {
+        var originalWidth = window.Width; var originalHeight = window.Height;
+        await Click(window, "[data-action=app-add]");
+        Check("Application entry explains personal and public desktops", (await Js(window, "document.querySelector('.app-desktop-notice')?.textContent.includes('公共桌面') && document.querySelector('.app-desktop-notice')?.textContent.includes('个人桌面')")).GetBoolean());
+        await Capture(window, "application-desktop-notice-dark.png");
+        await Click(window, "[data-action=app-import-continue]");
+        await WaitJs(window, "Boolean(document.querySelector('#app-import-query')) && !document.querySelector('#app-import-query').disabled");
+        var commonWechat = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory), "微信.lnk");
+        if (File.Exists(commonWechat)) Check("Real public desktop WeChat shortcut is visible in the discovery list",
+            (await Js(window, $"[...document.querySelectorAll('.app-discovery-copy small')].some(node=>node.title==={JsonSerializer.Serialize(commonWechat)})")).GetBoolean(), commonWechat);
+        Check("Desktop discovery does not add applications before confirmation", host.Store.Current.AppEntries.Count == 0);
+        await Capture(window, "application-discovery-dark.png");
+        await Click(window, "[data-action=close-modal]");
+        await Click(window, "[data-action=app-add]");
+        Check("Unchecked desktop reminder appears on the next entry", (await Js(window, "Boolean(document.querySelector('#app-desktop-notice-suppress')) && !document.querySelector('#app-desktop-notice-suppress').checked")).GetBoolean());
+        await Request(window, "settings.save", new { settings = new { theme = "light" } });
+        await Capture(window, "application-desktop-notice-light.png");
+        await Click(window, "#app-desktop-notice-suppress");
+        await Click(window, "[data-action=app-import-continue]");
+        await WaitJs(window, "Boolean(document.querySelector('#app-import-query')) && !document.querySelector('#app-import-query').disabled");
+        var reloaded = new SettingsStore(host.DataDirectory).Load();
+        Check("Do not remind preference survives settings reload", reloaded.SuppressDesktopLocationNotice);
+        await Click(window, "[data-action=close-modal]");
+        await Click(window, "[data-action=app-add]");
+        await WaitJs(window, "Boolean(document.querySelector('#app-import-query')) && !document.querySelector('#app-import-query').disabled");
+        Check("Saved suppression skips the notice on later entries", (await Js(window, "!document.querySelector('.app-desktop-notice')")).GetBoolean());
+        await Capture(window, "application-discovery-light.png");
+        window.Width = 640; window.Height = 480; await Task.Delay(250);
+        await Capture(window, "application-discovery-640x480.png");
+        Check("Compact importer keeps the primary action reachable without horizontal overflow", (await Js(window, "document.documentElement.scrollWidth<=document.documentElement.clientWidth && document.querySelector('[data-action=app-import-confirm]').getBoundingClientRect().bottom<=innerHeight")).GetBoolean());
+        Check("Compact importer displays a complete application row before scrolling", (await Js(window, "!document.querySelector('.app-discovery-row') || document.querySelector('.app-discovery-row').getBoundingClientRect().bottom<=document.querySelector('.modal-footer').getBoundingClientRect().top")).GetBoolean());
+        window.Width = originalWidth; window.Height = originalHeight;
+
+        var folder = Path.Combine(output, "application-import-fixture"); Directory.CreateDirectory(Path.Combine(folder, "nested"));
+        var executable = Path.Combine(folder, "Imported Fixture.exe");
+        File.Copy(Environment.GetEnvironmentVariable("DESKTOP_HUB_TEST_EXE")!, executable, true);
+        File.Copy(executable, Path.Combine(folder, "nested", "Nested Fixture.exe"), true);
+        File.WriteAllText(Path.Combine(folder, "ignored.txt"), "not an application");
+        CreateShortcut(Path.Combine(folder, "Fixture Shortcut.lnk"), executable, "", folder);
+        var folderPicker = Task.Run(() => SelectNativePicker(folder, "选择文件夹，自动查找程序与快捷方式"));
+        await Click(window, "[data-action=app-import-folder]");
+        await folderPicker.WaitAsync(TimeSpan.FromSeconds(30));
+        await WaitJs(window, "Boolean(document.querySelector('#app-import-query')) && !document.querySelector('#app-import-query').disabled");
+        Check("Native folder selection filters EXE and LNK without recursing by default", (await Js(window, "document.querySelectorAll('.app-discovery-row').length===2 && !document.querySelector('.app-discovery-list').textContent.includes('ignored.txt')")).GetBoolean());
+        await Click(window, "#app-import-recursive");
+        await WaitJs(window, "!document.querySelector('#app-import-query').disabled && document.querySelectorAll('.app-discovery-row').length===3");
+        Check("Recursive folder scan discovers nested executables", (await Js(window, "document.querySelector('.app-discovery-list').textContent.includes('Nested Fixture')")).GetBoolean());
+        await WaitJs(window, "Boolean(document.querySelector('.app-discovery-icon img'))");
+        await Capture(window, "application-folder-discovery.png");
+        await Click(window, "[data-action=app-import-select-visible]");
+        await Click(window, "[data-action=app-import-confirm]");
+        await WaitJs(window, "Hub.ui.modal && document.querySelector('#dialog-title')?.textContent==='应用添加结果'");
+        Check("Native batch import adds distinct targets and explains duplicate shortcuts", host.Store.Current.AppEntries.Count == 2 &&
+            (await Js(window, "document.querySelector('.app-import-results').textContent.includes('相同程序')")).GetBoolean());
+        foreach (var app in host.Store.Current.AppEntries) host.AppLibrary.Remove(app.Id);
+        host.SettingsChanged(); await Click(window, "[data-action=close-modal]");
+        await Request(window, "settings.save", new { settings = new { theme = "dark" } });
+    }
+
     private static async Task<string> AddViaPicker(HubWindow window, HubApplication host, string filename)
     {
         var before = AppEntries(host).Select(Id).ToHashSet();
         try
         {
-            var automation = Task.Run(() => SelectNativePicker(filename));
             await Click(window, "[data-action=app-add]");
+            if ((await Js(window, "Boolean(document.querySelector('[data-action=app-import-continue]'))")).GetBoolean())
+                await Click(window, "[data-action=app-import-continue]");
+            await WaitJs(window, "Boolean(document.querySelector('[data-action=app-import-file]')) && !document.querySelector('[data-action=app-import-file]').disabled");
+            var automation = Task.Run(() => SelectNativePicker(filename));
+            await Click(window, "[data-action=app-import-file]");
             await automation.WaitAsync(TimeSpan.FromSeconds(30));
             for (var wait = 0; wait < 100 && AppEntries(host).Length <= before.Count; wait++) await Task.Delay(100);
             var added = AppEntries(host).Where(app => !before.Contains(Id(app))).ToArray();
@@ -612,21 +699,21 @@ internal static class SmokeTests
     [DllImport("gdi32.dll")] private static extern bool BitBlt(nint target, int x, int y, int width, int height, nint source, int sourceX, int sourceY, uint operation);
     [DllImport("gdi32.dll")] private static extern bool DeleteObject(nint value);
     [DllImport("gdi32.dll")] private static extern bool DeleteDC(nint dc);
-    private static void SelectNativePicker(string filename)
+    private static void SelectNativePicker(string filename, string title = "选择本地程序")
     {
         nint dialogHandle = 0;
-        try { SelectNativePickerCore(filename, ref dialogHandle); }
+        try { SelectNativePickerCore(filename, title, ref dialogHandle); }
         catch { CancelNativePicker(dialogHandle); throw; }
     }
 
-    private static void SelectNativePickerCore(string filename, ref nint dialogHandle)
+    private static void SelectNativePickerCore(string filename, string title, ref nint dialogHandle)
     {
         var deadline = Stopwatch.StartNew();
         AutomationElement? dialog = null;
-        var condition = new AndCondition(new PropertyCondition(AutomationElement.ProcessIdProperty, Environment.ProcessId), new PropertyCondition(AutomationElement.NameProperty, "选择本地程序"));
+        var condition = new AndCondition(new PropertyCondition(AutomationElement.ProcessIdProperty, Environment.ProcessId), new PropertyCondition(AutomationElement.NameProperty, title));
         while (deadline.ElapsedMilliseconds < 20000 && dialog is null)
         {
-            var hwnd = FindWindow(null, "选择本地程序");
+            var hwnd = FindWindow(null, title);
             if (hwnd != 0 && NativeMethods.IsOurWindow(hwnd)) dialog = AutomationElement.FromHandle(hwnd);
             dialog ??= AutomationElement.RootElement.FindFirst(TreeScope.Descendants, condition);
             Thread.Sleep(100);
@@ -648,7 +735,7 @@ internal static class SmokeTests
             {
                 var edits = dialog.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit));
                 var edit = edits.Cast<AutomationElement>().FirstOrDefault(e => e.Current.Name.Contains("文件名") || e.Current.Name.Contains("File name", StringComparison.OrdinalIgnoreCase)
-                    || e.Current.AutomationId == "1148");
+                    || e.Current.Name.StartsWith("文件夹") || e.Current.Name.StartsWith("Folder", StringComparison.OrdinalIgnoreCase) || e.Current.AutomationId == "1148");
                 if (edit is not null && edit.Current.IsEnabled && !edit.Current.IsOffscreen && edit.TryGetCurrentPattern(ValuePattern.Pattern, out var pattern))
                 {
                     ((ValuePattern)pattern).SetValue(filename); filenameEdit = edit; valueSet = true;
@@ -672,7 +759,7 @@ internal static class SmokeTests
                 {
                     var name = button.Current.Name;
                     if (!(button.Current.AutomationId == "1" || name.Contains("打开") || name.Contains("Open", StringComparison.OrdinalIgnoreCase)
-                        || name.Contains("确定") || name.Equals("OK", StringComparison.OrdinalIgnoreCase))) continue;
+                        || name.Contains("选择文件夹") || name.Contains("Select Folder", StringComparison.OrdinalIgnoreCase) || name.Contains("确定") || name.Equals("OK", StringComparison.OrdinalIgnoreCase))) continue;
                     if (!button.Current.IsEnabled || button.Current.IsOffscreen || !button.TryGetCurrentPattern(InvokePattern.Pattern, out var pattern)) continue;
                     ((InvokePattern)pattern).Invoke();
                     WaitPickerClosed(dialogHandle); return;

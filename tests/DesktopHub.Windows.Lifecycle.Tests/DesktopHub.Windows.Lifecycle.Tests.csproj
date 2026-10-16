@@ -16,5 +16,7 @@
     <Compile Include="../../src/DesktopHub.Windows/SingleInstanceService.cs" Link="SingleInstanceService.cs" />
     <Compile Include="../../src/DesktopHub.Windows/TrayLifecycleService.cs" Link="TrayLifecycleService.cs" />
     <Compile Include="../../src/DesktopHub.Windows/NativeMethods.cs" Link="NativeMethods.cs" />
+    <Compile Include="../../src/DesktopHub.Windows/HiddenSurfaceLifecycle.cs" Link="HiddenSurfaceLifecycle.cs" />
+    <Compile Include="../../src/DesktopHub.Windows/BrowserViewSnapshot.cs" Link="BrowserViewSnapshot.cs" />
   </ItemGroup>
 </Project>

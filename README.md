@@ -9,21 +9,23 @@
 .\scripts\run.ps1 -Offline
 ```
 
-当前机器的 SDK 和开发依赖已准备在 `.tools/`。新机器先运行 `scripts/bootstrap.ps1` 下载并校验开发依赖。普通运行需要 .NET Desktop Runtime 8 x64 和 WebView2 Runtime；无需 Node.js、浏览器页面或本地服务器。详情见 [M2.1 实施报告](docs/M2.1_Implementation_Report.md)、[场景通信扩展](docs/M2.1_Bridge_Protocol.md)、[M1.5 历史报告](docs/M1.5_Implementation_Report.md) 和 [M1 历史报告](docs/M1_Implementation_Report.md)。
+当前机器的 SDK 和开发依赖已准备在 `.tools/`。新机器先运行 `scripts/bootstrap.ps1` 下载并校验开发依赖。普通运行需要 .NET Desktop Runtime 8 x64 和 WebView2 Runtime；无需 Node.js、浏览器页面或本地服务器。详细设计、交接记录与测试证据保存在本机忽略的 `docs/` 中，不参与构建或运行。
 
-打开 Mini 顶部图标进入 Workspace，在“我的应用”添加和独立启动应用，在“场景中心”创建并执行场景。进入“文件资源库”，选择当前用户桌面或自定义目录；公共桌面须主动勾选允许预览。确认导入后自动监测，默认只索引直接子项。索引来源可单独开启递归；文件夹“浏览”不会自动登记子文件，“加入资源库”只登记所选项。按 Esc 或右上角关闭按钮收起 Workspace；从托盘菜单完整退出。完整说明和验收清单见 [M2.2 实施报告](docs/M2.2_Implementation_Report.md)。
+打开 Mini 顶部图标进入 Workspace，在“我的应用”添加和独立启动应用，在“场景中心”创建并执行场景。进入“文件资源库”，选择当前用户桌面或自定义目录；公共桌面须主动勾选允许预览。确认导入后自动监测，默认只索引直接子项。索引来源可单独开启递归；文件夹“浏览”不会自动登记子文件，“加入资源库”只登记所选项。按 Esc 或右上角关闭按钮收起 Workspace；从托盘菜单完整退出。
 
 配置保存在 `%LOCALAPPDATA%\DesktopHub\settings.json`，schemaVersion=4 保留既有应用库、固定入口和可识别的 M1 单目标迁移，并新增系统集成设置与恢复记录。场景动作通过稳定应用 ID 读取最新配置。Store/MSIX 及特殊 Shell 快捷方式继续保留原兼容边界；脚本按系统策略执行，提权由 Windows UAC 处理。
 
-2026-10-10 交互更新：设置使用滑动高亮的分段按钮和 0–100% 不透明度滑块；Workspace 支持边缘缩放，默认尺寸更紧凑；鼠标侧键可前后导航；应用收藏后加入 Dock；资源库按标签分类逐步筛选，支持新分类、扩展名排序与筛选，失效资源页保留父级返回入口。详见 [本轮改进与验证](docs/Usability_2026-10-10.md)。
+2026-10-13：“添加应用”默认自动列出个人桌面与公共桌面的 EXE / LNK，可搜索名称或路径、勾选后批量添加；也可选择文件夹并开启“包含子文件夹”，或继续手动选文件。重复程序与无效快捷方式会说明跳过原因。进入时提示两个桌面目录的区别，勾选“不再提醒”并继续后保存偏好；未勾选则每次进入都提示。此扫描只查找应用入口，不建立文件资源库来源或监测。
 
-Workspace 框架现使用圆角边框。在“设置 → 外观与主题”可独立调整 Workspace 不透明度（0–100%，默认 100%），重启保留。设为 0% 后，从托盘打开设置可暂时恢复显示并重新调整。详见 [圆角与透明度验证](docs/Workspace_Frame_2026-10-10.md)。
+2026-10-10 交互更新：设置使用滑动高亮的分段按钮和 0–100% 不透明度滑块；Workspace 支持边缘缩放，默认尺寸更紧凑；鼠标侧键可前后导航；应用收藏后加入 Dock；资源库按标签分类逐步筛选，支持新分类、扩展名排序与筛选，失效资源页保留父级返回入口。
 
-2026-10-11：Workspace 顶部移除完全退出按钮，只保留关闭按钮；快捷主题切换仅在深色与浅色之间切换，“跟随系统”仍可在设置中选择。详见 [顶部操作验证](docs/Workspace_Header_2026-10-11.md)。
+Workspace 框架现使用圆角边框。在“设置 → 外观与主题”可独立调整 Workspace 不透明度（0–100%，默认 100%），重启保留。设为 0% 后，从托盘打开设置可暂时恢复显示并重新调整。
 
-首次手动启动时会打开使用引导：欢迎 → 文件来源导入 → 日常使用 → 桌面图标 → 开机自启 → 完成。导入调用真实扫描预览，确认后才入库；桌面图标与自启只在用户点击对应按钮时更改。完成或跳过后保存记录，不再自动弹出；登录自启继续安静常驻。在“设置 → 系统与恢复 → 使用帮助”点击“重新引导”可重看，保留已有应用、文件来源、标签、收藏和设置。旧配置没有引导记录时，会在下次手动启动展示一次。详见 [首次启动引导与验证](docs/Onboarding_2026-10-11.md)。
+2026-10-11：Workspace 顶部移除完全退出按钮，只保留关闭按钮；快捷主题切换仅在深色与浅色之间切换，“跟随系统”仍可在设置中选择。
 
-文件资源行统一对齐名称、标签、状态和“收藏 / 详情 / 打开”，点击文件夹整行进入临时浏览。首次确认导入时可以允许按修改年月自动添加时间标签；选择在本地保存，允许后新入库的资源沿用这一行为。收藏、标签和后台刷新保留工作台的滚动位置，窗口不再随每次刷新从透明淡入。验证记录见 [资源库与交互修复](docs/M2.2_Usability_Fixes.md)。
+首次手动启动时会打开使用引导：欢迎 → 文件来源导入 → 日常使用 → 桌面图标 → 开机自启 → 完成。导入调用真实扫描预览，确认后才入库；桌面图标与自启只在用户点击对应按钮时更改。完成或跳过后保存记录，不再自动弹出；登录自启继续安静常驻。在“设置 → 系统与恢复 → 使用帮助”点击“重新引导”可重看，保留已有应用、文件来源、标签、收藏和设置。旧配置没有引导记录时，会在下次手动启动展示一次。
+
+文件资源行统一对齐名称、标签、状态和“收藏 / 详情 / 打开”，点击文件夹整行进入临时浏览。首次确认导入时可以允许按修改年月自动添加时间标签；选择在本地保存，允许后新入库的资源沿用这一行为。收藏、标签和后台刷新保留工作台的滚动位置，窗口不再随每次刷新从透明淡入。
 
 资源来源、索引、标签和收藏单独保存在同目录 `resources.json`。资源清理和来源移除只修改 Desktop Hub 元数据，不删除实际文件。缺失资源保留标签和收藏，重新关联后沿用原资源 ID。M2.2 原生验收：`scripts/test-m22-native.ps1 -SkipBuild`，使用独立测试配置、无害测试目录与真正宿主重启。
 
@@ -31,13 +33,13 @@ Workspace 框架现使用圆角边框。在“设置 → 外观与主题”可�
 
 首次隐藏桌面图标需要明确选择退出策略；仅改变整体显示状态，不触碰桌面文件。软件未运行时可恢复：**桌面空白处右键 → 查看 → 显示桌面图标**（文字随系统语言变化）。异常重启只核对状态并提示，外部修改优先。开机自启只管理当前用户 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的自有 `DesktopHub` 项；便携目录移动后在设置中明确修复。
 
-M2.3 验收：`scripts/test-m23-native.ps1 -SkipBuild`。桌面图标写入、开机自启写入及真实注销/Explorer 重启仍需在可恢复测试用户环境人工验收；自动化使用 Mock，当前机器仅做真实只读查询。实际结果、限制和恢复步骤见 [M2.3 实施报告](docs/M2.3_Implementation_Report.md) 与 [系统通信扩展](docs/M2.3_Bridge_Protocol.md)。本轮没有制作 V1 安装包、自动更新或正式分发。
+M2.3 验收：`scripts/test-m23-native.ps1 -SkipBuild`。桌面图标写入、开机自启写入及真实注销/Explorer 重启仍需在可恢复测试用户环境人工验收；自动化使用 Mock，当前机器仅做真实只读查询。本轮没有制作 V1 安装包、自动更新或正式分发。
 
 M2.1 原生验收：`scripts/test-m21-native.ps1 -SkipBuild`，使用隔离测试配置和受控目标。构建命令会运行原有核心、场景调度/存储和前端自动化测试。验收结果与人工待验证项见 M2.1 报告。
 
 可重复运行的 M1.5 原生验收：`scripts/test-m15-native.ps1 -CoreFixtureIntegration`，使用隔离测试配置、真实文件选择器和两次独立进程启动，短暂打开五个系统 GUI 程序后关闭测试创建的窗口。证据存于 `docs/m15-evidence/native/`，不覆盖 M1 记录。
 
-各版本内存/CPU 基线见 [资源占用变化记录](docs/Resource_Usage_History.md)。使用 `scripts/measure-resources.ps1 -SkipBuild` 可重复测量已发布程序的 Mini、Dock、Workspace 和返回 Mini 情境，证据按运行时间归档。
+使用 `scripts/measure-resources.ps1 -SkipBuild` 可重复测量已发布程序的 Mini、Dock、Workspace 和返回 Mini 情境，证据按运行时间归档到本机忽略目录。
 
 以下保留 M0 原型的独立使用说明。
 
@@ -45,7 +47,7 @@ M2.1 原生验收：`scripts/test-m21-native.ps1 -SkipBuild`，使用隔离测�
 
 这是 Desktop Hub 第一阶段的本地高保真交互原型，用于评审 Mini、Dock、Workspace 及二级业务页面的视觉与交互。实现采用 HTML、CSS、原生 JavaScript，不依赖前端框架、构建工具、CDN、账户或后端。
 
-**本轮唯一正式 UI 交接规格是 [Desktop_Hub_UI_Spec_v0.7.md](docs/Desktop_Hub_UI_Spec_v0.7.md)。** `docs/references/` 的三张图片仅作视觉参考，`PRD.md` 仅作背景资料。
+详细 UI 规格、视觉参考与 PRD 属于本地设计资料，保存在不参与构建和运行的 `docs/` 中。
 
 ## 如何启动与查看
 
@@ -119,13 +121,6 @@ node prototype/serve.mjs 4173
 ```text
 Desktop Hub/
 ├─ README.md
-├─ PRD.md                         # 背景资料
-├─ docs/
-│  ├─ Desktop_Hub_UI_Spec_v0.7.md # 唯一正式 UI 规格
-│  └─ references/
-│     ├─ Mini.png
-│     ├─ Dock.png
-│     └─ Workspace.png
 └─ prototype/
    ├─ index.html                # 离线入口
    ├─ styles.css                # 深浅主题、共享 token 与布局
@@ -137,13 +132,6 @@ Desktop Hub/
    ├─ ACCEPTANCE.md             # 交互验收清单与验证记录
    ├─ tests/
    │  └─ state.test.mjs         # 零依赖逻辑集成自测
-   ├─ screenshots/             # 六份浏览器效果截图
-   │  ├─ workspace-dark.jpg
-   │  ├─ workspace-light.jpg
-   │  ├─ mini-dark.jpg
-   │  ├─ dock-dark.jpg
-   │  ├─ library-dark.jpg
-   │  └─ editor-light.jpg
    └─ assets/
       └─ hub.svg                # 本地品牌图标
 ```
@@ -160,7 +148,7 @@ node --test prototype/tests/state.test.mjs
 
 已在 Codex 内置 Chromium 浏览器实际点击验收：三种界面状态、六个模块、首次引导、三类场景启动、场景新增保存/删除与循环依赖、文件三视图、标签确认与标签 CRUD、临时浏览、失效修复及清理确认、搜索、设置、恢复策略、快捷键、重置。1440×900、1024×768、640×780 下检查布局，六模块未出现页面横向溢出；浏览器控制台没有运行错误。完整记录见验收文档。
 
-截图：[深色 Workspace](prototype/screenshots/workspace-dark.jpg)、[浅色 Workspace](prototype/screenshots/workspace-light.jpg)、[Mini](prototype/screenshots/mini-dark.jpg)、[Dock](prototype/screenshots/dock-dark.jpg)、[文件库](prototype/screenshots/library-dark.jpg)、[场景编辑器](prototype/screenshots/editor-light.jpg)。
+浏览器效果截图属于本地验收输出，保存在已忽略的 `prototype/screenshots/` 中。
 
 ## 后续需独立技术验证
 

@@ -1,0 +1,127 @@
+/* Inherited theme variables and native 18 DIP corner geometry remain authoritative. */
+html[data-desktop-host][data-density=compact] .workspace-header { height: 54px; min-height: 54px; padding: 0 18px; }
+html[data-desktop-host][data-density=compact] .workspace-content,
+html[data-desktop-host][data-density=compact] .workspace-content.home-content { padding: 14px 18px 18px; }
+html[data-desktop-host][data-density=compact] .page-heading { margin-bottom: 12px; gap: 12px; }
+html[data-desktop-host][data-density=compact] .page-title { font-size: 23px; line-height: 1.25; }
+html[data-desktop-host][data-density=compact] .subtitle { margin-top: 4px; font-size: 13px; }
+html[data-desktop-host][data-density=compact] .home-intro { margin-bottom: 12px; }
+html[data-desktop-host] .home-intro .eyebrow { display: none; }
+html[data-desktop-host] .home-content .launch-text > span { font-size: 13px; }
+html[data-desktop-host] .launcher-app > strong, html[data-desktop-host] .launcher-app-state,
+html[data-desktop-host] .launcher-heading h2 > span, html[data-desktop-host] .launcher-heading p,
+html[data-desktop-host] .launcher-heading .button, html[data-desktop-host] .launcher-search input,
+html[data-desktop-host] .launcher-search > span, html[data-desktop-host] .launcher-hint,
+html[data-desktop-host] .launcher-empty p, html[data-desktop-host] .launcher-modules-heading h2,
+html[data-desktop-host] .home-scene small, html[data-desktop-host] .workspace .native-launch-status,
+html[data-desktop-host] .workspace .native-warning, html[data-desktop-host] .workspace-footer { font-size: 13px; }
+html[data-desktop-host][data-density=compact] .launcher-app { min-height: 84px; padding: 8px; }
+html[data-desktop-host][data-density=compact] .launcher-grid { grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); }
+html[data-desktop-host][data-density=compact] .launcher-icon { width: 40px; height: 40px; }
+.usability-home-nav { display: flex; flex-shrink: 0; align-items: center; gap: 4px; padding: 5px 18px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.usability-home-nav .subnav-link { white-space: nowrap; font-size: 13px; padding: 6px 10px; }
+html[data-desktop-host][data-density=compact] .home-content .launch-card { min-height: 80px; padding: 12px; }
+html[data-desktop-host][data-density=compact] .home-content .quick-heading { margin-top: 12px !important; }
+.usability-filters { border: 1px solid var(--line); border-radius: 10px; margin: 8px 0 12px; background: var(--panel); }
+.usability-filters summary { cursor: pointer; padding: 9px 12px; font-size: 13px; }
+.usability-filter-body { padding: 0 12px 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+.usability-filter-body .nr-category-filter, .usability-filter-body .nr-filter-tags { width: 100%; margin-bottom: 4px; }
+.usability-conditions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; font-size: 13px; }
+.usability-conditions > span { color: var(--muted); }
+.usability-conditions .button { min-height: 30px; font-size: 13px; overflow-wrap: anywhere; }
+html[data-desktop-host][data-density=compact] .nr-sources { margin-bottom: 10px; }
+html[data-desktop-host][data-density=compact] .nr-sources > summary { padding: 9px 12px; }
+html[data-desktop-host][data-density=compact] .nr-toolbar { gap: 8px; margin-bottom: 8px; }
+html[data-desktop-host][data-density=compact] .nr-row,
+html[data-desktop-host][data-density=compact] .nr-list-heading { padding: 9px 12px; gap: 8px 12px; }
+html[data-desktop-host][data-density=compact] .nr-row { min-height: 66px; }
+html[data-desktop-host] .nr-identity small, html[data-desktop-host] .nr-source p, html[data-desktop-host] .nr-source small,
+html[data-desktop-host] .nr-discovered-path, html[data-desktop-host] .nr-pagination, html[data-desktop-host] .nr-path,
+html[data-desktop-host] .nr-suggestion-summary, html[data-desktop-host] .nr-clean-bar p, html[data-desktop-host] .nr-tag-row small { font-size: 13px; }
+html[data-desktop-host] .nr-suggestions, html[data-desktop-host] .nr-suggestion-label,
+html[data-desktop-host] .nr-detail-suggestion p, html[data-desktop-host] #nr-scan-progress { font-size: 13px; }
+.unified-input { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.unified-input input { width: 100%; font-size: 15px; }
+.unified-types { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+.unified-types .button { font-size: 13px; min-height: 32px; }
+.unified-feedback { font-size: 13px; color: var(--muted); margin: 10px 0; }
+.unified-results { max-height: min(48vh, 370px); overflow: auto; border-top: 1px solid var(--line); }
+.unified-result { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); border-radius: 7px; }
+.unified-result.selected, .unified-result:hover { background: var(--hover); }
+.unified-result.selected { outline: 1px solid var(--accent); outline-offset: -1px; }
+.unified-result-main { display: flex; align-items: center; gap: 12px; text-align: left; padding: 11px 8px; min-width: 0; flex: 1; }
+.unified-kind { font-size: 13px; color: var(--muted); width: 42px; flex-shrink: 0; }
+.unified-identity { min-width: 0; flex: 1; }
+.unified-identity strong { display: block; font-size: 15px; overflow-wrap: anywhere; }
+.unified-identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--muted); margin-top: 3px; }
+.unified-operation { font-size: 13px; color: var(--accent); max-width: 132px; }
+.unified-hint { color: var(--muted); font-size: 13px; }
+/* Shell feedback stays visible while the page retains its independent scroll position. */
+html[data-desktop-host] .workspace > .unified-launch-feedback {
+  flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto 32px;
+  align-items: center; gap: 8px; margin: 0; padding: 8px 18px; min-width: 0;
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--raised); font-size: 13px;
+}
+
+/* Scene editor and results use the existing shell, palette and native geometry. */
+.scene-mode-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 12px; }
+.scene-mode-controls .field { min-width: 170px; flex: 1; }
+.scene-mode-controls .scene-form-note { flex: 2; min-width: 200px; margin: 0; }
+.scene-list-heading { flex-wrap: wrap; gap: 8px; }
+.scene-list-heading h2 { flex: 1 0 90px; }
+.scene-app-picker { display: grid; gap: 6px; max-height: min(42vh, 320px); overflow: auto; margin-top: 12px; }
+.scene-app-picker .check-row { padding: 8px; border: 1px solid var(--line); border-radius: 7px; overflow-wrap: anywhere; }
+.scene-app-pick-count { font-size: 13px; margin-top: 10px; color: var(--muted); }
+.scene-form-note, .scene-app-reference, .scene-list-heading .button, .scene-sequence-tools .button,
+.native-action-select strong, .native-action-select small, .scene-action-index, .native-action-order .button,
+.scene-schedule h3, .scene-dependency select, .scene-dependency input[type=number], .scene-advanced summary,
+.scene-card-header p, .scene-card-description, .scene-card-meta, .scene-card-meta .badge, .scene-card-footer .button,
+.scene-run-summary, .scene-execution summary, .scene-result, .scene-result strong, .scene-result p,
+.scene-result small, .scene-result-status, .scene-history-choice, .scene-history-choice select { font-size: 13px; }
+.native-action-order .button { min-height: 30px; }
+.scene-result-entrance { flex-shrink: 0; background: var(--panel); border-bottom: 1px solid var(--line); }
+.scene-result-entrance > button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; padding: 7px 18px; text-align: left; font-size: 13px; }
+.scene-result-entrance strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scene-result-entrance span { flex-shrink: 0; color: var(--muted); }
+.scene-results-panel { position: absolute; z-index: 25; top: 132px; right: 16px; bottom: 16px; width: min(700px, calc(100% - 32px)); display: flex; flex-direction: column; min-height: 0; padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+html[data-density=compact] .scene-results-panel { top: 106px; }
+.scene-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; }
+.scene-panel-heading h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.scene-results-panel .scene-execution { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; margin: 0; padding: 10px 0 0; border: 0; border-radius: 0; background: transparent; }
+.scene-results-panel .run-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; flex-shrink: 0; font-size: 13px; }
+.scene-results-panel .run-heading strong { min-width: 0; overflow-wrap: anywhere; max-height: 3em; overflow: auto; }
+.scene-results-panel .scene-run-summary { margin: 6px 0; flex-shrink: 0; }
+.scene-result-tools, .scene-result-recovery { display: flex; flex-wrap: wrap; gap: 6px; flex-shrink: 0; }
+.scene-result-tools .button, .scene-result-recovery .button, .scene-panel-heading .button { min-height: 32px; padding: 6px 10px; font-size: 13px; }
+.scene-results-panel .scene-form-note { margin: 7px 0; line-height: 1.5; flex-shrink: 0; }
+.scene-results-panel .scene-results { flex: 1; min-height: 48px; overflow: auto; overscroll-behavior: contain; margin: 0; scrollbar-width: thin; }
+.scene-result > div, .scene-result details { min-width: 0; }
+.scene-result p, .scene-result details { overflow-wrap: anywhere; }
+.scene-result-status { max-width: 65px; white-space: normal; text-align: right; }
+.scene-results-panel .scene-history-choice { margin-top: 8px; flex-shrink: 0; gap: 6px; }
+.scene-history-choice select { flex: 1; min-width: 0; }
+.scene-results-panel :is(button, select, summary):focus-visible, .scene-result-entrance button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (max-width: 700px), (max-height: 540px) {
+  .scene-results-panel { left: 10px; right: 10px; bottom: 10px; width: auto; padding: 10px; }
+  .scene-result-entrance > button { gap: 8px; padding-inline: 12px; }
+  .native-action-list, .native-action-config { padding: 14px; }
+  .scene-mode-controls .field { min-width: 140px; }
+  .scene-mode-controls .scene-form-note { flex-basis: 100%; }
+  .native-action-list { max-height: 240px; }
+  .scene-results-panel .scene-history-choice > select { max-width: 100%; }
+}
+.unified-launch-feedback > span { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; max-height: 4.5em; overflow: auto; }
+.unified-launch-feedback > .button { font-size: 13px; max-width: 170px; white-space: normal; }
+@media (max-width: 700px) {
+  html[data-desktop-host] .workspace-header { gap: 6px; padding: 0 12px; }
+  html[data-desktop-host] .global-search { flex: 1; min-width: 0; width: auto; max-width: 210px; }
+  html[data-desktop-host] .global-search > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html[data-desktop-host] .workspace-header .brand { min-width: 0; }
+  html[data-desktop-host] .workspace-header .brand > span:last-child { display: none; }
+  html[data-desktop-host] .page-heading { flex-wrap: wrap; }
+  .usability-home-nav { padding: 5px 12px; }
+  .unified-result-main { gap: 8px; }
+  .unified-operation { max-width: 98px; }
+  html[data-desktop-host] .workspace > .unified-launch-feedback { padding: 8px 12px; }
+  html[data-desktop-host] .modal.wide { width: calc(100vw - 32px); max-height: calc(100vh - 32px); }
+}

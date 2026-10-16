@@ -7,7 +7,7 @@ var passed = 0;
 var failed = 0;
 try
 {
-    Check("Legacy schema 3 migrates to 4 without losing apps, scenes or launcher pins", () =>
+    Check("Legacy schema 3 migrates to 5 without losing apps, scenes or launcher pins", () =>
     {
         var store = Store("legacy");
         var appId = Guid.NewGuid().ToString("D");
@@ -17,9 +17,9 @@ try
         Directory.CreateDirectory(Path.GetDirectoryName(store.SettingsPath)!);
         File.WriteAllText(store.SettingsPath, JsonSerializer.Serialize(old, SettingsStore.JsonOptions));
         var loaded = store.Load();
-        Equal(4, loaded.SchemaVersion); Equal(appId, loaded.AppEntries.Single().Id); Equal(sceneId, loaded.Scenes.Single().Id);
+        Equal(5, loaded.SchemaVersion); Equal(appId, loaded.AppEntries.Single().Id); Equal(sceneId, loaded.Scenes.Single().Id);
         Equal(appId, loaded.LauncherPins.Single().ItemId); True(!loaded.StartWithWindows); True(!loaded.DesktopIcons.FirstHideAuthorized);
-        Equal(4, JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(store.SettingsPath), SettingsStore.JsonOptions)!.SchemaVersion);
+        Equal(5, JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(store.SettingsPath), SettingsStore.JsonOptions)!.SchemaVersion);
     });
     Check("System configuration snapshots are deep and invalid changes preserve the saved file", () =>
     {

@@ -8,6 +8,7 @@ Directory.CreateDirectory(root);
 var passed = 0; var failed = 0;
 try
 {
+    await Task5Checks.Run(Check, root);
     await Check("Five stable app references persist, isolate snapshots, and read updated entries", async () =>
     {
         var store = Store(); var library = new AppLibraryService(store);
@@ -137,7 +138,7 @@ return failed == 0 ? 0 : 1;
 SettingsStore Store() { var store = new SettingsStore(Path.Combine(root, Id())); store.Load(); return store; }
 static string Id() => Guid.NewGuid().ToString("D");
 static SceneAction Action(string name) => new() { Id = Id(), Name = name, Type = "application", Target = @"C:\Tests\A.exe" };
-static Scene Scene(params SceneAction[] actions) => new() { Id = Id(), Name = "Test scene", Actions = actions.Select((action, order) => action with { DisplayOrder = order }).ToList() };
+static Scene Scene(params SceneAction[] actions) => new() { Id = Id(), Name = "Test scene", EditorMode = "advanced", Actions = actions.Select((action, order) => action with { DisplayOrder = order }).ToList() };
 static ActionDependency Edge(SceneAction child, SceneAction parent) => new() { ActionId = child.Id, DependsOnActionId = parent.Id };
 static ActionOutcome Ok() => new(true, false, "submitted", "Submitted", 123, @"C:\Tests\A.exe");
 static async Task<SceneExecution> Run(SceneExecutionService engine, string sceneId) { var run = engine.Start(sceneId); await engine.WaitForCompletionAsync(run.Id).WaitAsync(TimeSpan.FromSeconds(5)); return engine.Snapshot().Single(item => item.Id == run.Id); }

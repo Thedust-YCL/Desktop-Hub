@@ -17,7 +17,12 @@ function setup({ surface = 'workspace', completed = false, required = true, conf
     showModal(title, body, footer, options) { H.ui.modal = { title, body, footer, ...options }; }, closeModal() { H.ui.modal = null; } };
   H.actions['nr-cancel'] = async () => { resources.scan = null; resources.preview = null; H.closeModal(); };
   H.actions['nr-confirm'] = async () => { if (confirmFails) return; resources.scan = null; resources.preview = null; H.closeModal(); };
-  H.actions['app-add'] = async () => { state.settings.appEntries.push({ id: 'new', name: '新应用' }); };
+  H.actions['app-add'] = async () => { H.showModal('添加应用','选择后确认',''); };
+  H.actions['app-import-confirm'] = async () => { state.settings.appEntries.push({ id: 'new', name: '新应用' });H.closeModal(); };
+  H.actions['app-launch'] = async el => { sent.push({type:'apps.launch',payload:{appId:el.dataset.id}});return {success:true,message:'已提交启动请求。'}; };
+  H.actions['launcher-manage'] = el => H.showModal('固定入口',el.dataset.surface,'');
+  H.actions['launcher-pins-save'] = async () => {sent.push({type:'launcher.setPins',payload:{}});H.closeModal();};
+  H.actions['close-modal'] = () => H.closeModal();
   const desktop = { getState: () => ({ surface, hostState: state, launch: { status: 'idle', message: '已添加新应用。' } }), applyHostState(next) { state = { ...state, ...structuredClone(next) }; H.render(); } };
   const bridge = { async request(type, payload = {}) {
     sent.push({ type, payload: structuredClone(payload) });
@@ -37,6 +42,13 @@ function setup({ surface = 'workspace', completed = false, required = true, conf
     start() { H.render(); }, next() { H.actions['guide-next'](); }, toStep(index) { while (window.DesktopHubOnboarding.getState().step < index) H.actions['guide-next'](); }, previews: () => previews, renders: () => renders };
 }
 
+test('Task4 six-step guide starts with apps then pins and optional files; entering every step makes no writes', () => {
+  const env=setup();env.start();
+  for(const title of ['欢迎使用 Desktop Hub','添加并尝试启动应用','固定常用入口','可选：导入文件来源','常驻与桌面设置','准备好了']){
+    assert.equal(env.H.ui.modal.title,title);assert.equal(env.sent.length,0);env.next();
+  }
+});
+
 test('first manual Workspace initialization opens one locked guide without changing files or system preferences', () => {
   const env = setup(); env.start();
   assert.equal(env.guide().active, true);
@@ -46,7 +58,7 @@ test('first manual Workspace initialization opens one locked guide without chang
   assert.equal(env.guide().step, 1);
   assert.equal(env.sent.length, 0);
   env.H.navigate('settings');
-  assert.equal(env.H.ui.modal.title, '先导入一个文件来源');
+  assert.equal(env.H.ui.modal.title, '添加并尝试启动应用');
   assert.equal(env.navigate(), '');
 });
 
@@ -94,37 +106,56 @@ test('replay retains completion, apps and sources; back/next and finishing never
 });
 
 test('import is opt-in and uses native preview; cancel and confirm return to the same step', async () => {
-  const env = setup(); env.start(); env.next(); assert.equal(env.previews(), 0);
+  const env = setup(); env.start(); env.toStep(3); assert.equal(env.previews(), 0);
   await env.H.actions['guide-import']({ dataset: { kind: 'custom' } });
   assert.equal(env.guide().suspended, true); assert.equal(env.H.ui.modal.title, '确认索引来源');
-  env.next(); assert.equal(env.guide().step, 1);
-  await env.H.actions['nr-cancel'](); assert.equal(env.guide().suspended, false); assert.equal(env.guide().step, 1);
+  env.next(); assert.equal(env.guide().step, 3);
+  await env.H.actions['nr-cancel'](); assert.equal(env.guide().suspended, false); assert.equal(env.guide().step, 3);
   await env.H.actions['guide-import']({ dataset: { kind: 'desktop' } });
-  await env.H.actions['nr-confirm'](); assert.equal(env.guide().suspended, false); assert.equal(env.H.ui.modal.title, '先导入一个文件来源');
+  await env.H.actions['nr-confirm'](); assert.equal(env.guide().suspended, false); assert.equal(env.H.ui.modal.title, '可选：导入文件来源');
   assert.equal(env.previews(), 2); assert.equal(env.sent.length, 0);
 });
 
 test('failed import confirmation preserves the preview for correction', async () => {
-  const env = setup({ confirmFails: true }); env.start(); env.next(); await env.H.actions['guide-import']({ dataset: { kind: 'custom' } });
+  const env = setup({ confirmFails: true }); env.start(); env.toStep(3); await env.H.actions['guide-import']({ dataset: { kind: 'custom' } });
   await env.H.actions['nr-confirm'](); assert.equal(env.guide().suspended, true); assert.equal(env.H.ui.modal.title, '确认索引来源');
 });
 
 test('changing recursive preview keeps guide suspended until final cancellation or confirmation', async () => {
-  const env = setup(); env.start(); env.next(); await env.H.actions['guide-import']({ dataset: { kind: 'desktop' } });
+  const env = setup(); env.start(); env.toStep(3); await env.H.actions['guide-import']({ dataset: { kind: 'desktop' } });
   await env.H.actions['nr-rescan']({ dataset: { kind: 'desktop' } });
   assert.equal(env.guide().suspended, true); assert.equal(env.H.ui.modal.title, '确认索引来源');
-  await env.H.actions['nr-confirm'](); assert.equal(env.guide().suspended, false); assert.equal(env.guide().step, 1);
+  await env.H.actions['nr-confirm'](); assert.equal(env.guide().suspended, false); assert.equal(env.guide().step, 3);
 });
 
-test('usage teaches saved shortcuts and supports real application selection', async () => {
-  const env = setup(); env.start(); env.toStep(2);
-  assert.match(env.H.ui.modal.body, /Ctrl\+Shift\+W/); assert.match(env.H.ui.modal.body, /Ctrl\+Shift\+D/);
-  await env.H.actions['guide-add-app'](); assert.equal(env.state().settings.appEntries.length, 2);
-  assert.equal(env.guide().step, 2); assert.match(env.H.ui.modal.body, /已添加新应用/);
+test('Task4 explicit app import and pin child dialogs resume the original guide step', async () => {
+  const env=setup();env.start();env.toStep(1);
+  assert.equal(env.sent.length,0);await env.H.actions['guide-add-app']();
+  assert.equal(env.guide().suspended,true);assert.equal(env.H.ui.modal.title,'添加应用');
+  env.next();assert.equal(env.guide().step,1);
+  await env.H.actions['app-import-confirm']();assert.equal(env.guide().suspended,false);assert.equal(env.guide().step,1);
+  assert.equal(env.state().settings.appEntries.length,2);assert.equal(env.sent.length,0);
+  await env.H.actions['guide-launch']({dataset:{id:'new'}});assert.deepEqual(env.sent,[{type:'apps.launch',payload:{appId:'new'}}]);assert.match(env.H.ui.modal.body,/已提交启动请求/);
+  env.next();assert.match(env.H.ui.modal.body,/Ctrl\+Shift\+W/);assert.match(env.H.ui.modal.body,/Ctrl\+Shift\+D/);
+  await env.H.actions['guide-pins']({dataset:{surface:'mini'}});assert.equal(env.guide().suspended,true);assert.equal(env.H.ui.modal.title,'固定入口');
+  await env.H.actions['launcher-pins-save']();assert.equal(env.guide().suspended,false);assert.equal(env.guide().step,2);assert.equal(env.sent.at(-1).type,'launcher.setPins');
+});
+
+test('Task4 app import cancellation, failed confirmation and skipped-result dialog preserve guide ownership',async()=>{
+  const env=setup();env.start();env.toStep(1);await env.H.actions['guide-add-app']();
+  await env.H.actions['close-modal']();assert.equal(env.guide().suspended,false);assert.equal(env.guide().step,1);
+  await env.H.actions['guide-add-app']();assert.equal(env.guide().suspended,true);
+  const original=env.H.actions['app-import-confirm'];
+  // A native failure leaves the owned importer open for correction.
+  env.H.ui.modal.title='添加失败，可重试';await Promise.resolve();assert.equal(env.guide().suspended,true);assert.equal(env.H.ui.modal.title,'添加失败，可重试');
+  await original();assert.equal(env.guide().step,1);assert.equal(env.guide().suspended,false);
+  await env.H.actions['guide-add-app']();env.H.closeModal();env.H.showModal('应用添加结果','部分项目不支持，已跳过','');await Promise.resolve();
+  assert.equal(env.guide().suspended,true);assert.equal(env.H.ui.modal.title,'应用添加结果');
+  await env.H.actions['close-modal']();assert.equal(env.guide().suspended,false);assert.equal(env.guide().step,1);
 });
 
 test('first hide requires explicit policy; subsequent hide and show use actual current state', async () => {
-  const env = setup(); env.start(); env.toStep(3);
+  const env = setup(); env.start(); env.toStep(4);
   assert.doesNotMatch(env.H.ui.modal.body, / checked/);
   assert.match(env.H.ui.modal.body, /data-visible="false" disabled/);
   await env.H.actions['guide-icons']({ dataset: { visible: 'false' } }); assert.equal(env.sent.length, 0);

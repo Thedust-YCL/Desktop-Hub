@@ -58,6 +58,34 @@ test('first hide requires explicit unselected policy; cancelling sends no system
   assert.equal(env.state().systemIntegration.desktopIcons.visible, true);
 });
 
+test('Task4 Dock launch auto-close is opt-in and saves only its dedicated setting',async()=>{
+  const env=setup();assert.equal(env.state().settings.autoCloseDock,undefined);
+  const markup=env.section('surfaces');assert.match(markup,/独立应用启动请求成功后自动收起 Dock/);assert.doesNotMatch(markup,/aria-label="独立应用启动请求成功后自动收起 Dock" checked/);
+  await env.H.actions['sys-auto-close-dock']({checked:true});assert.deepEqual(env.sent.filter(x=>x.type==='settings.save').at(-1).payload,{settings:{autoCloseDock:true}});
+  assert.equal(env.state().settings.autoCloseDock,true);
+});
+
+test('performance mode choice saves the explicit preference and explains the hidden release delay', async () => {
+  const env = setup();
+  const markup = env.section('system');
+  assert.match(markup, /性能模式/);
+  assert.match(markup, /快速唤出/);
+  assert.match(markup, /轻量常驻/);
+  assert.match(markup, /60 秒/);
+  await env.H.actions['sys-performance-mode']({ value: 'lightweight' });
+  assert.deepEqual(env.sent.filter(x => x.type === 'settings.save').at(-1).payload, { settings: { performanceMode: 'lightweight' } });
+  assert.equal(env.state().settings.performanceMode, 'lightweight');
+});
+
+test('Workspace brand displays the connected host version after every state update', () => {
+  const env = setup(), label = { textContent: '' };
+  env.nodes.set('.workspace-header .brand small', label);
+  env.state().version = '0.3.0'; env.H.render();
+  assert.equal(label.textContent, '工作空间 · 0.3.0');
+  env.state().version = '0.3.1'; env.H.render();
+  assert.equal(label.textContent, '工作空间 · 0.3.1');
+});
+
 test('first hide transmits chosen exit policy; subsequent hide commands remain target-state writes', async () => {
   const env = setup();
   env.H.actions['sys-icons']({ dataset: { visible: 'false' } });

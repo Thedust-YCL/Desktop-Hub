@@ -7,12 +7,12 @@
   const requestedSurface = new URLSearchParams(location.search).get('surface');
   const surface = surfaces.has(requestedSurface) ? requestedSurface : 'workspace';
   const editableSettings = [
-    'theme', 'reducedMotion', 'transparency', 'miniPosition', 'miniSize', 'miniMode', 'miniEnabled', 'miniOpacity', 'workspaceOpacity',
+    'theme', 'reducedMotion', 'uiDensity', 'performanceMode', 'transparency', 'miniPosition', 'miniSize', 'miniMode', 'miniEnabled', 'miniOpacity', 'workspaceOpacity',
     'dockPosition', 'dockSize', 'dockIconSize', 'hoverEnabled', 'hoverDelay', 'allowForeground', 'foregroundBlocklist'
   ];
   // These preferences use their own explicit saves. Including them in the
   // debounced appearance snapshot could overwrite a newer system-setting reply.
-  const dedicatedSettings = new Set(['miniEnabled', 'miniOpacity', 'workspaceOpacity', 'foregroundBlocklist']);
+  const dedicatedSettings = new Set(['performanceMode', 'miniEnabled', 'miniOpacity', 'workspaceOpacity', 'foregroundBlocklist']);
   const pages = new Set(['home', 'scenes', 'library', 'tags', 'favorites', 'search', 'settings']);
   const prototypeStorageKey = 'desktop-hub-m0-v07';
   const originalRender = H.render;
@@ -38,6 +38,13 @@
   let managingApps = false;
   let pinDraft = null;
   let warningShown = false;
+  let importDraft = null;
+  let launchSequence = 0, workspaceFailure = null, dragItem = null;
+  const ownsImport = draft => importDraft === draft && H.ui.modal === draft.modal;
+  function importModal(...args) { H.showModal(...args); if (importDraft) importDraft.modal = H.ui.modal; }
+  const newImportDraft = () => ({ query: '', selected: new Set(), recursive: false, scan: null, busy: false, suppress: false, error: '', icons: {}, iconLoaded: new Set(), iconLoading: false });
+  const originalCloseModal = H.closeModal;
+  H.closeModal = function () { importDraft = null; return originalCloseModal.call(H); };
 
   H.state.onboardingComplete = true;
   H.ui.surface = surface;
@@ -82,6 +89,7 @@
     if (!next || typeof next !== 'object' || !next.settings || typeof next.settings !== 'object') return;
     hostState = { ...hostState, ...next };
     if (next.executions) window.DesktopHubScenes?.acceptExecutions(next.executions);
+    if (Array.isArray(next.layoutResults)) window.DesktopHubWindowLayout?.receiveResults(next.layoutResults);
     if (Array.isArray(next.settings.scenes)) H.state.scenes = next.settings.scenes.map(scene => ({ ...scene,
       pinned: next.settings.launcherPins?.some(pin => pin.enabled && pin.itemType === 'scene' && pin.itemId === scene.id) }));
     syncSceneMetadata();
@@ -168,23 +176,57 @@
   function statusMarkup() {
     return `<p class="native-launch-status" data-status="${e(launch.status)}" role="status" aria-live="polite">${e(launch.message)}${launch.code ? `<span class="native-launch-code">${e(launch.code)}</span>` : ''}</p>`;
   }
-  function appTile(app, index, count) {
+  function appTile(app, index, count, manage = managingApps) {
     const state = appLaunches.get(app.id);
-    return `<div class="launcher-tile" data-app-id="${e(app.id)}"><button class="launcher-app" data-action="app-launch" data-id="${e(app.id)}" data-status="${e(state?.status || 'idle')}" aria-label="启动 ${e(app.name)}" title="${e(state?.message || app.name)}" ${isPending(app.id) || !hostState ? 'disabled' : ''}><span class="launcher-icon">${appIcon(app)}</span><strong>${e(app.name)}</strong>${isPending(app.id) ? '<span class="launcher-app-state">启动中…</span>' : ''}</button><button class="icon-button small app-favorite ${app.pinnedToDock ? 'is-favorite' : ''}" data-action="app-favorite" data-id="${e(app.id)}" aria-label="${app.pinnedToDock ? '取消收藏' : '收藏应用'} ${e(app.name)}" title="${app.pinnedToDock ? '取消收藏并从 Dock 移除' : '收藏应用并加入 Dock'}" aria-pressed="${!!app.pinnedToDock}" ${mutationInFlight ? 'disabled' : ''}>${icon('star', 16)}</button>${managingApps ? `<div class="launcher-tile-tools"><button class="icon-button small" data-action="app-move" data-id="${e(app.id)}" data-direction="-1" aria-label="向前移动 ${e(app.name)}" ${index === 0 || appQuery || mutationInFlight ? 'disabled' : ''}>${icon('arrow-left', 14)}</button><button class="icon-button small" data-action="app-edit" data-id="${e(app.id)}" aria-label="编辑 ${e(app.name)}">${icon('edit', 15)}</button><button class="icon-button small" data-action="app-move" data-id="${e(app.id)}" data-direction="1" aria-label="向后移动 ${e(app.name)}" ${index === count - 1 || appQuery || mutationInFlight ? 'disabled' : ''}>${icon('arrow-right', 14)}</button></div>` : ''}</div>`;
+    return `<div class="launcher-tile" data-app-id="${e(app.id)}" draggable="${manage && !appQuery && !mutationInFlight}" data-sort-kind="app" data-sort-id="${e(app.id)}"><button class="launcher-app" data-action="app-launch" data-id="${e(app.id)}" data-status="${e(state?.status || 'idle')}" aria-label="启动 ${e(app.name)}" title="${e(state?.message || app.name)}" ${isPending(app.id) || !hostState ? 'disabled' : ''}><span class="launcher-icon">${appIcon(app)}</span><strong>${e(app.name)}</strong>${isPending(app.id) ? '<span class="launcher-app-state">启动中…</span>' : ''}</button><button class="icon-button small app-favorite ${app.favorite ? 'is-favorite' : ''}" data-action="app-favorite" data-id="${e(app.id)}" aria-label="${app.favorite ? '取消收藏' : '收藏应用'} ${e(app.name)}" title="${app.favorite ? '取消收藏' : '收藏应用'}" aria-pressed="${!!app.favorite}" ${mutationInFlight ? 'disabled' : ''}>${icon('star', 16)}</button>${manage ? `<div class="launcher-tile-tools"><button class="icon-button small" data-action="app-move" data-id="${e(app.id)}" data-direction="-1" aria-label="向前移动 ${e(app.name)}" ${index === 0 || appQuery || mutationInFlight ? 'disabled' : ''}>${icon('arrow-left', 14)}</button><button class="icon-button small" data-action="app-edit" data-id="${e(app.id)}" aria-label="编辑 ${e(app.name)}">${icon('edit', 15)}</button><button class="icon-button small" data-action="app-move" data-id="${e(app.id)}" data-direction="1" aria-label="向后移动 ${e(app.name)}" ${index === count - 1 || appQuery || mutationInFlight ? 'disabled' : ''}>${icon('arrow-right', 14)}</button></div>` : ''}</div>`;
+  }
+  function groups() { return [...(hostState?.settings?.appGroups || [])].sort((a,b) => a.displayOrder - b.displayOrder); }
+  function groupedApplicationsMarkup(entries) {
+    return [...groups(), { id: null, name: '未分组' }].map((group,index) => {
+      const members = entries.filter(app => (app.groupId || null) === group.id);
+      if (!members.length && (!managingApps || appQuery)) return '';
+      const tools = managingApps && group.id ? `<div class="toolbar"><button class="button small" data-action="app-group-move" data-id="${e(group.id)}" data-direction="-1" ${index === 0 || appQuery || mutationInFlight ? 'disabled' : ''} aria-label="向前移动分组 ${e(group.name)}">↑</button><button class="button small" data-action="app-group-move" data-id="${e(group.id)}" data-direction="1" ${index === groups().length - 1 || appQuery || mutationInFlight ? 'disabled' : ''} aria-label="向后移动分组 ${e(group.name)}">↓</button><button class="button small" data-action="app-group-edit" data-id="${e(group.id)}">改名</button><button class="button small" data-action="app-group-remove" data-id="${e(group.id)}">删除分组…</button></div>` : '';
+      return `<section class="app-group" data-group-id="${e(group.id || '')}"><div class="app-group-heading" draggable="${!!group.id && managingApps && !appQuery && !mutationInFlight}" data-sort-kind="group" data-sort-id="${e(group.id || '')}"><h3>${e(group.name)} <small>${members.length}</small></h3>${tools}</div><div class="launcher-grid">${members.map((app,i) => appTile(app,i,members.length)).join('')}</div>${!members.length ? '<p class="muted">还没有应用。可在编辑应用时选择此分组。</p>' : ''}</section>`;
+    }).join('');
+  }
+  function favoriteApplicationsMarkup() {
+    const favorites = apps().filter(app => app.favorite);
+    return `<section class="favorite-applications" aria-label="收藏的应用"><h2>应用 <small>${favorites.length}</small></h2><div class="launcher-grid">${favorites.map((app,i) => appTile(app,i,favorites.length,false)).join('')}</div>${favorites.length ? '' : '<p class="muted">还没有收藏的应用。在首页点击应用旁的星标添加。</p>'}</section>`;
+  }
+  function showGroupEditor(group) {
+    if (H.ui.modal || mutationInFlight) return;
+    H.showModal(group ? '分组改名' : '新建分组', `<label class="field"><span>分组名称</span><input id="app-group-name" maxlength="80" autofocus value="${e(group?.name || '')}"></label><p id="app-edit-error" class="form-error" role="alert"></p>`, `<button class="button" data-action="close-modal">取消</button><button class="button primary" data-action="app-group-save" data-id="${e(group?.id || '')}">保存</button>`);
+  }
+  async function reorderApp(fromId,toId) {
+    if (appQuery || mutationInFlight) return;
+    const entries = apps(), from = appById(fromId), to = appById(toId);
+    if (!from || !to || from.id === to.id || (from.groupId || null) !== (to.groupId || null)) return;
+    const slots = entries.map((app,i) => (app.groupId || null) === (from.groupId || null) ? i : -1).filter(i => i >= 0);
+    const members = slots.map(i => entries[i]), start = members.findIndex(app => app.id === fromId), end = members.findIndex(app => app.id === toId);
+    members.splice(end,0,members.splice(start,1)[0]); slots.forEach((slot,i) => { entries[slot] = members[i]; });
+    await mutate('apps.reorder',{ appIds: entries.map(app => app.id) });
+  }
+  async function reorderGroup(fromId,toId) {
+    if (appQuery || mutationInFlight) return;
+    const entries = groups(), start = entries.findIndex(g => g.id === fromId), end = entries.findIndex(g => g.id === toId);
+    if (start < 0 || end < 0 || start === end) return;
+    entries.splice(end,0,entries.splice(start,1)[0]);
+    await mutate('apps.groupReorder',{ groupIds: entries.map(g => g.id) });
   }
   function launcherMarkup() {
     const entries = apps();
     const query = appQuery.trim().toLocaleLowerCase();
     const visible = entries.filter(app => !query || app.name.toLocaleLowerCase().includes(query) || app.target.toLocaleLowerCase().includes(query));
-    return `<section class="application-launcher" aria-labelledby="launcher-title"><div class="launcher-heading"><div><h2 id="launcher-title">我的应用 <span>${entries.length}</span></h2><p>点击启动应用，收藏的应用会显示在 Dock。</p></div><div class="toolbar"><button class="button quiet" data-action="launcher-manage" data-surface="mini">${icon('pin', 16)} 固定入口</button><button class="button quiet" data-action="apps-manage" aria-pressed="${managingApps}">${icon('edit', 16)} ${managingApps ? '完成管理' : '管理应用'}</button>${button('app-add', `${icon('plus', 17)} ${adding ? '等待选择…' : '添加应用'}`, true, !hostState || adding || mutationInFlight)}</div></div>${entries.length ? `<label class="launcher-search">${icon('search', 17)}<input id="app-query" type="search" data-change="apps-search" value="${e(appQuery)}" placeholder="查找应用" aria-label="查找应用"><span>${visible.length} 个应用</span></label><div class="launcher-grid">${visible.map((app, index) => appTile(app, index, visible.length)).join('')}</div>${!visible.length ? `<div class="launcher-empty"><p>没有找到“${e(appQuery)}”</p><button class="text-button" data-action="apps-clear-search">清除搜索</button></div>` : ''}` : `<div class="launcher-empty"><span class="launcher-empty-icon">${icon('app', 32)}</span><h3>把常用软件放在这里</h3><p>选择电脑上的 EXE 或 Windows 快捷方式，每个应用会独立保存。</p>${button('app-add', `${icon('plus', 16)} 添加第一个应用`, false, !hostState || adding || mutationInFlight)}</div>`}${managingApps && entries.length ? `<p class="launcher-hint">${appQuery ? '清除搜索后可调整应用顺序。' : '用图标下方的箭头排序；编辑中可设置启动参数与固定位置。'}</p>` : ''}${statusMarkup()}</section>`;
+    return `<section class="application-launcher" aria-labelledby="launcher-title"><div class="launcher-heading"><div><h2 id="launcher-title">我的应用 <span>${entries.length}</span></h2><p>点击启动应用；收藏与 Mini / Dock 固定可分别设置。</p></div><div class="toolbar"><button class="button quiet" data-action="launcher-manage" data-surface="mini">${icon('pin', 16)} 固定入口</button><button class="button quiet" data-action="apps-manage" aria-pressed="${managingApps}">${icon('edit', 16)} ${managingApps ? '完成管理' : '管理应用'}</button>${managingApps ? button('app-group-new', '新建分组') : ''}${button('app-add', `${icon('plus', 17)} ${adding ? '等待选择…' : '添加应用'}`, true, !hostState || adding || mutationInFlight)}</div></div>${entries.length || managingApps && groups().length ? `<label class="launcher-search">${icon('search', 17)}<input id="app-query" type="search" data-change="apps-search" value="${e(appQuery)}" placeholder="查找应用" aria-label="查找应用"><span>${visible.length} 个应用</span></label>${groupedApplicationsMarkup(visible)}${!visible.length ? `<div class="launcher-empty"><p>没有找到“${e(appQuery)}”</p><button class="text-button" data-action="apps-clear-search">清除搜索</button></div>` : ''}` : `<div class="launcher-empty"><span class="launcher-empty-icon">${icon('app', 32)}</span><h3>把常用软件放在这里</h3><p>选择电脑上的 EXE 或 Windows 快捷方式，每个应用会独立保存。</p>${button('app-add', `${icon('plus', 16)} 添加第一个应用`, false, !hostState || adding || mutationInFlight)}</div>`}${entries.length && (managingApps || appQuery) ? `<p class="launcher-hint">${appQuery ? '清除搜索后可调整应用顺序。' : '拖动或用箭头调整组内顺序；编辑中可移动到其他分组。'}</p>` : ''}${statusMarkup()}</section>`;
   }
   function dockLaunch() {
     const entries = pins('dock').filter(pin => pin.itemType === 'app');
+    if (!entries.length) return `<section class="native-dock-launch is-empty" aria-label="常用应用"><button class="text-button dock-add-app" data-action="native-open-launch">添加应用入口 ${icon('plus',15)}</button>${statusMarkup()}</section>`;
     const size = ['compact', 'normal', 'large'].includes(H.state.settings.dockIconSize) ? H.state.settings.dockIconSize : 'normal';
     return `<section class="native-dock-launch" aria-label="常用应用"><div class="dock-section-title">常用应用 <button class="text-button" data-action="native-open-launch" aria-label="在工作空间管理应用">管理应用 ${icon('edit', 13)}</button></div><div class="dock-app-grid icon-size-${size}">${entries.map(pin => {
       const app = pinItem(pin);
       return app ? `<button class="dock-app" data-action="app-launch" data-id="${e(app.id)}" data-status="${e(appLaunches.get(app.id)?.status || 'idle')}" title="${e(appLaunches.get(app.id)?.message || app.name)}" aria-label="启动 ${e(app.name)}" ${isPending(app.id) ? 'disabled' : ''}><span>${appIcon(app, 30)}</span><small>${e(app.name)}</small></button>` : `<button class="dock-app launcher-missing" data-action="launcher-manage" data-surface="dock" title="固定的应用已移除，请重新选择">${icon('alert', 25)}<small>入口失效</small></button>`;
-    }).join('')}</div>${!entries.length ? '<button class="text-button dock-add-app" data-action="native-open-launch">打开应用库 ' + icon('plus', 15) + '</button>' : ''}${statusMarkup()}<div class="dock-density"><label for="dock-icon-size">图标大小</label><select id="dock-icon-size" data-change="dock-icon-size" aria-label="Dock 应用图标大小">${[['compact', '紧凑'], ['normal', '标准'], ['large', '较大']].map(([value, label]) => `<option value="${value}" ${size === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div></section>`;
+    }).join('')}</div>${!entries.length ? '<button class="text-button dock-add-app" data-action="native-open-launch">打开应用库 ' + icon('plus', 15) + '</button>' : ''}${statusMarkup()}</section>`;
   }
   H.pages.home = function () {
     const previous = originalHome?.() || '<div class="launchpad-grid"></div>';
@@ -194,10 +236,10 @@
   function showAppEditor(app, draft = app) {
     if (surface !== 'workspace' || !app) return;
     const miniFull = pins('mini').filter(pin => !(pin.itemType === 'app' && pin.itemId === app.id)).length >= 4;
-    H.showModal('编辑应用', `<div class="app-editor-identity"><span class="launcher-icon">${appIcon(app, 32)}</span><div><strong>${e(app.name)}</strong><p>每个应用单独保存与启动。</p></div></div><div class="stack"><label class="field"><span>显示名称</span><input id="app-name" type="text" value="${e(draft.name)}" maxlength="120" required autofocus></label><div class="field"><span>程序或快捷方式</span><div class="app-target-row"><p title="${e(app.target)}">${e(app.target)}</p><button class="button small" data-action="app-replace-target" data-id="${e(app.id)}">${icon('folder', 15)} 更换文件</button></div></div><label class="field"><span>启动参数（可选）</span><input id="app-arguments" type="text" value="${e(draft.arguments || '')}" maxlength="4096" placeholder="例如 --new-window"><small>参数传给所选程序，由 Desktop Hub 校验后启动。</small></label><label class="field"><span>工作目录（可选）</span><input id="app-working-directory" type="text" value="${e(draft.workingDirectory || '')}" maxlength="1024" placeholder="留空使用程序默认目录"></label><div class="app-pin-options"><label class="check-row"><input id="app-pin-dock" type="checkbox" ${draft.pinnedToDock ? 'checked' : ''}><span>收藏应用 · 显示在 Dock</span></label><label class="check-row"><input id="app-pin-mini" type="checkbox" ${draft.pinnedToMini ? 'checked' : ''} ${miniFull && !draft.pinnedToMini ? 'disabled' : ''}><span>固定到 Mini ${miniFull && !draft.pinnedToMini ? '（已有 4 个入口）' : ''}</span></label></div><p class="page-note">固定只添加启动入口。各位置的显示顺序可在“固定入口”中调整。</p><p id="app-edit-error" class="form-error" role="alert"></p></div>`, `<button class="button danger app-remove-button" data-action="app-remove" data-id="${e(app.id)}">${icon('trash', 16)} 从应用库移除</button><button class="button" data-action="close-modal">取消</button><button class="button primary" data-action="app-save" data-id="${e(app.id)}">保存应用</button>`, { wide: false });
+    H.showModal('编辑应用', `<div class="app-editor-identity"><span class="launcher-icon">${appIcon(app, 32)}</span><div><strong>${e(app.name)}</strong><p>每个应用单独保存与启动。</p></div></div><div class="stack"><label class="field"><span>显示名称</span><input id="app-name" type="text" value="${e(draft.name)}" maxlength="120" required autofocus></label><div class="field"><span>程序或快捷方式</span><div class="app-target-row"><p title="${e(app.target)}">${e(app.target)}</p><button class="button small" data-action="app-replace-target" data-id="${e(app.id)}">${icon('folder', 15)} 更换文件</button></div></div><label class="field"><span>启动参数（可选）</span><input id="app-arguments" type="text" value="${e(draft.arguments || '')}" maxlength="4096" placeholder="例如 --new-window"><small>参数传给所选程序，由 Desktop Hub 校验后启动。</small></label><label class="field"><span>工作目录（可选）</span><input id="app-working-directory" type="text" value="${e(draft.workingDirectory || '')}" maxlength="1024" placeholder="留空使用程序默认目录"></label><div class="app-pin-options"><label class="check-row"><input id="app-favorite" type="checkbox" ${draft.favorite ? 'checked' : ''}><span>收藏应用</span></label><label class="check-row"><input id="app-pin-dock" type="checkbox" ${draft.pinnedToDock ? 'checked' : ''}><span>固定到 Dock</span></label><label class="check-row"><input id="app-pin-mini" type="checkbox" ${draft.pinnedToMini ? 'checked' : ''} ${miniFull && !draft.pinnedToMini ? 'disabled' : ''}><span>固定到 Mini ${miniFull && !draft.pinnedToMini ? '（已有 4 个入口）' : ''}</span></label></div><label class="field"><span>应用分组</span><select data-change="app-group-choice" data-id="${e(app.id)}" aria-label="应用分组"><option value="" ${!app.groupId ? 'selected' : ''}>未分组</option>${groups().map(group => `<option value="${e(group.id)}" ${app.groupId === group.id ? 'selected' : ''}>${e(group.name)}</option>`).join('')}</select><small>更改分组立即保存；其余内容由“保存应用”保存。</small></label><p class="page-note">固定只添加启动入口。各位置的显示顺序可在“固定入口”中调整。</p><p id="app-edit-error" class="form-error" role="alert"></p></div>`, `<button class="button danger app-remove-button" data-action="app-remove" data-id="${e(app.id)}">${icon('trash', 16)} 从应用库移除</button><button class="button" data-action="close-modal">取消</button><button class="button primary" data-action="app-save" data-id="${e(app.id)}">保存应用</button>`, { wide: false });
   }
   function readAppDraft(app) {
-    return { ...app, name: document.querySelector('#app-name')?.value?.trim() || '', arguments: document.querySelector('#app-arguments')?.value || '', workingDirectory: document.querySelector('#app-working-directory')?.value?.trim() || '', pinnedToDock: !!document.querySelector('#app-pin-dock')?.checked, pinnedToMini: !!document.querySelector('#app-pin-mini')?.checked };
+    return { ...app, name: document.querySelector('#app-name')?.value?.trim() || '', arguments: document.querySelector('#app-arguments')?.value || '', workingDirectory: document.querySelector('#app-working-directory')?.value?.trim() || '', favorite: !!document.querySelector('#app-favorite')?.checked, pinnedToDock: !!document.querySelector('#app-pin-dock')?.checked, pinnedToMini: !!document.querySelector('#app-pin-mini')?.checked };
   }
   function modalError(message) {
     const element = document.querySelector('#app-edit-error,#launcher-edit-error');
@@ -210,20 +252,22 @@
   }
   async function mutate(type, payload, success) {
     if (mutationInFlight || !hostState) return false;
+    const modal = H.ui.modal;
     mutationInFlight = true;
     setModalBusy(true);
     try {
       const result = await bridge.request(type, payload);
       if (!result?.settings) throw new window.DesktopHubNative.NativeBridgeError('INVALID_RESPONSE', '应用配置未返回，请重试。');
       applyHostState(result);
-      success?.(result);
+      if (H.ui.modal === modal) success?.(result);
       return true;
     } catch (error) {
-      modalError(error.message);
+      if (H.ui.modal === modal) modalError(error.message);
+      else H.toast(error.message, 'error');
       return false;
     } finally {
       mutationInFlight = false;
-      setModalBusy(false);
+      if (H.ui.modal === modal) setModalBusy(false);
       H.render();
     }
   }
@@ -355,12 +399,15 @@
     } else if (surface === 'dock') {
       const heading = document.querySelector('.dock-section-title');
       heading?.insertAdjacentHTML('beforebegin', dockLaunch());
-      if (heading) heading.innerHTML = '快捷场景 <span>组合启动</span>';
+      if (heading) {
+        if (pins('dock').some(pin => pin.itemType === 'scene')) heading.innerHTML = '快捷场景 <span>组合启动</span>';
+        else heading.remove();
+      }
       const sceneArea = document.querySelector('.dock-scenes');
       if (sceneArea) sceneArea.innerHTML = pins('dock').filter(pin => pin.itemType === 'scene').map(pin => {
         const scene = pinItem(pin);
         return scene ? `<button class="dock-scene" data-action="run-scene" data-id="${e(scene.id)}" ${scene.enabled === false ? 'disabled' : ''}><span class="scene-icon">${window.DesktopHubScenes?.sceneSymbol(scene, 23) || icon(scene.icon, 23)}</span><span><strong>${e(scene.name)}</strong><small>${scene.actions?.length || 0} 个动作${scene.enabled === false ? ' · 已停用' : ''}</small></span>${icon('play', 17)}</button>` : '<p class="muted launcher-missing">固定的场景已移除，请重新选择。</p>';
-      }).join('') || '<p class="muted launcher-pin-empty">还没有固定场景。</p>';
+      }).join('') || '<button class="text-button dock-add-scene" data-action="native-open-scenes">添加场景入口 ' + icon('plus', 15) + '</button>';
       const shortcut = document.querySelector('.dock-workspace small');
       if (shortcut) shortcut.textContent = 'Launchpad';
     } else {
@@ -383,8 +430,139 @@
     H.restoreViewport?.();
   };
 
+  function showDesktopNotice() {
+    const draft = importDraft;
+    if (!draft) return;
+    importModal('桌面上的应用存放在哪里？', `<div class="app-desktop-notice"><p>Windows 桌面会同时显示两个文件夹中的内容：</p><dl><div><dt>个人桌面</dt><dd>当前用户的桌面文件，仅属于你的账户。</dd></div><div><dt>公共桌面</dt><dd>所有用户共用的桌面文件。微信等软件的快捷方式可能放在这里。</dd></div></dl><p>只打开个人桌面文件夹时，可能找不到桌面上看得到的应用。这里会自动查找两个桌面的 EXE 程序和 LNK 快捷方式。</p><label class="check-row"><input id="app-desktop-notice-suppress" type="checkbox" ${draft.suppress ? 'checked' : ''} ${draft.busy ? 'disabled' : ''}><span>不再提醒</span></label><p class="page-note">不勾选时，每次进入“添加应用”都会显示此提示。</p><p class="form-error" role="alert">${e(draft.error)}</p></div>`, `<button class="button" data-action="close-modal" ${draft.busy ? 'disabled' : ''}>取消</button><button class="button primary" data-action="app-import-continue" ${draft.busy ? 'disabled' : ''}>${draft.busy ? '正在保存…' : '继续添加'}</button>`, { locked: draft.busy });
+  }
+
+  function importMatches() {
+    const query = importDraft?.query.trim().toLocaleLowerCase() || '';
+    return (importDraft?.scan?.candidates || []).filter(candidate => !query || `${candidate.name} ${candidate.path} ${candidate.source}`.toLocaleLowerCase().includes(query));
+  }
+
+  function importCandidateIcon(candidate) {
+    const source = importDraft?.icons?.[candidate.id];
+    return source && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(source)
+      ? `<img src="${e(source)}" width="24" height="24" alt="">` : icon(candidate.entryKind === 'lnk' ? 'app' : 'file', 24);
+  }
+
+  async function loadImportIcons() {
+    const draft = importDraft;
+    if (!draft?.scan || draft.busy || draft.iconLoading) return;
+    const ids = importMatches().filter(candidate => !draft.iconLoaded.has(candidate.id)).slice(0, 40).map(candidate => candidate.id);
+    if (!ids.length) return;
+    const scanId = draft.scan.scanId;
+    draft.iconLoading = true; ids.forEach(id => draft.iconLoaded.add(id));
+    try {
+      const result = await bridge.request('apps.icons', { scanId, candidateIds: ids });
+      if (!ownsImport(draft) || draft.scan?.scanId !== scanId) return;
+      Object.assign(draft.icons, result?.icons || {});
+      for (const candidate of draft.scan.candidates.filter(candidate => ids.includes(candidate.id))) {
+        const slot = document.querySelector(`#app-icon-${candidate.id}`);
+        if (slot) slot.innerHTML = importCandidateIcon(candidate);
+      }
+    } catch { /* Keep the shared type icon when native extraction is unavailable. */ }
+    finally { if (ownsImport(draft) && draft.scan?.scanId === scanId) { draft.iconLoading = false; void loadImportIcons(); } }
+  }
+
+  function showAppImporter() {
+    const draft = importDraft;
+    if (!draft) return;
+    const visible = importMatches(), scan = draft.scan;
+    const scroll = document.querySelector('.app-discovery-list')?.scrollTop || 0;
+    const focusId = document.activeElement?.id;
+    const selection = document.activeElement?.selectionStart;
+    importModal('添加应用', `<div class="app-import-toolbar"><button class="button ${scan?.roots?.some(root => root.name === '公共桌面') ? 'primary' : ''}" data-action="app-import-desktop" ${draft.busy ? 'disabled' : ''}>${icon('app', 16)} 桌面应用</button><button class="button" data-action="app-import-start-menu" ${draft.busy ? 'disabled' : ''}>开始菜单</button><button class="button" data-action="app-import-folder" ${draft.busy ? 'disabled' : ''}>${icon('folder', 16)} 选择文件夹</button><button class="button quiet" data-action="app-import-file" ${draft.busy ? 'disabled' : ''}>多选文件…</button></div><label class="check-row app-import-recursive"><input id="app-import-recursive" type="checkbox" data-change="app-import-recursive" ${draft.recursive ? 'checked' : ''} ${draft.busy || !['desktop','folder'].includes(draft.source) ? 'disabled' : ''}><span>包含子文件夹</span></label>${scan ? `<p class="app-import-source">${scan.roots.map(root => `<span title="${e(root.path)}">${e(root.name)} · ${e(root.path)}</span>`).join('')}</p>` : ''}<label class="launcher-search"><span>${icon('search', 17)}</span><input id="app-import-query" type="search" data-change="app-import-query" placeholder="查找名称或路径" aria-label="查找待添加应用" value="${e(draft.query)}" ${draft.busy ? 'disabled' : ''}><span>${visible.length} 项</span></label><div class="app-import-selection"><button class="text-button" data-action="app-import-select-visible" ${draft.busy || !visible.length ? 'disabled' : ''}>选择搜索结果</button><button class="text-button" data-action="app-import-clear" ${draft.busy || !draft.selected.size ? 'disabled' : ''}>清除选择</button><span aria-live="polite">已选 ${draft.selected.size} / 100</span></div><div class="app-discovery-list" aria-busy="${draft.busy}">${draft.busy ? '<p class="app-import-empty" role="status">正在查找程序与快捷方式…</p>' : visible.map(candidate => `<label class="app-discovery-row"><input id="app-candidate-${e(candidate.id)}" type="checkbox" data-change="app-import-select" data-id="${e(candidate.id)}" ${draft.selected.has(candidate.id) ? 'checked' : ''}><span id="app-icon-${e(candidate.id)}" class="app-discovery-icon">${importCandidateIcon(candidate)}</span><span class="app-discovery-copy"><strong>${e(candidate.name)}</strong><small title="${e(candidate.path)}">${e(candidate.path)}</small></span><span class="app-discovery-kind">${e(candidate.source)}<small>${candidate.entryKind === 'lnk' ? '快捷方式' : 'EXE 程序'}</small></span></label>`).join('') || `<p class="app-import-empty">${scan?.candidates.length ? '没有匹配的应用，请换个关键词。' : '未找到 EXE 或 LNK。可以包含子文件夹、选择其他文件夹，或手动选文件。'}</p>`}</div>${scan?.truncated ? '<p class="page-note" role="status">文件较多，本次只显示部分结果。请选择更具体的文件夹继续查找。</p>' : ''}${scan?.warnings?.length ? `<details class="app-import-warnings"><summary>有 ${scan.warnings.length} 条目录未读取提示</summary>${scan.warnings.map(warning => `<p>${e(warning)}</p>`).join('')}</details>` : ''}<p class="form-error" role="alert">${e(draft.error)}</p>`, `<button class="button" data-action="close-modal" ${draft.committing ? 'disabled' : ''}>取消</button><button class="button primary" data-action="app-import-confirm" ${draft.busy || !draft.selected.size ? 'disabled' : ''}>添加所选应用${draft.selected.size ? `（${draft.selected.size}）` : ''}</button>`, { wide: true, locked: !!draft.committing });
+    const list = document.querySelector('.app-discovery-list'); if (list) list.scrollTop = scroll;
+    void loadImportIcons();
+    if (focusId) setTimeout(() => {
+      if (!ownsImport(draft)) return;
+      const node = document.querySelector(`#${focusId}`);
+      node?.focus({ preventScroll: true });
+      if (node?.type === 'search' && selection !== null && selection !== undefined) node.setSelectionRange?.(selection, selection);
+    }, 0);
+  }
+
+  async function scanApplications(source, stagedId = '') {
+    const draft = importDraft;
+    if (!draft || draft.busy || draft.modal && !ownsImport(draft)) return;
+    draft.busy = true; draft.error = ''; showAppImporter();
+    const recursive = source === 'startMenu' ? true : ['files','drop'].includes(source) ? false : draft.recursive;
+    try {
+      const result = await bridge.request('apps.scan', { source, recursive, scanId: source === 'drop' ? stagedId : source === 'current' ? draft.scan?.scanId || '' : '' }, { timeoutMs: 120000 });
+      if (!ownsImport(draft)) return;
+      if (!result?.cancelled) {
+        if (!result?.scan?.scanId || !Array.isArray(result.scan.candidates)) throw new Error('未收到应用列表，请重新扫描。');
+        draft.source = source === 'current' ? draft.source : source; draft.scan = result.scan; draft.recursive = result.scan.recursive; draft.selected.clear(); draft.query = '';
+        draft.icons = {}; draft.iconLoaded = new Set(); draft.iconLoading = false;
+      }
+    } catch (error) { if (ownsImport(draft)) draft.error = `查找失败：${error.message}`; }
+    finally { if (ownsImport(draft)) { draft.busy = false; showAppImporter(); } }
+  }
+
   Object.assign(H.actions, {
+    'app-add': async () => {
+      if (surface !== 'workspace') { H.navigate('home'); return; }
+      if (!hostState || adding || mutationInFlight || H.ui.modal || H.ui.sceneDraftDirty) return;
+      importDraft = newImportDraft();
+      if (!hostState.settings.suppressDesktopLocationNotice) showDesktopNotice();
+      else await scanApplications('desktop');
+    },
+    'app-import-continue': async () => {
+      const draft = importDraft; if (!draft || draft.busy) return;
+      draft.suppress = !!document.querySelector('#app-desktop-notice-suppress')?.checked;
+      if (draft.suppress) {
+        draft.busy = true; draft.error = ''; showDesktopNotice();
+        try {
+          const result = await bridge.request('settings.save', { settings: { suppressDesktopLocationNotice: true } });
+          if (!result?.settings?.suppressDesktopLocationNotice) throw new Error('提醒偏好未保存，请重试。');
+          if (!ownsImport(draft)) return;
+          applyHostState(result, false);
+        } catch (error) { if (!ownsImport(draft)) return; draft.error = `无法保存“不再提醒”：${error.message}`; draft.busy = false; showDesktopNotice(); return; }
+        draft.busy = false;
+      }
+      await scanApplications('desktop');
+    },
+    'app-import-desktop': () => scanApplications('desktop'),
+    'app-import-folder': () => scanApplications('folder'),
+    'app-import-start-menu': () => scanApplications('startMenu'),
+    'app-import-recursive': async el => {
+      if (!importDraft || importDraft.busy) return;
+      importDraft.recursive = el.checked;
+      if (importDraft.scan) await scanApplications('current');
+    },
+    'app-import-query': (el, event) => { if (importDraft && !importDraft.busy && !event?.isComposing) { importDraft.query = el.value; showAppImporter(); } },
+    'app-import-select': el => {
+      const draft = importDraft; if (!draft || draft.busy) return;
+      if (!draft.scan?.candidates.some(candidate => candidate.id === el.dataset.id)) return;
+      if (!el.checked) draft.selected.delete(el.dataset.id);
+      else if (draft.selected.size < 100) draft.selected.add(el.dataset.id);
+      else draft.error = '每次最多添加 100 个应用，请先添加已选项。';
+      showAppImporter();
+    },
+    'app-import-select-visible': () => {
+      if (!importDraft || importDraft.busy) return;
+      for (const candidate of importMatches()) { if (importDraft.selected.size >= 100) break; importDraft.selected.add(candidate.id); }
+      showAppImporter();
+    },
+    'app-import-clear': () => { if (importDraft && !importDraft.busy) { importDraft.selected.clear(); importDraft.error = ''; showAppImporter(); } },
+    'app-import-confirm': async () => {
+      const draft = importDraft; if (!draft?.scan || draft.busy || !draft.selected.size) return;
+      draft.busy = true; draft.committing = true; draft.error = ''; showAppImporter();
+      try {
+        const result = await bridge.request('apps.import', { scanId: draft.scan.scanId, candidateIds: [...draft.selected] }, { timeoutMs: 120000 });
+        if (!ownsImport(draft)) return;
+        if (!result?.settings || !Array.isArray(result.added) || !Array.isArray(result.skipped)) throw new Error('未收到添加结果，请刷新应用库后重试。');
+        applyHostState(result, false); appQuery = ''; H.closeModal(); H.render();
+        launch = { status: 'idle', message: `已添加 ${result.added.length} 个应用${result.skipped.length ? `，跳过 ${result.skipped.length} 项` : ''}。`, code: '', appId: '' };
+        if (result.skipped.length) H.showModal('应用添加结果', `<p>已添加 ${result.added.length} 个应用，以下 ${result.skipped.length} 项未添加：</p><div class="app-import-results">${result.skipped.map(item => `<div><strong>${e(item.name)}</strong><p>${e(item.message)}</p></div>`).join('')}</div>`, '<button class="button primary" data-action="close-modal">完成</button>');
+        else H.toast(launch.message);
+        H.render();
+      } catch (error) { if (ownsImport(draft)) { draft.busy = false; draft.committing = false; draft.error = `添加失败：${error.message}`; showAppImporter(); } }
+    },
     'native-open-launch': () => H.navigate('home'),
+    'native-open-scenes': () => H.navigate('scenes'),
     'native-exit': () => route('app.exit', {}),
     'cycle-theme': () => {
       if (!hostState) return;
@@ -395,31 +573,12 @@
     'apps-manage': () => { managingApps = !managingApps; H.render(); },
     'apps-search': el => { appQuery = el.value; H.render(); },
     'apps-clear-search': () => { appQuery = ''; H.render(); document.querySelector('#app-query')?.focus(); },
-    'app-add': async () => {
-      if (surface !== 'workspace') { H.navigate('home'); return; }
-      if (!hostState || adding || mutationInFlight) return;
-      adding = true;
-      launch = { status: 'pending', message: '等待选择应用文件…', code: '', appId: '' };
-      H.render();
-      try {
-        const result = await bridge.request('apps.add', {}, { timeoutMs: 120000 });
-        if (result?.cancelled) {
-          launch = { status: 'idle', message: '已取消添加，已有应用仍然保留。', code: '', appId: '' };
-        } else if (result?.app?.id && result.settings) {
-          applyHostState(result, false);
-          appQuery = '';
-          launch = { status: 'idle', message: `已添加 ${result.app.name}。`, code: '', appId: result.app.id };
-        } else throw new window.DesktopHubNative.NativeBridgeError('INVALID_RESPONSE', '未收到有效应用信息，请重新选择。');
-      } catch (error) {
-        launch = { status: 'error', message: `添加失败：${error.message}`, code: error.code || 'ADD_FAILED', appId: '' };
-      } finally {
-        adding = false;
-      }
-      H.render();
-    },
+    'app-import-file': () => scanApplications('files'),
     'app-launch': async el => {
       const selected = appById(el.dataset.id);
       if (!selected || !bridge.available || !hostState || isPending(selected.id)) return;
+      const sequence = ++launchSequence;
+      workspaceFailure = null;
       launch = { status: 'pending', message: `正在启动 ${selected.name}…`, code: '', appId: selected.id };
       appLaunches.set(selected.id, launch);
       H.render();
@@ -436,16 +595,14 @@
       }
       appLaunches.set(selected.id, resultState);
       launch = resultState;
+      if (sequence === launchSequence) reportLaunchOutcome({ ...resultState, success: resultState.status === 'success' }, selected.name, false);
       H.render();
+      return { ...resultState, success: resultState.status === 'success' };
     },
     'launch-dismiss': () => { launch = { status: 'idle', message: '', code: '', appId: '' }; H.render(); },
     'app-favorite': async el => {
       const app = appById(el.dataset.id); if (!app) return;
-      const entries = pins('dock').map(pin => ({ itemType: pin.itemType, itemId: pin.itemId, enabled: true }));
-      const index = entries.findIndex(pin => pin.itemType === 'app' && pin.itemId === app.id);
-      if (index >= 0) entries.splice(index, 1);
-      else entries.push({ itemType: 'app', itemId: app.id, enabled: true });
-      await mutate('launcher.setPins', { surface: 'dock', pins: entries });
+      await mutate('apps.favorite', { appId: app.id, favorite: !app.favorite });
     },
     'app-edit': el => showAppEditor(appById(el.dataset.id)),
     'app-save': async el => {
@@ -453,8 +610,8 @@
       if (!app) return;
       const draft = readAppDraft(app);
       if (!draft.name) { modalError('请输入应用显示名称。'); document.querySelector('#app-name')?.focus(); return; }
-      const { name, arguments: argumentsValue, workingDirectory, pinnedToMini, pinnedToDock } = draft;
-      await mutate('apps.update', { appId: app.id, name, arguments: argumentsValue, workingDirectory, pinnedToMini, pinnedToDock }, () => { H.closeModal(); H.toast(`已保存 ${name}。`); });
+      const { name, arguments: argumentsValue, workingDirectory, favorite, pinnedToMini, pinnedToDock } = draft;
+      await mutate('apps.update', { appId: app.id, name, arguments: argumentsValue, workingDirectory, favorite, pinnedToMini, pinnedToDock }, () => { H.closeModal(); H.toast(`已保存 ${name}。`); });
     },
     'app-replace-target': async el => {
       const app = appById(el.dataset.id);
@@ -485,13 +642,41 @@
       const affected = H.state.scenes.some(scene => scene.actions?.some(action => action.appEntryId === app.id));
       await mutate('apps.remove', { appId: app.id, ...(affected ? { confirmReferences: true } : {}) }, () => { H.closeModal(); H.toast(`已从应用库移除 ${app.name}，原始软件保留。`); });
     },
-    'app-move': async el => {
-      const entries = apps();
-      const from = entries.findIndex(app => app.id === el.dataset.id);
-      const to = from + Number(el.dataset.direction);
-      if (appQuery || from < 0 || to < 0 || to >= entries.length) return;
-      [entries[from], entries[to]] = [entries[to], entries[from]];
-      await mutate('apps.reorder', { appIds: entries.map(app => app.id) });
+    'app-group-new': () => showGroupEditor(null),
+    'app-group-edit': el => showGroupEditor(groups().find(g => g.id === el.dataset.id)),
+    'app-group-save': async el => {
+      const name = document.querySelector('#app-group-name')?.value.trim();
+      if (!name) { modalError('请输入分组名称。'); return; }
+      await mutate('apps.groupSave',{ groupId: el.dataset.id || null, name },() => H.closeModal());
+    },
+    'app-group-remove': el => {
+      const group = groups().find(g => g.id === el.dataset.id); if (!group || H.ui.modal || mutationInFlight) return;
+      H.showModal('删除分组？',`<p>删除“${e(group.name)}”后，其中应用回到未分组。应用和固定入口保留。</p><p id="app-edit-error" class="form-error" role="alert"></p>`,`<button class="button" data-action="close-modal">取消</button><button class="button danger" data-action="app-group-remove-confirm" data-id="${e(group.id)}">删除分组</button>`);
+    },
+    'app-group-remove-confirm': el => mutate('apps.groupRemove',{ groupId: el.dataset.id },() => H.closeModal()),
+    'app-group-choice': async el => {
+      if (mutationInFlight || !appById(el.dataset.id)) return;
+      const modal = H.ui.modal, disabled = el.disabled;
+      el.disabled = true;
+      try {
+        await mutate('apps.moveGroup',{ appId: el.dataset.id, groupId: el.value || null },() => {
+          const app = appById(el.dataset.id);
+          // Membership saves independently; retain edits made in the owned form while it waited.
+          showAppEditor(app,readAppDraft(app));
+        });
+      } finally {
+        if (H.ui.modal === modal) { el.disabled = disabled; el.value = appById(el.dataset.id)?.groupId || ''; }
+      }
+    },
+    'app-group-move': el => {
+      const entries = groups(), from = entries.findIndex(g => g.id === el.dataset.id), to = from + Number(el.dataset.direction);
+      if (from >= 0 && to >= 0 && to < entries.length) return reorderGroup(entries[from].id,entries[to].id);
+    },
+    'app-move': el => {
+      const selected = appById(el.dataset.id); if (!selected) return;
+      const entries = apps().filter(app => (app.groupId || null) === (selected.groupId || null));
+      const from = entries.findIndex(app => app.id === selected.id), to = from + Number(el.dataset.direction);
+      if (to >= 0 && to < entries.length) return reorderApp(selected.id,entries[to].id);
     },
     'dock-icon-size': async el => {
       if (!['compact', 'normal', 'large'].includes(el.value)) return;
@@ -541,14 +726,56 @@
     }
   });
 
+  function reportLaunchOutcome(outcome, name, render = true) {
+    if (surface !== 'workspace') return;
+    workspaceFailure = outcome?.success === false ? { appId: outcome.appId, name: name || appById(outcome.appId)?.name || '应用', message: outcome.message || '启动失败，请检查所选文件。' } : null;
+    if (render) H.render();
+  }
+  function paintLaunchFailure() {
+    const existing = document.querySelector('#unified-launch-failure');
+    if (!workspaceFailure) { existing?.remove?.(); return; }
+    const body = `<span title="${e(workspaceFailure.name + '：' + workspaceFailure.message)}">${e(workspaceFailure.name)}：${e(workspaceFailure.message)}</span><button class="button small" data-action="unified-launch-edit" data-id="${e(workspaceFailure.appId)}">编辑应用 / 更换文件</button><button class="icon-button small" data-action="unified-launch-dismiss" aria-label="关闭启动提示">${icon('close',16)}</button>`;
+    if (existing) existing.innerHTML = body;
+    else document.querySelector('.workspace-content')?.insertAdjacentHTML('beforebegin',`<div id="unified-launch-failure" class="notice warning unified-launch-feedback" role="alert">${body}</div>`);
+  }
+  H.actions['unified-launch-dismiss'] = () => { workspaceFailure = null; H.render(); };
+  H.actions['unified-launch-edit'] = el => { if (!H.ui.modal) showAppEditor(appById(el.dataset.id)); };
+  const feedbackRender = H.render;
+  H.render = function () { feedbackRender(); if (surface === 'workspace') paintLaunchFailure(); };
+  document.addEventListener('dragstart', event => {
+    const element = event.target.closest?.('[data-sort-kind]');
+    if (!element || appQuery || !managingApps || mutationInFlight || H.ui.modal) { if (element) event.preventDefault(); return; }
+    dragItem = { kind: element.dataset.sortKind, id: element.dataset.sortId };
+    event.dataTransfer?.setData('text/plain', dragItem.id);
+  });
+  document.addEventListener('dragover', event => { if (dragItem && !appQuery && !mutationInFlight) event.preventDefault(); });
+  document.addEventListener('drop', event => {
+    const source = dragItem; dragItem = null;
+    const target = event.target.closest?.('[data-sort-kind]');
+    if (!source || !target || source.kind !== target.dataset.sortKind || H.ui.modal) return;
+    event.preventDefault(); return source.kind === 'app' ? reorderApp(source.id,target.dataset.sortId) : reorderGroup(source.id,target.dataset.sortId);
+  });
+  document.addEventListener('dragend', () => { dragItem = null; });
+  bridge.on('apps.dropPreview', scan => {
+    if (surface !== 'workspace' || !hostState || H.ui.modal || H.ui.sceneDraftDirty || importDraft || mutationInFlight || adding || saveInFlight || window.DesktopHubResources?.getState()?.busy || window.DesktopHubSystem?.getState()?.busy || window.DesktopHubOnboarding?.getState()?.active || typeof scan?.scanId !== 'string' || !Array.isArray(scan.candidates)) return;
+    importDraft = newImportDraft();
+    return scanApplications('drop',scan.scanId);
+  });
   function handleEscape() {
+    if (window.DesktopHubPreview?.handleEscape()) return true;
     if (H.ui.modal) {
       if (!H.ui.modal.locked) H.closeModal();
       return true;
     }
     return false;
   }
-  window.DesktopHubDesktop = Object.freeze({ handleEscape, applyHostState, getState: () => ({ surface, hostState, launch }) });
+  const lifecycleBusyReasons = () => [
+    ...(saveInFlight || pendingVisualSettings ? ['settings-write'] : []),
+    ...(importDraft || adding ? ['application-import'] : []),
+    ...(mutationInFlight ? ['application-write'] : []),
+    ...(pinDraft ? ['launcher-draft'] : [])
+  ];
+  window.DesktopHubDesktop = Object.freeze({ handleEscape, applyHostState, favoriteApplicationsMarkup, reportLaunchOutcome, lifecycleBusyReasons, isImporting: () => !!importDraft, getState: () => ({ surface, hostState, launch }) });
   document.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     event.preventDefault();
@@ -582,6 +809,7 @@
       document.body.insertAdjacentHTML('beforeend', '<p class="native-offline-warning" role="alert">原生宿主未连接。请运行 Desktop Hub Windows 应用。</p>');
       return;
     }
+    if (new URLSearchParams(location.search).get('restoring') === '1') return;
     try {
       const state = await bridge.request('app.getState', {});
       applyHostState(state);

@@ -3,18 +3,22 @@
   'use strict';
   const version = 1;
   const allowedTypes = new Set([
-    'app.getState', 'app.exit', 'settings.get', 'settings.save',
+    'app.getState', 'app.exit', 'settings.get', 'settings.save', 'search.query',
+    'activity.query', 'activity.clear', 'projects.query', 'projects.save', 'projects.remove', 'projects.openWeb',
     'system.getState', 'system.setDesktopIcons', 'system.setIconExitPolicy', 'system.setStartup', 'system.setHotkeys',
     'window.openWorkspace', 'window.closeWorkspace', 'window.openDock',
     'window.closeDock', 'window.drag', 'window.resizeSurface', 'window.beginResize',
-    'apps.add', 'apps.update', 'apps.replaceTarget', 'apps.remove',
-    'apps.reorder', 'apps.launch', 'launcher.setPins',
-    'scenes.save', 'scenes.remove', 'scenes.reorder', 'scenes.run', 'scenes.pickTarget',
+    'apps.add', 'apps.scan', 'apps.icons', 'apps.import', 'apps.update', 'apps.replaceTarget', 'apps.remove',
+    'apps.favorite', 'apps.groupSave', 'apps.groupRemove', 'apps.moveGroup', 'apps.groupReorder', 'apps.reorder', 'apps.launch', 'launcher.setPins',
+    'scenes.save', 'scenes.remove', 'scenes.reorder', 'scenes.run', 'scenes.retry', 'scenes.retryScripts', 'scenes.pickTarget',
+    'scenes.layoutCapture', 'scenes.layoutSave', 'scenes.layoutRestore', 'scenes.layoutChoose',
+    'resources.previewContent', 'resources.previewCancel',
     'resources.query', 'resources.discover', 'resources.preview', 'resources.cancel',
     'resources.confirm', 'resources.refresh', 'resources.removeSource', 'resources.favorite',
     'resources.beginRepair', 'resources.repair', 'resources.clean', 'resources.saveTag',
     'resources.deleteTag', 'resources.bindTag', 'resources.suggestion', 'resources.browse',
-    'resources.addBrowsed', 'resources.open', 'resources.saveCategory'
+    'resources.addBrowsed', 'resources.open', 'resources.saveCategory',
+    'resources.batch', 'resources.batchSuggestions', 'resources.filterSave', 'resources.filterDelete'
   ]);
 
   class NativeBridgeError extends Error {
@@ -52,7 +56,7 @@
         else request.reject(new NativeBridgeError(message.error.code, message.error.message));
         return;
       }
-      if (!['state.changed', 'window.navigate', 'window.historyNavigate', 'scene.executions', 'resources.changed', 'resources.progress'].includes(message.type)) return;
+      if (!['state.changed', 'window.navigate', 'window.historyNavigate', 'scene.executions', 'apps.dropPreview', 'resources.changed', 'resources.progress', 'activity.changed', 'projects.changed'].includes(message.type)) return;
       if (!message.payload || typeof message.payload !== 'object' || Array.isArray(message.payload)) return;
       for (const callback of subscribers.get(message.type) || []) {
         try { callback(message.payload); } catch (error) { options.onEventError?.(error); }
@@ -100,7 +104,7 @@
       subscribers.clear();
     }
 
-    return Object.freeze({ available, request, on, dispose });
+    return Object.freeze({ available, request, on, dispose, pendingCount: () => pending.size });
   }
 
   root.DesktopHubNative = Object.freeze({

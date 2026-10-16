@@ -4,3 +4,22 @@
 artifacts/
 *.user
 *.suo
+
+# Local product/design notes, handoff records, and review captures
+/docs/
+/PRD*.md
+/prototype/screenshots/
+
+# Generated test evidence and resource measurements (keep locally)
+/TestResults/
+**/TestResults/
+/coverage/
+/playwright-report/
+/test-results/
+
+# Machine-local shortcuts and editor/temporary files
+*.lnk
+.vs/
+*.log
+*.tmp
+*.bak

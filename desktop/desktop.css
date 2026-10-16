@@ -210,3 +210,56 @@ html[data-desktop-host] .workspace-header { user-select: none; }
 .mini-scene-feedback[data-state=Success] { color: var(--good); }
 @media (max-width: 960px) { .native-scene-editor { grid-template-columns: 1fr; } .native-action-list { max-height: 400px; overflow-y: auto; } }
 @media (prefers-reduced-motion: reduce) { [data-scene-status=Running] { animation: none; } }
+/* Application discovery uses the existing modal, typography and theme tokens. */
+.app-desktop-notice p { line-height: 1.7; }
+.app-desktop-notice dl { display: grid; gap: 12px; margin: 18px 0; }
+.app-desktop-notice dl > div { border-left: 2px solid var(--accent); padding-left: 12px; }
+.app-desktop-notice dt { font-weight: 600; margin-bottom: 4px; }
+.app-desktop-notice dd { margin: 0; color: var(--muted); line-height: 1.6; }
+.app-import-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.app-import-recursive { margin: 12px 0; }
+.app-import-source { display: grid; gap: 4px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.app-import-selection { display: flex; align-items: center; gap: 12px; padding: 12px 0 8px; font-size: 12px; }
+.app-import-selection > span { margin-left: auto; color: var(--muted); }
+.app-discovery-list { max-height: min(38vh, 320px); overflow-y: auto; border-block: 1px solid var(--line); }
+.app-discovery-row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; cursor: pointer; border-bottom: 1px solid var(--line); }
+.app-discovery-row:last-child { border-bottom: 0; }
+.app-discovery-row:hover, .app-discovery-row:has(input:checked) { background: var(--hover); }
+.app-discovery-row:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
+.app-discovery-row input { flex-shrink: 0; width: 16px; height: 16px; accent-color: var(--accent); }
+.app-discovery-icon { display: flex; color: var(--accent); flex-shrink: 0; }
+.app-discovery-copy { flex: 1; min-width: 0; }
+.app-discovery-copy strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.app-discovery-copy small { display: block; color: var(--muted); margin-top: 4px; font-size: 12px; overflow-wrap: anywhere; }
+.app-discovery-kind { color: var(--muted); text-align: right; font-size: 12px; flex-shrink: 0; }
+.app-discovery-kind small { display: block; margin-top: 4px; }
+.app-import-empty { padding: 20px 12px; color: var(--muted); line-height: 1.7; }
+.app-import-warnings { margin-top: 12px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.app-import-results > div { border-bottom: 1px solid var(--line); padding: 12px 0; overflow-wrap: anywhere; }
+.app-import-results p { margin-bottom: 0; color: var(--muted); }
+.modal:has(.app-discovery-list) { height: min(620px, 90vh); }
+.modal:has(.app-discovery-list) .modal-body { display: flex; flex-direction: column; flex: 1; gap: 8px; overflow: hidden; }
+.modal:has(.app-discovery-list) .modal-body > * { margin: 0; flex-shrink: 0; }
+.modal:has(.app-discovery-list) .app-import-source { display: flex; gap: 12px; }
+.modal:has(.app-discovery-list) .app-import-source > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modal:has(.app-discovery-list) .app-import-selection { padding: 4px 0; }
+.modal:has(.app-discovery-list) .app-discovery-list { flex: 1; min-height: 80px; max-height: none; }
+.modal:has(.app-discovery-list) .app-import-warnings { max-height: 80px; overflow: auto; }
+.modal:has(.app-discovery-list) .form-error:empty { display: none; }
+@media (max-width: 540px) { .app-discovery-row { gap: 8px; } .app-discovery-icon { display: none; } .app-discovery-kind { max-width: 72px; } }
+
+/* Application groups reuse the launcher grid; actions remain beside their group. */
+.app-group { margin: 16px 0; min-width: 0; }
+.app-group-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.app-group-heading h3 { font-size: 14px; overflow-wrap: anywhere; min-width: 0; }
+.app-group-heading small, .favorite-applications h2 small { font-size: 13px; color: var(--muted); font-weight: 400; }
+.app-group-heading .toolbar { flex-wrap: wrap; gap: 4px; }
+.app-group-heading .button { min-height: 32px; font-size: 13px; }
+[data-sort-kind][draggable=true] { cursor: grab; }
+[data-sort-kind][draggable=true]:active { cursor: grabbing; }
+.favorite-applications { margin: 12px 0 20px; min-width: 0; }
+.favorite-applications h2 { font-size: 16px; margin-bottom: 10px; }
+.favorite-applications .muted, .app-group > .muted { font-size: 13px; line-height: 1.6; }
+.native-dock-launch.is-empty { padding: 8px 0; margin: 0; }
+.native-dock-launch.is-empty .native-launch-status:empty { display: none; }
+.dock-add-app, .dock-add-scene { min-height: 32px; padding: 5px 0; gap: 8px; justify-content: flex-start; font-size: 13px; }

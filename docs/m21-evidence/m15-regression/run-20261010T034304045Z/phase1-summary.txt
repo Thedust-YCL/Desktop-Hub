@@ -1,2 +1,0 @@
-67 M1.5 native integration checks passed before restart.
-Host working set 518303744

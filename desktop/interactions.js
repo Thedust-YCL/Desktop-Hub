@@ -8,8 +8,9 @@
   const positions = new Map();
   let entries = [], index = -1, restoring = false, deferredIndex = null, lastSideNavigation = 0;
   const resourceState = () => window.DesktopHubResources?.navigationState();
-  const routeKey = () => H.ui.page + (H.ui.page === 'folder' ? ':' + (resourceState()?.folder?.path || '') : '');
-  const snapshot = () => ({ page: H.ui.page, key: routeKey(), resources: resourceState(), scroll: document.querySelector('.workspace-content')?.scrollTop || 0 });
+  const projectState = () => window.DesktopHubProjects?.navigationState();
+  const routeKey = () => H.ui.page + (H.ui.page === 'folder' ? ':' + (resourceState()?.folder?.path || '') : H.ui.page === 'project' ? ':' + (projectState()?.projectId || '') : '');
+  const snapshot = () => ({ page: H.ui.page, key: routeKey(), resources: resourceState(), projects: projectState(), scroll: document.querySelector('.workspace-content')?.scrollTop || 0 });
   function checkpoint() {
     if (!restoring && entries[index]?.key === routeKey()) entries[index] = snapshot();
   }
@@ -34,6 +35,7 @@
     if (H.ui.modal) { H.closeModal(); return; }
     checkpoint(); restoring = true; index = targetIndex;
     try {
+      if (target.projects) window.DesktopHubProjects?.restoreNavigation({ ...target.projects, scroll: target.scroll });
       H.navigate(target.page);
       if (target.resources) window.DesktopHubResources.restoreNavigation(target.resources);
       H.render();
@@ -115,5 +117,27 @@
     event.preventDefault(); buttons[next].focus(); H.actions['setting-choice'](buttons[next]);
   });
   bridge.on('window.historyNavigate', ({ direction }) => sideNavigate(direction));
-  window.DesktopHubInteractions = Object.freeze({ checkpoint, navigateHistory, getState: () => ({ index, entries }) });
+  // History snapshots never retain a folder authorization token or a discarded editor draft.
+  function captureLifecycle() {
+    checkpoint();
+    const start = Math.max(0, Math.min(index - 16, entries.length - 32));
+    const safeEntries = entries.slice(start, start + 32).map(entry => {
+      const page = entry.page === 'folder' ? 'library' : entry.page === 'editor' ? 'scenes' : entry.page;
+      const safe = { page, scroll: Math.max(0, Math.min(10000000, entry.scroll || 0)) };
+      if (entry.resources) {
+        safe.resources = {};
+        for (const key of 'query tagIds view page status category extension sort filterId favoritesOnly'.split(' '))
+          if (entry.resources[key] !== undefined) safe.resources[key] = JSON.parse(JSON.stringify(entry.resources[key]));
+      }
+      if (entry.projects) safe.projects = { projectId: entry.projects.projectId || null };
+      return safe;
+    });
+    return { entries: safeEntries, index: index < 0 ? -1 : index - start };
+  }
+  function restoreLifecycle(state) {
+    if (!state || !Array.isArray(state.entries) || state.entries.length > 32 || !Number.isInteger(state.index) || state.index < -1 || state.index >= state.entries.length) return false;
+    entries = state.entries.map(entry => ({ ...JSON.parse(JSON.stringify(entry)), key: entry.page + (entry.page === 'project' ? ':' + (entry.projects?.projectId || '') : '') }));
+    index = state.index; deferredIndex = null; return true;
+  }
+  window.DesktopHubInteractions = Object.freeze({ checkpoint, navigateHistory, captureLifecycle, restoreLifecycle, getState: () => ({ index, entries }) });
 }());

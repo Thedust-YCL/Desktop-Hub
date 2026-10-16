@@ -32,6 +32,8 @@
       !['registry_unavailable', 'startup_entry_unsupported'].includes(startup.code);
     const exitPolicy = icons?.exitPolicy === 'restore' ? '完整退出时恢复隐藏前的图标状态' : icons?.exitPolicy === 'keepHidden' ? '完整退出后保持隐藏' : '首次隐藏时必须选择';
     return panel('系统常驻',
+      row('性能模式', '快速唤出保留界面；轻量常驻在隐藏 60 秒且没有未处理草稿或操作时释放界面，再次打开时恢复浏览位置。',
+        `<select aria-label="性能模式" data-change="sys-performance-mode" ${busy ? 'disabled' : ''}><option value="quick" ${(settings().performanceMode || 'quick') === 'quick' ? 'selected' : ''}>快速唤出</option><option value="lightweight" ${settings().performanceMode === 'lightweight' ? 'selected' : ''}>轻量常驻</option></select>`) +
       row('当前用户开机自启', startupKnown ? `${startup.enabled ? '已启用' : '已关闭'} · 登录后安静常驻，不自动打开 Workspace 或执行场景。` : startup ? '当前状态未知，请重新核对 Windows 启动项。' : '正在读取真实 Windows 启动项。',
         startupKnown ? btn('sys-startup', startup.enabled ? '关闭开机自启' : '开启开机自启', `data-enabled="${!startup.enabled}"`) : '<span class="badge">状态未知</span>') +
       (startup?.needsRepair ? note(`${e(startup.message || '启动项与当前位置不一致。')} ${btn('sys-startup', '按当前位置修复', 'data-enabled="true"')}`) : '') +
@@ -77,6 +79,7 @@
       row('位置', '在所选屏幕边缘停留，可展开 Dock。', select('dockPosition', 'Dock 位置', [['left','左侧'],['right','右侧'],['bottom','底部']])) +
       row('尺寸', '快速入口的显示密度。', select('dockSize', 'Dock 尺寸', [['small','紧凑'],['normal','标准'],['large','宽松']])) +
       row('图标密度', '常用应用与快捷场景保留各自区域。', select('dockIconSize', 'Dock 图标密度', [['compact','紧凑'],['normal','标准'],['large','较大']])) +
+      row('启动后收起', '独立应用启动请求成功后自动收起 Dock；场景保留进度入口。', `<label class="switch"><input type="checkbox" data-change="sys-auto-close-dock" aria-label="独立应用启动请求成功后自动收起 Dock" ${settings().autoCloseDock ? 'checked' : ''}><span></span></label>`) +
       row('边缘悬停展开', '全屏及屏蔽程序前台时暂停边缘触发。', toggle('hoverEnabled', '边缘悬停展开')) +
       row('悬停延迟', '默认约 500 ms，避免经过边缘时误触。', `<select aria-label="Dock 悬停延迟" data-change="setting-value" data-setting="hoverDelay">${[300,500,800,1000].map(value => `<option value="${value}" ${visualValue('hoverDelay') === value ? 'selected' : ''}>${value} ms</option>`).join('')}</select>`) +
       row('允许在普通软件前台展开', '允许在普通应用上方临时唤出 Dock。', toggle('allowForeground', '允许在普通软件前台展开')) +
@@ -142,6 +145,11 @@
   Object.assign(H.actions, {
     'settings-section': el => { section = el.dataset.section; feedback = ''; feedbackError = false; previousSection(el); if (['system','shortcuts'].includes(section)) void refresh(); },
     'sys-refresh': refresh,
+    'sys-auto-close-dock': el => mutate('settings.save', { settings: { autoCloseDock: !!el.checked } }, 'Dock 启动后收起偏好已保存。'),
+    'sys-performance-mode': el => {
+      if (!['quick', 'lightweight'].includes(el.value)) return;
+      return mutate('settings.save', { settings: { performanceMode: el.value } }, '性能模式已保存。');
+    },
     'sys-startup': el => mutate('system.setStartup', { enabled: el.dataset.enabled === 'true' }, '启动项已按真实系统状态更新。'),
     'sys-icons': el => {
       if (busy) return;
@@ -203,7 +211,7 @@
     H.state.settings.workspaceShortcut = settings().workspaceHotkey || 'Ctrl+Alt+W';
     previousRender();
     const version = document.querySelector('.workspace-header .brand small');
-    if (version) version.textContent = '工作空间 · 0.2.3';
+    if (version) version.textContent = state()?.version ? `工作空间 · ${state().version}` : '工作空间';
   };
   window.DesktopHubSystem = Object.freeze({ recoveryPath, getState: () => ({ section, busy, hidePolicy, shortcutDraft, blocklistDraft, feedback, feedbackError }) });
 }());

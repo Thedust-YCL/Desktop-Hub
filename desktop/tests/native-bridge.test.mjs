@@ -10,6 +10,14 @@ const context = vm.createContext({ setTimeout, clearTimeout });
 vm.runInContext(source, context, { filename: 'native.js' });
 const { createBridge } = context.DesktopHubNative;
 
+test('resource batch and saved-filter routes reach host through the request allowlist',async()=>{
+  const view=fakeWebView(),bridge=createBridge(view);
+  for(const type of ['resources.batch','resources.batchSuggestions','resources.filterSave','resources.filterDelete']){
+    const pending=bridge.request(type,{id:'stable-id'});const sent=view.sent.at(-1);assert.equal(sent?.type,type);view.receive({version:1,id:sent.id,ok:true,result:{saved:true}});assert.deepEqual(await pending,{saved:true});
+  }
+  await assert.rejects(bridge.request('resources.executePath',{}),error=>error.code==='UNKNOWN_MESSAGE');bridge.dispose();
+});
+
 function fakeWebView() {
   const listeners = new Set();
   const sent = [];
@@ -22,6 +30,62 @@ function fakeWebView() {
   };
 }
 
+test('preview and layout routes use IDs and owned tokens through the native boundary', async () => {
+  const view = fakeWebView(), bridge = createBridge(view);
+  for (const [type, payload] of [
+    ['resources.previewContent', { resourceId: 'registered', thumbnail: false, requestId: 'owned' }],
+    ['resources.previewCancel', { requestId: 'owned' }],
+    ['scenes.layoutCapture', { sceneId: 'saved' }],
+    ['scenes.layoutSave', { sceneId: 'saved', captureToken: 'capture', selections: [] }],
+    ['scenes.layoutRestore', { sceneId: 'saved' }],
+    ['scenes.layoutChoose', { restoreToken: 'restore', choices: [] }]
+  ]) {
+    const promise = bridge.request(type, payload); promise.catch(() => {});
+    const sent = view.sent.at(-1);
+    assert.equal(sent?.type, type); assert.deepEqual(sent.payload, payload);
+    view.receive({ version: 1, id: sent.id, ok: true, result: { accepted: true } });
+    assert.equal((await promise).accepted, true);
+  }
+  await assert.rejects(bridge.request('resources.readFile', { path: 'C:/unapproved' }), error => error.code === 'UNKNOWN_MESSAGE');
+  await assert.rejects(bridge.request('windows.move', { hwnd: 1 }), error => error.code === 'UNKNOWN_MESSAGE');
+  bridge.dispose();
+});
+
+test('pending count protects renderer teardown through completion, failure and disposal', async () => {
+  const view = fakeWebView(), bridge = createBridge(view);
+  assert.equal(bridge.pendingCount(), 0);
+  const first = bridge.request('app.getState'), second = bridge.request('settings.get');
+  second.catch(() => {});
+  assert.equal(bridge.pendingCount(), 2);
+  view.receive({ version: 1, id: view.sent[0].id, ok: true, result: {} }); await first;
+  assert.equal(bridge.pendingCount(), 1);
+  bridge.dispose(); await assert.rejects(second);
+  assert.equal(bridge.pendingCount(), 0);
+});
+
+test('Task6 explicit activity/project routes and metadata events reach the host without a history-write or arbitrary URL route', async () => {
+  const view = fakeWebView(), bridge = createBridge(view), events = [];
+  for (const type of ['activity.changed', 'projects.changed']) bridge.on(type, payload => events.push([type, payload.changed]));
+  view.receive({version:1,type:'activity.changed',payload:{changed:true}});view.receive({version:1,type:'projects.changed',payload:{changed:true}});
+  assert.deepEqual(events,[['activity.changed',true],['projects.changed',true]]);
+  for (const [type,payload] of [['activity.query',{}],['activity.clear',{}],['projects.query',{projectId:'current'}],['projects.save',{project:{id:'current'}}],['projects.remove',{projectId:'current'}],['projects.openWeb',{projectId:'current',itemId:'current-item'}]]) {
+    const promise=bridge.request(type,payload);promise.catch(()=>{});const sent=view.sent.at(-1);assert.equal(sent?.type,type);assert.deepEqual(sent.payload,payload);
+    view.receive({version:1,id:sent.id,ok:true,result:{accepted:true}});assert.deepEqual(await promise,{accepted:true});
+  }
+  await assert.rejects(bridge.request('activity.record',{type:'app',id:'forged',result:'started'}),error=>error.code==='UNKNOWN_MESSAGE');
+  await assert.rejects(bridge.request('projects.openUrl',{url:'https://forged.example'}),error=>error.code==='UNKNOWN_MESSAGE');bridge.dispose();
+});
+
+test('Task4 application group and favorite routes plus native staged-drop event are allowlisted',async()=>{
+  const view=fakeWebView(),bridge=createBridge(view);let preview=null;
+  bridge.on('apps.dropPreview',payload=>{preview=payload;});const scan={scanId:'staged',candidates:[]};
+  view.receive({version:1,type:'apps.dropPreview',payload:scan});assert.equal(preview,scan);
+  for(const type of ['apps.favorite','apps.groupSave','apps.groupRemove','apps.moveGroup','apps.groupReorder']){
+    const promise=bridge.request(type,{appId:'stable'}),sent=view.sent.at(-1);assert.equal(sent.type,type);view.receive({version:1,id:sent.id,ok:true,result:{saved:true}});assert.deepEqual(await promise,{saved:true});
+  }
+  await assert.rejects(bridge.request('apps.executePath',{path:'C:/forged.exe'}),error=>error.code==='UNKNOWN_MESSAGE');bridge.dispose();
+});
+
 test('request/response correlation and only selected native launch id crosses boundary', async () => {
   const view = fakeWebView();
   const bridge = createBridge(view);
@@ -33,6 +97,18 @@ test('request/response correlation and only selected native launch id crosses bo
   view.receive({ version: 1, id, ok: true, result: { success: true, processId: 123 } });
   assert.deepEqual(await pending, { success: true, processId: 123 });
   bridge.dispose();
+});
+
+test('scene snapshot retry routes send execution identity and exact script IDs without a snapshot retrieval route', async () => {
+  const view = fakeWebView(), bridge = createBridge(view);
+  for (const [type, payload] of [['scenes.retry', { executionId: 'retained-execution' }], ['scenes.retryScripts', { executionId: 'retained-execution', actionIds: ['original-script'] }]]) {
+    const pending = bridge.request(type, payload), sent = view.sent.at(-1);
+    assert.equal(sent?.type, type); assert.deepEqual(sent.payload, payload);
+    view.receive({ version: 1, id: sent.id, ok: true, result: { execution: { id: 'new-execution' } } });
+    assert.equal((await pending).execution.id, 'new-execution');
+  }
+  await assert.rejects(bridge.request('scenes.getExecutionScene', { executionId: 'retained-execution' }), error => error.code === 'UNKNOWN_MESSAGE');
+  await assert.rejects(bridge.request('scenes.retryTarget', { target: 'C:/forged.exe' }), error => error.code === 'UNKNOWN_MESSAGE'); bridge.dispose();
 });
 
 test('out-of-order responses resolve their original requests', async () => {

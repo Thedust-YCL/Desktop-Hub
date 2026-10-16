@@ -6,6 +6,54 @@ public sealed class AppLibraryService(SettingsStore store)
     /// <summary>Reusable stable-ID lookup for later scene references; returns an isolated snapshot.</summary>
     public AppEntry? FindById(string appId) => store.Current.AppEntries.FirstOrDefault(entry => entry.Id == appId);
 
+    public AppSettings SetFavorite(string appId, bool favorite) => store.Update(settings =>
+    {
+        var index = FindEntry(settings, appId);
+        settings.AppEntries[index] = settings.AppEntries[index] with { Favorite = favorite };
+        return settings;
+    });
+
+    public AppSettings SaveGroup(string? groupId, string name) => store.Update(settings =>
+    {
+        if (groupId is null) settings.AppGroups.Add(new(Guid.NewGuid().ToString("D"), name, settings.AppGroups.Count));
+        else
+        {
+            var index = FindGroup(settings, groupId);
+            settings.AppGroups[index] = settings.AppGroups[index] with { Name = name };
+        }
+        return settings;
+    });
+
+    public AppSettings RemoveGroup(string groupId) => store.Update(settings =>
+    {
+        settings.AppGroups.RemoveAt(FindGroup(settings, groupId));
+        foreach (var entry in settings.AppEntries.Where(entry => entry.GroupId == groupId)) entry.GroupId = null;
+        return settings;
+    });
+
+    public AppSettings MoveToGroup(string appId, string? groupId) => store.Update(settings =>
+    {
+        var index = FindEntry(settings, appId);
+        if (groupId is not null) FindGroup(settings, groupId);
+        settings.AppEntries[index] = settings.AppEntries[index] with { GroupId = groupId };
+        return settings;
+    });
+
+    public AppSettings ReorderGroups(IReadOnlyList<string> groupIds) => store.Update(settings =>
+    {
+        RequirePermutation(groupIds, settings.AppGroups.Select(group => group.Id).ToList());
+        var byId = settings.AppGroups.ToDictionary(group => group.Id, StringComparer.Ordinal);
+        settings.AppGroups = groupIds.Select((id, order) => byId[id] with { DisplayOrder = order }).ToList();
+        return settings;
+    });
+
+    private static int FindGroup(AppSettings settings, string groupId)
+    {
+        var index = settings.AppGroups.FindIndex(group => group.Id == groupId);
+        if (index < 0) throw new SettingsValidationException("应用分组不存在。");
+        return index;
+    }
+
     public AppSettings Add(AppEntry nativeRegisteredEntry) => store.Update(settings =>
     {
         var entry = SettingsValidator.NormalizeEntry(nativeRegisteredEntry);
@@ -18,13 +66,30 @@ public sealed class AppLibraryService(SettingsStore store)
         return settings;
     });
 
+    public AppSettings AddMany(IReadOnlyList<AppEntry> nativeRegisteredEntries) => store.Update(settings =>
+    {
+        if (nativeRegisteredEntries.Count is < 1 or > 100)
+            throw new SettingsValidationException("每次可添加 1–100 个应用。");
+        var entries = nativeRegisteredEntries.Select(SettingsValidator.NormalizeEntry).ToArray();
+        var ids = settings.AppEntries.Select(entry => entry.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var entry in entries)
+        {
+            if (!ids.Add(entry.Id)) throw new SettingsValidationException("应用 ID 已存在，新增不能覆盖已有应用。");
+            settings.AppEntries.Add(entry with { DisplayOrder = settings.AppEntries.Count });
+            if (entry.PinnedToDock) AddPin(settings, "dock", "app", entry.Id);
+            if (entry.PinnedToMini) AddPin(settings, "mini", "app", entry.Id);
+        }
+        return settings;
+    });
+
     public AppSettings Update(string appId, string name, string arguments, string workingDirectory,
-        bool pinnedToMini, bool pinnedToDock) => store.Update(settings =>
+        bool pinnedToMini, bool pinnedToDock, bool? favorite = null) => store.Update(settings =>
     {
         var index = FindEntry(settings, appId);
         NativeLaunchService.ValidateArguments(arguments);
         var directory = NativeLaunchService.ValidateWorkingDirectory(workingDirectory, requireExists: true);
-        settings.AppEntries[index] = settings.AppEntries[index] with { Name = name, Arguments = arguments, WorkingDirectory = directory };
+        settings.AppEntries[index] = settings.AppEntries[index] with { Name = name, Arguments = arguments, WorkingDirectory = directory,
+            Favorite = favorite ?? settings.AppEntries[index].Favorite };
         ChangePin(settings, "mini", "app", appId, pinnedToMini);
         ChangePin(settings, "dock", "app", appId, pinnedToDock);
         return settings;

@@ -55,7 +55,7 @@ internal static class SceneSmokeTests
             await WaitJs(workspace, "document.querySelectorAll('.launcher-app').length === 5");
 
             // Use the same user-facing editor actions and fields; select existing IDs without retyping paths.
-            await Js(workspace, "Hub.actions['new-scene']();");
+            await Js(workspace, "Hub.actions['new-scene']();Hub.actions['native-scene-mode']({value:'advanced'});");
             await Js(workspace, "document.querySelector('[data-change=native-scene-field][data-field=name]').value='五应用场景';document.querySelector('[data-change=native-scene-field][data-field=name]').dispatchEvent(new Event('input',{bubbles:true}));");
             foreach (var app in apps)
             {
@@ -205,7 +205,7 @@ internal static class SceneSmokeTests
     private static string J(string text) => JsonSerializer.Serialize(text);
     private static bool Same(string a, string b) => Path.GetFullPath(a).Equals(Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
     private static SceneAction Action(string name, string type, string target) => new() { Id = Id(), Name = name, Type = type, Target = target };
-    private static Scene Scene(string name, params SceneAction[] actions) => new() { Id = Id(), Name = name, Actions = actions.Select((action, order) => action with { DisplayOrder = order }).ToList() };
+    private static Scene Scene(string name, params SceneAction[] actions) => new() { Id = Id(), Name = name, EditorMode = "advanced", Actions = actions.Select((action, order) => action with { DisplayOrder = order }).ToList() };
     private static void Own(int pid) { using var process = Process.GetProcessById(pid); owned[pid] = process.StartTime.ToUniversalTime().Ticks; }
     private static void CloseOwned(int pid)
     {

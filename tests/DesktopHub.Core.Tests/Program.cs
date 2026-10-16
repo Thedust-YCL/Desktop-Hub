@@ -10,16 +10,225 @@ var failed = 0;
 var launcher = new NativeLaunchService();
 try
 {
+    UnifiedSearchChecks.Run(Check);
+    AtomicFileReplacementChecks.Run(Check, testRoot);
+    Task4Checks.Run(Check, testRoot);
+    Task4BoundaryChecks.Run(Check);
+    Check("Schema four migration preserves Dock pins, dependencies and preferences and derives favorites once", () =>
+    {
+        var store = Store("schema-four"); var pinned = Registered("migrate-pinned"); var unpinned = Registered("migrate-unpinned");
+        unpinned.PinnedToDock = false;
+        var a = Guid.NewGuid().ToString("D"); var b = Guid.NewGuid().ToString("D");
+        var pinId = Guid.NewGuid().ToString("D");
+        Write(store, JsonSerializer.Serialize(new AppSettings { SchemaVersion = 4, OnboardingCompleted = true, SuppressDesktopLocationNotice = true,
+            AppEntries = [pinned, unpinned], LauncherPins = [new() { Id = pinId, Surface = "dock", ItemId = pinned.Id }],
+            Scenes = [new() { Id = Guid.NewGuid().ToString("D"), Name = "Legacy", Actions = [new() { Id = a, Name = "A", AppEntryId = pinned.Id }, new() { Id = b, Name = "B", AppEntryId = unpinned.Id }],
+                Dependencies = [new() { ActionId = b, DependsOnActionId = a, Condition = "process" }] }] }, SettingsStore.JsonOptions));
+        var loaded = store.Load(); Equal(5, loaded.SchemaVersion); True(store.RecoveryWarning is null);
+        True(loaded.OnboardingCompleted && loaded.SuppressDesktopLocationNotice); Equal(pinId, loaded.LauncherPins.Single().Id);
+        Equal("process", loaded.Scenes.Single().Dependencies.Single().Condition);
+        using var saved = JsonDocument.Parse(File.ReadAllText(store.SettingsPath));
+        var apps = saved.RootElement.GetProperty("appEntries"); True(apps[0].GetProperty("favorite").GetBoolean()); True(!apps[1].GetProperty("favorite").GetBoolean());
+        Equal("advanced", saved.RootElement.GetProperty("scenes")[0].GetProperty("editorMode").GetString());
+        var bytes = File.ReadAllText(store.SettingsPath); store.Load(); Equal(bytes, File.ReadAllText(store.SettingsPath));
+    });
+    Check("Unknown settings schema preserves the original filename and bytes and blocks every write", () =>
+    {
+        var store = Store("future-schema"); var original = "{\"schemaVersion\":99,\"futureData\":{\"secret\":42}}";
+        Write(store, original); store.Load(); True(store.RecoveryWarning is not null); True(File.Exists(store.SettingsPath));
+        Equal(original, File.ReadAllText(store.SettingsPath));
+        Throws<InvalidOperationException>(() => store.Save(new())); Throws<InvalidOperationException>(() => store.Update(s => s with { Theme = "dark" }));
+        Equal(original, File.ReadAllText(store.SettingsPath));
+    });
+    Check("A future settings schema cannot be overwritten by saving before Load", () =>
+    {
+        var store = Store("future-before-load"); var original = "{\"schemaVersion\":6,\"nextVersionOnly\":true}"; Write(store, original);
+        Throws<InvalidOperationException>(() => store.Save(new())); Equal(original, File.ReadAllText(store.SettingsPath));
+    });
+    foreach (var version in new[] { "6", "2147483648" })
+    foreach (var loadFirst in new[] { true, false })
+    {
+        Check($"Future schema {version} after deep fields preserves bytes and blocks writes (loadFirst={loadFirst})", () =>
+        {
+            var store = Store("future-deep-" + version + "-" + loadFirst);
+            var nested = "{\"value\":42}";
+            for (var level = 0; level < 20; level++) nested = "{\"next\":" + nested + "}";
+            // The version follows the future payload so classification must skip deeper unknown fields.
+            var original = "{\"futurePayload\":" + nested + ",\"schemaVersion\":" + version + "}";
+            Write(store, original); var bytes = File.ReadAllBytes(store.SettingsPath);
+            if (loadFirst) { store.Load(); True(store.RecoveryWarning is not null); }
+            True(File.Exists(store.SettingsPath)); Sequence(bytes, File.ReadAllBytes(store.SettingsPath));
+            Throws<InvalidOperationException>(() => store.Save(new()));
+            var mutationRan = false;
+            Throws<InvalidOperationException>(() => store.Update(settings => { mutationRan = true; return settings with { Theme = "dark" }; }));
+            True(!mutationRan); Sequence(bytes, File.ReadAllBytes(store.SettingsPath));
+            Equal(0, Directory.GetFiles(Path.GetDirectoryName(store.SettingsPath)!, "settings.corrupt-*.json").Length);
+        });
+    }
+    foreach (var versionField in new[] { "\"schemaVersion\":5,", "" })
+    {
+        Check($"Deep known/nonversioned settings retain corrupt recovery (versioned={versionField.Length > 0})", () =>
+        {
+            var store = Store("deep-known-" + (versionField.Length > 0)); var nested = "[]";
+            for (var level = 0; level < 20; level++) nested = "[" + nested + "]";
+            var original = "{" + versionField + "\"foregroundBlocklist\":" + nested + "}"; Write(store, original);
+            store.Load(); True(store.RecoveryWarning is not null); True(!File.Exists(store.SettingsPath));
+            var backups = Directory.GetFiles(Path.GetDirectoryName(store.SettingsPath)!, "settings.corrupt-*.json"); Equal(1, backups.Length); Equal(original, File.ReadAllText(backups[0]));
+            store.Save(store.Current); True(File.Exists(store.SettingsPath));
+        });
+    }
+    Check("Favorite mutations and pin mutations are independent across all four combinations", () =>
+    {
+        var store = Store("favorites"); var library = new AppLibraryService(store); var app = Registered("favorite-app"); library.Add(app);
+        foreach (var favorite in new[] { true, false }) foreach (var pinned in new[] { false, true })
+        {
+            library.SetFavorite(app.Id, favorite); library.SetPin("dock", "app", app.Id, pinned); store.Load();
+            using var saved = JsonDocument.Parse(File.ReadAllText(store.SettingsPath));
+            Equal(favorite, saved.RootElement.GetProperty("appEntries")[0].GetProperty("favorite").GetBoolean()); Equal(pinned, store.Current.AppEntries[0].PinnedToDock);
+        }
+    });
+    Check("Groups rename without changing identity and removal clears membership without deleting applications", () =>
+    {
+        var store = Store("groups"); var library = new AppLibraryService(store); var app = Registered("grouped-app"); library.Add(app);
+        library.SaveGroup(null, "Work");
+        using var saved = JsonDocument.Parse(File.ReadAllText(store.SettingsPath)); var id = saved.RootElement.GetProperty("appGroups")[0].GetProperty("id").GetString()!;
+        library.MoveToGroup(app.Id, id); library.SaveGroup(id, "Renamed");
+        var isolated = store.Current; isolated.AppGroups.Clear();
+        store.Load(); using var renamed = JsonDocument.Parse(File.ReadAllText(store.SettingsPath)); Equal("Renamed", renamed.RootElement.GetProperty("appGroups")[0].GetProperty("name").GetString());
+        Equal(id, renamed.RootElement.GetProperty("appEntries")[0].GetProperty("groupId").GetString());
+        var bytes = File.ReadAllText(store.SettingsPath); Throws<SettingsValidationException>(() => library.MoveToGroup(app.Id, Guid.NewGuid().ToString("D"))); Equal(bytes, File.ReadAllText(store.SettingsPath));
+        library.SaveGroup(null, "Second");
+        using var two = JsonDocument.Parse(File.ReadAllText(store.SettingsPath)); var secondId = two.RootElement.GetProperty("appGroups")[1].GetProperty("id").GetString()!;
+        library.ReorderGroups(new[] { secondId, id }); store.Load();
+        using var ordered = JsonDocument.Parse(File.ReadAllText(store.SettingsPath)); Equal(secondId, ordered.RootElement.GetProperty("appGroups")[0].GetProperty("id").GetString());
+        bytes = File.ReadAllText(store.SettingsPath); Throws<SettingsValidationException>(() => library.ReorderGroups(new[] { id, id })); Equal(bytes, File.ReadAllText(store.SettingsPath));
+        library.RemoveGroup(id); Equal(1, store.Load().AppEntries.Count); True(File.Exists(app.Target));
+        using var removed = JsonDocument.Parse(File.ReadAllText(store.SettingsPath)); Equal(JsonValueKind.Null, removed.RootElement.GetProperty("appEntries")[0].GetProperty("groupId").ValueKind);
+    });
+    Check("Schema five scene layout snapshots isolate nested bounds and reject invalid mode choices", () =>
+    {
+        var store = Store("scene-layout"); var app = Registered("layout-app");
+        var json = JsonSerializer.Serialize(new AppSettings { AppEntries = [app], Scenes = [new() { Id = Guid.NewGuid().ToString("D"), Name = "Layout" }] }, SettingsStore.JsonOptions);
+        var node = System.Text.Json.Nodes.JsonNode.Parse(json)!; node["schemaVersion"] = 5; node["uiDensity"] = "comfortable"; node["performanceMode"] = "lightweight"; node["autoCloseDock"] = true;
+        node["scenes"]![0]!["editorMode"] = "simple"; node["scenes"]![0]!["executionMode"] = "sequential";
+        node["scenes"]![0]!["windowLayout"] = System.Text.Json.Nodes.JsonNode.Parse("{\"restoreAfterRun\":true,\"waitTimeoutMs\":15000,\"windows\":[{\"appEntryId\":\"" + app.Id + "\",\"executablePath\":\"\",\"titleContains\":\"Editor\",\"monitorId\":\"screen\",\"bounds\":{\"left\":10,\"top\":20,\"width\":400,\"height\":300},\"state\":\"normal\",\"dpi\":96}]}");
+        store.Save(node.Deserialize<AppSettings>(SettingsStore.JsonOptions)!); var copy = store.Current;
+        copy.Scenes[0].WindowLayout!.Windows[0].Bounds.Width = 1;
+        True(JsonSerializer.Serialize(store.Current, SettingsStore.JsonOptions).Contains("\"width\": 400"));
+        node["uiDensity"] = "tiny"; Throws<SettingsValidationException>(() => store.Save(node.Deserialize<AppSettings>(SettingsStore.JsonOptions)!));
+        node["uiDensity"] = "compact"; node["scenes"]![0]!["executionMode"] = "unknown"; Throws<SettingsValidationException>(() => store.Save(node.Deserialize<AppSettings>(SettingsStore.JsonOptions)!));
+    });
     Check("Missing configuration uses defaults", () =>
     {
         var store = Store("missing");
         var settings = store.Load();
         Equal("system", settings.Theme);
         Equal(500, settings.HoverDelay);
-        Equal(4, settings.SchemaVersion);
+        Equal(5, settings.SchemaVersion);
         Equal(1d, settings.WorkspaceOpacity);
         True(!settings.OnboardingCompleted);
         True(settings.LaunchTarget is null && store.RecoveryWarning is null);
+    });
+    Check("Desktop notice suppression loads and survives later unrelated saves", () =>
+    {
+        var store = Store("desktop-notice");
+        Write(store, "{\"schemaVersion\":4,\"suppressDesktopLocationNotice\":true}");
+        store.Load();
+        True(store.RecoveryWarning is null);
+        store.Update(settings => settings with { Theme = "light" });
+        using var saved = JsonDocument.Parse(File.ReadAllText(store.SettingsPath));
+        True(saved.RootElement.GetProperty("suppressDesktopLocationNotice").GetBoolean());
+        var restart = new SettingsStore(Path.GetDirectoryName(store.SettingsPath)!);
+        restart.Load();
+        True(restart.RecoveryWarning is null);
+    });
+    Check("Application discovery merges desktop roots, filters extensions and requires recursion", () =>
+    {
+        var personal = Path.Combine(testRoot, "personal-desktop");
+        var common = Path.Combine(testRoot, "public-desktop");
+        Directory.CreateDirectory(Path.Combine(personal, "nested")); Directory.CreateDirectory(common);
+        File.WriteAllText(Path.Combine(personal, "工具.EXE"), "metadata only");
+        File.WriteAllText(Path.Combine(personal, "readme.txt"), "ignored");
+        File.WriteAllText(Path.Combine(common, "微信.lnk"), "metadata only");
+        File.WriteAllText(Path.Combine(personal, "nested", "inside.exe"), "metadata only");
+        var store = Store("discovery-settings");
+        var imports = new ApplicationImportService(store, launcher);
+        var flat = imports.Scan([new(personal, "个人桌面"), new(common, "公共桌面")], false);
+        Sequence(new[] { "微信", "工具" }, flat.Candidates.Select(candidate => candidate.Name));
+        Equal("公共桌面", flat.Candidates[0].Source);
+        Equal(0, store.Current.AppEntries.Count); True(!File.Exists(store.SettingsPath));
+        var recursive = imports.Rescan(flat.ScanId, true);
+        Equal(3, recursive.Candidates.Count);
+        True(recursive.Candidates.Any(candidate => candidate.Name == "inside"));
+        Throws<TargetValidationException>(() => imports.Import(flat.ScanId, [flat.Candidates[0].Id]));
+    });
+    Check("Application imports reject forged IDs, revalidate files and consume successful previews", () =>
+    {
+        var folder = Path.Combine(testRoot, "application-imports"); Directory.CreateDirectory(folder);
+        var valid = Path.Combine(folder, "valid.exe");
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "DesktopHub.Core.Tests.exe"), valid);
+        File.WriteAllText(Path.Combine(folder, "fake.exe"), "not executable");
+        var store = Store("import-settings"); var imports = new ApplicationImportService(store, launcher);
+        var preview = imports.Scan([new(folder, "所选文件夹")], false);
+        Throws<TargetValidationException>(() => imports.Import(preview.ScanId, ["forged"]));
+        Equal(0, store.Current.AppEntries.Count);
+        var result = imports.Import(preview.ScanId, preview.Candidates.Select(candidate => candidate.Id).ToArray());
+        Equal(1, result.Added.Count); Equal(1, result.Skipped.Count);
+        Equal(valid, store.Current.AppEntries.Single().Target);
+        Throws<TargetValidationException>(() => imports.Import(preview.ScanId, [preview.Candidates[0].Id]));
+        var again = imports.Scan([new(folder, "所选文件夹")], false);
+        var duplicates = imports.Import(again.ScanId, [again.Candidates.Single(candidate => candidate.Name == "valid").Id]);
+        Equal(0, duplicates.Added.Count); Equal("duplicate", duplicates.Skipped.Single().Code);
+        Equal(1, store.Current.AppEntries.Count);
+        var missing = imports.Scan([new(folder, "所选文件夹")], false);
+        File.Delete(valid);
+        var stale = imports.Import(missing.ScanId, [missing.Candidates.Single(candidate => candidate.Name == "valid").Id]);
+        Equal(0, stale.Added.Count); Equal(1, stale.Skipped.Count);
+    });
+    Check("Bulk additions are atomic and preserve existing application identities", () =>
+    {
+        var store = Store("atomic-app-import"); var library = new AppLibraryService(store);
+        var original = Registered("atomic-original"); library.Add(original);
+        var before = File.ReadAllBytes(store.SettingsPath);
+        var next = Registered("atomic-next");
+        Throws<SettingsValidationException>(() => library.AddMany([next, original]));
+        Sequence(before, File.ReadAllBytes(store.SettingsPath));
+        var saved = library.AddMany([next, Registered("atomic-third")]);
+        Equal(3, saved.AppEntries.Count); Equal(original.Id, saved.AppEntries[0].Id);
+        Sequence(new[] { 0, 1, 2 }, saved.AppEntries.Select(entry => entry.DisplayOrder));
+    });
+    Check("Import duplicates compare effective default working directories", () =>
+    {
+        var folder = Path.Combine(testRoot, "default-directory-duplicate"); Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "original.exe"); File.Copy(Path.Combine(AppContext.BaseDirectory, "DesktopHub.Core.Tests.exe"), path);
+        var store = Store("default-directory-settings"); var library = new AppLibraryService(store);
+        library.Add(launcher.RegisterApp(path) with { WorkingDirectory = "" });
+        var imports = new ApplicationImportService(store, launcher); var scan = imports.Scan([new(folder, "文件夹")], false);
+        var result = imports.Import(scan.ScanId, [scan.Candidates.Single().Id]);
+        Equal(0, result.Added.Count); Equal("duplicate", result.Skipped.Single().Code);
+        Equal(1, store.Current.AppEntries.Count);
+    });
+    Check("One overlong application name does not prevent valid items from importing", () =>
+    {
+        var folder = Path.Combine(testRoot, "long-name-import"); Directory.CreateDirectory(folder);
+        var exe = Path.Combine(AppContext.BaseDirectory, "DesktopHub.Core.Tests.exe");
+        File.Copy(exe, Path.Combine(folder, new string('a', 201) + ".exe"));
+        File.Copy(exe, Path.Combine(folder, "valid.exe"));
+        var store = Store("long-name-settings"); var imports = new ApplicationImportService(store, launcher);
+        var scan = imports.Scan([new(folder, "文件夹")], false);
+        var result = imports.Import(scan.ScanId, scan.Candidates.Select(candidate => candidate.Id).ToArray());
+        Equal(1, result.Added.Count); Equal(1, result.Skipped.Count);
+        Equal("valid", store.Current.AppEntries.Single().Name);
+    });
+    Check("An unsupported personal desktop does not hide a readable public desktop", () =>
+    {
+        var folder = Path.Combine(testRoot, "readable-public-desktop"); Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "微信.lnk"), "metadata only");
+        var imports = new ApplicationImportService(Store("mixed-desktop-roots"), launcher);
+        var scan = imports.Scan([new(@"\\server\desktop", "个人桌面"), new(folder, "公共桌面")], false);
+        Equal(1, scan.Candidates.Count); Equal("微信", scan.Candidates.Single().Name); Equal(1, scan.Warnings.Count);
+        Equal(scan.Candidates.Single(), imports.GetCandidates(scan.ScanId, [scan.Candidates.Single().Id]).Single());
+        Throws<TargetValidationException>(() => imports.GetCandidates(scan.ScanId, ["forged"]));
     });
     Check("Camel-case JSON round trip persists theme, geometry and target", () =>
     {
@@ -343,7 +552,7 @@ try
         var legacy = new LaunchTarget { Id = Guid.NewGuid().ToString("D"), Path = Path.Combine(testRoot, "old-stale.exe"), DisplayName = "old" };
         Write(store, JsonSerializer.Serialize(new AppSettings { SchemaVersion = 1, AppEntries = [existing], LaunchTarget = legacy }, SettingsStore.JsonOptions));
         var loaded = store.Load();
-        Equal(4, loaded.SchemaVersion);
+        Equal(5, loaded.SchemaVersion);
         Equal(2, loaded.AppEntries.Count);
         Equal(existing.Id, loaded.AppEntries[0].Id);
         Equal(legacy.Id, loaded.AppEntries[1].Id);
@@ -370,7 +579,7 @@ try
             Equal(original, File.ReadAllText(store.SettingsPath));
         }
         Equal(1, store.Load().AppEntries.Count);
-        Equal(4, JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(store.SettingsPath), SettingsStore.JsonOptions)!.SchemaVersion);
+        Equal(5, JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(store.SettingsPath), SettingsStore.JsonOptions)!.SchemaVersion);
     });
     Check("Local persistence supports libraries beyond the M1 file budget and concurrent additive writes", () =>
     {

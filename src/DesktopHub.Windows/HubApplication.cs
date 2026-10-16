@@ -26,6 +26,9 @@ public sealed class HubApplication : IDisposable
     public AppLibraryService AppLibrary { get; }
     public SceneLibraryService SceneLibrary { get; }
     public SceneExecutionService Scenes { get; }
+    public SceneWindowLayoutService WindowLayouts { get; }
+    public ActivityService Activity { get; }
+    public ProjectService Projects { get; }
     public ResourceLibraryService Resources { get; private set; } = null!;
     private readonly Task<ResourceLibraryService> resourceInitialization;
     internal Task<ResourceLibraryService> GetResourcesAsync() => resourceInitialization;
@@ -38,6 +41,15 @@ public sealed class HubApplication : IDisposable
     public HubWindow? Dock { get; private set; }
     public HubWindow? Workspace { get; private set; }
     private CoreWebView2Environment? environment;
+    private readonly object previewGate = new();
+    private ResourcePreviewService? previews;
+    private BrowserViewSnapshot? dockSnapshot, workspaceSnapshot;
+    private readonly CancellationTokenSource lifetime = new();
+    private readonly string autoLayoutOwner = Guid.NewGuid().ToString("D");
+    private readonly HashSet<string> scheduledLayouts = new(StringComparer.Ordinal);
+    private readonly SceneWindowLayoutHistory layoutHistory = new();
+    private readonly List<Task> activeLayoutTasks = [];
+    private bool disposed;
     private readonly DispatcherTimer timer;
     private nint lastExternalForeground, previousForeground;
     private nint observedForeground;
@@ -50,6 +62,105 @@ public sealed class HubApplication : IDisposable
     public List<string> BlockedRequests { get; } = new();
     public IEnumerable<HubWindow> Windows => new[] { Mini, Dock, Workspace }.OfType<HubWindow>();
 
+    internal async Task<ResourcePreviewService> GetPreviewsAsync()
+    {
+        var library = await GetResourcesAsync();
+        lock (previewGate)
+        {
+            ObjectDisposedException.ThrowIf(exiting, this);
+            return previews ??= new ResourcePreviewService(library);
+        }
+    }
+
+    internal void CancelSurfacePreviews(HubWindow window)
+    {
+        lock (previewGate) previews?.CancelOwner(window);
+        WindowLayouts.CancelOwner(window.LayoutOwner);
+    }
+
+    internal string LayoutOwnerForRestoreToken(HubWindow window, string token) =>
+        layoutHistory.IsAutomaticToken(token) ? autoLayoutOwner : window.LayoutOwner;
+
+    internal LayoutRestoreResult RecordLayoutChoiceResult(string token, LayoutRestoreResult result)
+    {
+        var entry = layoutHistory.RecordChoice(token, result);
+        PublishLayoutResults();
+        return entry.Result;
+    }
+
+    internal LayoutRestoreResult RecordManualLayoutResult(LayoutRestoreResult result)
+    {
+        var entry = layoutHistory.RecordManual(result);
+        PublishLayoutResults();
+        return entry.Result;
+    }
+
+    internal void RecordLayoutResult(string executionId, LayoutRestoreResult result)
+    {
+        layoutHistory.RecordAutomatic(executionId, result);
+        PublishLayoutResults();
+    }
+
+    private void PublishLayoutResults()
+    {
+        Application.Current.Dispatcher.VerifyAccess();
+        if (exiting) return;
+        foreach (var surface in Windows) surface.SendEvent("state.changed", State(surface));
+    }
+
+    private void ObserveExecutionLayouts()
+    {
+        if (exiting) return;
+        var executions = Scenes.Snapshot();
+        scheduledLayouts.IntersectWith(executions.Select(execution => execution.Id));
+        foreach (var execution in executions)
+        {
+            if (execution.FinishedAt is null || scheduledLayouts.Contains(execution.Id)) continue;
+            scheduledLayouts.Add(execution.Id);
+            if (execution.Actions.Any(action => action.Code == "cancelled")) continue;
+            // This accessor returns the original execution's deep clone, even if its live scene was edited/deleted.
+            try
+            {
+                var frozen = Scenes.GetExecutionScene(execution.Id);
+                if (frozen.WindowLayout?.RestoreAfterRun == true)
+                {
+                    activeLayoutTasks.RemoveAll(task => task.IsCompleted);
+                    activeLayoutTasks.Add(RestoreExecutionLayoutAsync(execution.Id, frozen));
+                }
+            }
+            catch (SettingsValidationException ex) { Log("ExecutionLayoutSnapshot", execution.Id + ":" + ex.Message); }
+        }
+    }
+
+    private async Task RestoreExecutionLayoutAsync(string executionId, Scene frozen)
+    {
+        try
+        {
+            var result = await WindowLayouts.RestoreAsync(autoLayoutOwner, frozen, lifetime.Token);
+            if (!exiting) RecordLayoutResult(executionId, result);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            Log("ExecutionLayout", executionId + ":" + ex.Message);
+            if (!exiting) RecordLayoutResult(executionId, new LayoutRestoreResult(frozen.Id, null,
+                [new LayoutEntryResult("", "", "failed", "restoreFailed", "窗口布局恢复未完成，请手动重试。", [])]));
+        }
+    }
+
+    internal bool ReleaseHiddenSurface(HubWindow window, BrowserViewSnapshot snapshot)
+    {
+        if (exiting || window.IsVisible || window.IsDisposed || Store.Current.PerformanceMode != "lightweight") return false;
+        if (window.Surface == "dock" && ReferenceEquals(Dock, window))
+        { SaveWindow(window); dockSnapshot = snapshot; Dock = null; }
+        else if (window.Surface == "workspace" && ReferenceEquals(Workspace, window))
+        { SaveWindow(window); workspaceSnapshot = snapshot; Workspace = null; }
+        else return false;
+        window.Dispose();
+        Log("SurfaceReleased", window.Surface + ":hidden-60s");
+        return true;
+    }
+
     public HubApplication(string dataDirectory, bool smoke, bool systemSmoke = false)
     {
         DataDirectory = dataDirectory; Smoke = smoke; this.systemSmoke = systemSmoke;
@@ -58,6 +169,7 @@ public sealed class HubApplication : IDisposable
         AppLibrary = new AppLibraryService(Store);
         SceneLibrary = new SceneLibraryService(Store);
         Scenes = new SceneExecutionService(Store, new WindowsSceneActionRunner(Launcher));
+        WindowLayouts = new SceneWindowLayoutService(Store, Launcher, new Win32WindowLayoutBackend());
         resourceInitialization = Task.Run(() =>
         {
             var service = new ResourceLibraryService(dataDirectory);
@@ -67,11 +179,28 @@ public sealed class HubApplication : IDisposable
         });
         Scenes.Changed += () => _ = Application.Current.Dispatcher.BeginInvoke(() =>
         {
+            ObserveExecutionLayouts();
             foreach (var surface in Windows) surface.SendEvent("scene.executions", new { executions = Scenes.Snapshot() });
         });
         Icons = new ApplicationIconCache(dataDirectory, new WindowsShortcutResolver());
         var firstRun = !File.Exists(Store.SettingsPath);
         Store.Load();
+        Activity = new ActivityService(dataDirectory);
+        Projects = new ProjectService(dataDirectory, (type, id) =>
+        {
+            var current = Store.Current;
+            return type switch
+            {
+                "app" => current.AppEntries.Any(app => app.Id == id),
+                "scene" => current.Scenes.Any(scene => scene.Id == id),
+                "file" or "folder" => resourceInitialization.IsCompletedSuccessfully && resourceInitialization.Result.Store.Snapshot().Resources.Any(item => item.Id == id && item.ResourceType == type),
+                _ => false
+            };
+        });
+        Activity.Changed += () => NotifyActivityProjects("activity.changed", Activity.RecoveryWarning);
+        Projects.Changed += () => NotifyActivityProjects("projects.changed", Projects.RecoveryWarning);
+        if (Activity.RecoveryWarning is { } activityWarning) Log("ActivityRecovery", activityWarning);
+        if (Projects.RecoveryWarning is { } projectWarning) Log("ProjectRecovery", projectWarning);
         DesktopIcons = new DesktopIconVisibilityService(Store);
         Startup = new StartupRegistrationService(Store);
         systemTheme = ReadSystemTheme();
@@ -103,6 +232,20 @@ public sealed class HubApplication : IDisposable
         }
         timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
         timer.Tick += Tick;
+    }
+
+    private void NotifyActivityProjects(string type, string? warning) =>
+        _ = Application.Current.Dispatcher.BeginInvoke(() => { if (!exiting) Workspace?.SendEvent(type, new { changed = true, warning }); });
+
+    // Launch receipts remain truthful even when independent history storage is unavailable.
+    internal void TryRecordActivity(string type, string id, string result)
+    {
+        try { Activity.Record(type, id, result); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or SettingsValidationException or ArgumentException)
+        {
+            Log("ActivityWrite", ex.Message);
+            NotifyActivityProjects("activity.changed", Activity.RecoveryWarning ?? "最近使用保存失败，请重试或重新启动应用。");
+        }
     }
 
     public async Task StartAsync(bool loginStartup = false)
@@ -157,7 +300,7 @@ public sealed class HubApplication : IDisposable
     public object State(HubWindow window)
     {
         var settings = Store.Current;
-        return new { version = "0.2.3", surface = window.Surface, settings, executions = Scenes.Snapshot(), appIcons = Icons.GetIcons(settings),
+        return new { version = "0.3.0", surface = window.Surface, settings, executions = Scenes.Snapshot(), layoutResults = layoutHistory.Snapshot(), appIcons = Icons.GetIcons(settings),
             effectiveTheme = EffectiveTheme, settingsWarning = Store.RecoveryWarning,
             onboardingRequired = !Smoke && !settings.OnboardingCompleted,
             systemIntegration = new { desktopIcons = DesktopIcons.Query(), startup = Startup.Query(), hotkeys = HotkeyStatus },
@@ -172,13 +315,14 @@ public sealed class HubApplication : IDisposable
             var pending = Dock;
             var requested = ++activationGeneration;
             if (pending is null) return;
-            await pending.Ready.Task;
+            await pending.BrowserReady.Task;
             if (exiting || requested != activationGeneration || Dock != pending) return;
             if (Workspace?.IsVisible == true) CloseWorkspace(restoreFocus: false);
             Mini.Hide(); pending.Show(); pending.Topmost = true; pending.Activate();
             return;
         }
         openingDock = true;
+        HubWindow? target = null;
         try
         {
             if (Workspace?.IsVisible == true) CloseWorkspace(restoreFocus: false);
@@ -186,15 +330,16 @@ public sealed class HubApplication : IDisposable
             var generation = ++activationGeneration;
             if (Dock is null)
             {
-                Dock = new HubWindow(this, "dock"); Dock.Show();
-                await Dock.InitializeAsync(environment!);
+                target = new HubWindow(this, "dock"); Dock = target; target.Show();
+                await target.InitializeAsync(environment!, dockSnapshot);
+                dockSnapshot = null;
             }
-            else Dock.Show();
-            if (exiting || generation != activationGeneration || !Dock.IsVisible) return;
-            Dock.Topmost = true; // Only expanded Dock overlays ordinary foreground windows.
-            Dock.Activate();
+            else { target = Dock; target.Show(); }
+            if (exiting || generation != activationGeneration || !ReferenceEquals(Dock, target) || !target.IsVisible) return;
+            target.Topmost = true; // Only expanded Dock overlays ordinary foreground windows.
+            target.Activate();
         }
-        catch { Dock?.Dispose(); Dock = null; SyncMiniVisibility(); throw; }
+        catch { if (target is not null && ReferenceEquals(Dock, target)) { target.Dispose(); Dock = null; } SyncMiniVisibility(); throw; }
         finally { openingDock = false; }
     }
 
@@ -217,24 +362,26 @@ public sealed class HubApplication : IDisposable
         CloseDock();
         Mini.Hide();
         var generation = ++activationGeneration;
+        HubWindow? target = null;
         try
         {
             if (Workspace is null)
             {
-                Workspace = new HubWindow(this, "workspace"); Workspace.Show();
-                await Workspace.InitializeAsync(environment!);
+                target = new HubWindow(this, "workspace"); Workspace = target; target.Show();
+                await target.InitializeAsync(environment!, workspaceSnapshot, page);
+                workspaceSnapshot = null;
             }
-            else { Workspace.Show(); await Workspace.Ready.Task; }
+            else { target = Workspace; target.Show(); await target.BrowserReady.Task; }
         }
-        catch { Workspace?.Dispose(); Workspace = null; SyncMiniVisibility(); throw; }
-        if (exiting || generation != activationGeneration || !Workspace.IsVisible) return;
+        catch { if (target is not null && ReferenceEquals(Workspace, target)) { target.Dispose(); Workspace = null; } SyncMiniVisibility(); throw; }
+        if (exiting || generation != activationGeneration || !ReferenceEquals(Workspace, target) || !target.IsVisible) return;
         // The tray's Settings entry is a recovery path for a fully transparent
         // workspace. Temporarily reveal it without overwriting the saved value.
-        Workspace.Opacity = (page == "settings" || !Store.Current.OnboardingCompleted) && Store.Current.WorkspaceOpacity < .1 ? 1 : Store.Current.WorkspaceOpacity;
+        target.Opacity = (page == "settings" || !Store.Current.OnboardingCompleted) && Store.Current.WorkspaceOpacity < .1 ? 1 : Store.Current.WorkspaceOpacity;
         // No permanent topmost Workspace. Foreground activation is a user-requested action.
-        Workspace.Activate();
-        NativeMethods.SetForegroundWindow(new WindowInteropHelper(Workspace).Handle);
-        if (page is not null) Workspace.SendEvent("window.navigate", new { page });
+        target.Activate();
+        NativeMethods.SetForegroundWindow(new WindowInteropHelper(target).Handle);
+        if (page is not null) target.SendEvent("window.navigate", new { page });
     }
 
     public void CloseWorkspace(bool restoreFocus = true)
@@ -264,6 +411,7 @@ public sealed class HubApplication : IDisposable
         tray?.RefreshMiniLabel();
         foreach (var window in Windows)
         {
+            window.PerformanceModeChanged();
             window.ApplyNativeTheme();
             window.ApplyPositionIfChanged();
             window.SendEvent("state.changed", State(window));
@@ -321,7 +469,7 @@ public sealed class HubApplication : IDisposable
     public void Exit()
     {
         if (exiting) return;
-        exiting = true; timer.Stop();
+        exiting = true; timer.Stop(); lifetime.Cancel(); WindowLayouts.CancelOwner(autoLayoutOwner);
         Scenes.Dispose(); // Cancel pending scheduling; never terminate launched user applications.
         foreach (var window in Windows) SaveWindow(window);
         try { Log("DesktopIconExit", JsonSerializer.Serialize(DesktopIcons.RestoreForExit(), Json)); }
@@ -338,10 +486,17 @@ public sealed class HubApplication : IDisposable
 
     public void Dispose()
     {
+        if (disposed) return;
+        disposed = true;
+        exiting = true;
+        lifetime.Cancel(); WindowLayouts.CancelOwner(autoLayoutOwner);
+        // Parent cancellation remains valid until every scoped restore has reached its terminal path.
+        _ = Task.WhenAll(activeLayoutTasks).ContinueWith(_ => lifetime.Dispose(), TaskScheduler.Default);
         SystemEvents.UserPreferenceChanged -= OnSystemPreferenceChanged;
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         Application.Current.SessionEnding -= OnSessionEnding;
         Hotkeys?.Dispose(); tray?.Dispose();
+        lock (previewGate) { previews?.Dispose(); previews = null; }
         if (Resources is not null) Resources.Dispose();
         else _ = resourceInitialization.ContinueWith(task => { if (task.IsCompletedSuccessfully) task.Result.Dispose(); });
         Scenes.Dispose();
@@ -417,6 +572,7 @@ public sealed class HubApplication : IDisposable
     {
         if (exiting) return;
         exiting = true;
+        lifetime.Cancel(); WindowLayouts.CancelOwner(autoLayoutOwner);
         timer.Stop();
         Scenes.Dispose();
         foreach (var window in Windows) SaveWindow(window);

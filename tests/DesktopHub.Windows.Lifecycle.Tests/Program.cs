@@ -78,6 +78,7 @@ internal static class Program
             }
             finally { Environment.CurrentDirectory = initial; }
         });
+        Task8LifecycleChecks.Run(Run, Check);
         Console.WriteLine($"Lifecycle: {passed} passed, {failed} failed. No real hotkey, tray, desktop icon or registry modification performed.");
         return failed == 0 ? 0 : 1;
     }

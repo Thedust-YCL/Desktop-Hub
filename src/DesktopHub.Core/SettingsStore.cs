@@ -18,6 +18,7 @@ public sealed class SettingsStore
 
     private readonly object _gate = new();
     private AppSettings _current = new();
+    private bool _writesBlocked;
     public string SettingsPath { get; }
     public string? RecoveryWarning { get; private set; }
     public AppSettings Current { get { lock (_gate) return Snapshot(_current); } }
@@ -33,6 +34,7 @@ public sealed class SettingsStore
         lock (_gate)
         {
             RecoveryWarning = null;
+            _writesBlocked = false;
             if (!File.Exists(SettingsPath)) { _current = new(); return Snapshot(_current); }
             try
             {
@@ -41,6 +43,11 @@ public sealed class SettingsStore
                 {
                     if (input.Length > MaximumFileBytes)
                         throw new SettingsValidationException("配置文件超过 16 MiB 安全限制。");
+                    if (HasUnsupportedSchema(input))
+                    {
+                        _current = new(); BlockUnsupportedSchema();
+                        return Snapshot(_current);
+                    }
                     // Isolate damaged scene records so the validated M1.5 app library still loads.
                     using var document = JsonDocument.Parse(input, new JsonDocumentOptions { MaxDepth = 16 });
                     if (document.RootElement.ValueKind != JsonValueKind.Object) throw new SettingsValidationException("配置必须是对象。");
@@ -56,8 +63,12 @@ public sealed class SettingsStore
                         {
                             try
                             {
-                                var scene = SceneValidator.Normalize(item?.Deserialize<Scene>(JsonOptions)
-                                    ?? throw new SettingsValidationException("空场景"));
+                                var requested = item?.Deserialize<Scene>(JsonOptions)
+                                    ?? throw new SettingsValidationException("空场景");
+                                // Legacy graphs predate the simple editor. Establish their
+                                // advanced semantics before authoritative scene validation.
+                                if (parsed.SchemaVersion < 5) requested.EditorMode = "advanced";
+                                var scene = SceneValidator.Normalize(requested);
                                 if (scenes.Any(existing => existing.Id == scene.Id)) throw new SettingsValidationException("重复场景 ID");
                                 scenes.Add(scene);
                             }
@@ -75,7 +86,7 @@ public sealed class SettingsStore
                 }
                 _current = SettingsValidator.Normalize(parsed, out var migrationWarning);
                 RecoveryWarning = JoinWarning(RecoveryWarning, migrationWarning ?? "");
-                if (parsed.SchemaVersion < 4 && RecoveryWarning is null)
+                if (parsed.SchemaVersion < 5 && RecoveryWarning is null)
                 {
                     try { Save(_current); }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SettingsValidationException)
@@ -110,6 +121,7 @@ public sealed class SettingsStore
         ForegroundBlocklist = [.. settings.ForegroundBlocklist],
         LaunchTarget = settings.LaunchTarget is { } target ? target with { } : null,
         AppEntries = settings.AppEntries.Select(entry => entry with { }).ToList(),
+        AppGroups = settings.AppGroups.Select(group => group with { }).ToList(),
         LauncherPins = settings.LauncherPins.Select(pin => pin with { }).ToList(),
         Scenes = settings.Scenes.Select(SceneValidator.Clone).ToList()
     };
@@ -118,6 +130,7 @@ public sealed class SettingsStore
     {
         lock (_gate)
         {
+            EnsureWritable();
             var normalized = SettingsValidator.Normalize(settings);
             var bytes = JsonSerializer.SerializeToUtf8Bytes(normalized, JsonOptions);
             if (bytes.Length > MaximumFileBytes)
@@ -133,7 +146,7 @@ public sealed class SettingsStore
                     output.Write(bytes);
                     output.Flush(flushToDisk: true);
                 }
-                if (File.Exists(SettingsPath)) File.Replace(temporary, SettingsPath, null);
+                if (File.Exists(SettingsPath)) AtomicFileReplacement.Replace(temporary, SettingsPath);
                 else File.Move(temporary, SettingsPath);
                 _current = normalized;
             }
@@ -151,9 +164,55 @@ public sealed class SettingsStore
         ArgumentNullException.ThrowIfNull(mutation);
         lock (_gate)
         {
+            EnsureWritable();
             Save(mutation(Snapshot(_current)));
             return Snapshot(_current);
         }
+    }
+
+    private void EnsureWritable()
+    {
+        if (_writesBlocked) throw new InvalidOperationException(RecoveryWarning);
+        if (!File.Exists(SettingsPath)) return;
+        // Save is public and may be called before Load. It must not destroy a newer configuration.
+        try
+        {
+            using var input = File.OpenRead(SettingsPath);
+            if (input.Length > MaximumFileBytes) throw new SettingsValidationException("配置文件超过 16 MiB，原文件保留且未写入。");
+            if (HasUnsupportedSchema(input))
+            {
+                BlockUnsupportedSchema();
+                throw new InvalidOperationException(RecoveryWarning);
+            }
+        }
+        catch (JsonException) { } // Corrupt JSON follows the existing recovery path; unknown versions never do.
+    }
+
+    private void BlockUnsupportedSchema()
+    {
+        _writesBlocked = true;
+        RecoveryWarning = "配置版本不受支持，原 settings.json 已保留且停止写入。请升级应用。";
+    }
+
+    private static bool HasUnsupportedSchema(FileStream input)
+    {
+        // Classify only top-level version tokens, before current-schema field/depth parsing.
+        // The caller enforces the byte budget; Skip avoids materializing unknown future payloads.
+        var bytes = new byte[checked((int)input.Length)];
+        input.ReadExactly(bytes); input.Position = 0;
+        var offset = bytes.Length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf ? 3 : 0;
+        var reader = new Utf8JsonReader(bytes.AsSpan(offset), new JsonReaderOptions { MaxDepth = int.MaxValue });
+        if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject) return false;
+        while (reader.Read())
+        {
+            if (reader.TokenType != JsonTokenType.PropertyName || reader.CurrentDepth != 1) continue;
+            var versionField = reader.ValueTextEquals("schemaVersion");
+            if (!reader.Read()) throw new JsonException("配置字段缺少值。");
+            if (versionField && reader.TokenType == JsonTokenType.Number &&
+                (!reader.TryGetInt32(out var schema) || schema is not (1 or 2 or 3 or 4 or 5))) return true;
+            reader.Skip();
+        }
+        return false;
     }
 
     private static string JoinWarning(string? existing, string additional) =>

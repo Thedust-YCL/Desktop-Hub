@@ -33,12 +33,15 @@ try {
         $taskResourceTests = Join-Path $taskRoot 'tests/DesktopHub.Resource.Tests/DesktopHub.Resource.Tests.csproj'
         Invoke-Dotnet -Arguments @('restore', $taskResourceTests, '--source', $taskFeed, '--packages', $taskPackages, '-p:NuGetAudit=false')
         Invoke-Dotnet -Arguments @('run', '--project', $taskResourceTests, '-c', 'Release', '--no-restore')
-        foreach ($taskSystemProject in @('tests/DesktopHub.System.Tests/DesktopHub.System.Tests.csproj', 'tests/DesktopHub.Windows.Lifecycle.Tests/DesktopHub.Windows.Lifecycle.Tests.csproj')) {
+        $taskActivityProjectTests = Join-Path $taskRoot 'tests/DesktopHub.ActivityProject.Tests/DesktopHub.ActivityProject.Tests.csproj'
+        Invoke-Dotnet -Arguments @('restore', $taskActivityProjectTests, '--source', $taskFeed, '--packages', $taskPackages, '-p:NuGetAudit=false')
+        Invoke-Dotnet -Arguments @('run', '--project', $taskActivityProjectTests, '-c', 'Release', '--no-restore')
+        foreach ($taskSystemProject in @('tests/DesktopHub.System.Tests/DesktopHub.System.Tests.csproj', 'tests/DesktopHub.Windows.Lifecycle.Tests/DesktopHub.Windows.Lifecycle.Tests.csproj', 'tests/DesktopHub.Windows.Preview.Tests/DesktopHub.Windows.Preview.Tests.csproj', 'tests/DesktopHub.Windows.Layout.Tests/DesktopHub.Windows.Layout.Tests.csproj', 'tests/DesktopHub.Diagnostics.Tests/DesktopHub.Diagnostics.Tests.csproj')) {
             $taskSystemTests = Join-Path $taskRoot $taskSystemProject
             Invoke-Dotnet -Arguments @('restore', $taskSystemTests, '--source', $taskFeed, '--packages', $taskPackages, '-p:NuGetAudit=false')
             Invoke-Dotnet -Arguments @('run', '--project', $taskSystemTests, '-c', 'Release', '--no-restore')
         }
-        $taskNodeTests = @(@('desktop/tests/native-bridge.test.mjs', 'desktop/tests/desktop-adapter.test.mjs', 'desktop/tests/native-scenes.test.mjs', 'desktop/tests/native-resources.test.mjs', 'desktop/tests/native-system.test.mjs', 'desktop/tests/interactions.test.mjs', 'desktop/tests/onboarding.test.mjs', 'prototype/tests/state.test.mjs') | Where-Object { Test-Path -LiteralPath (Join-Path $taskRoot $_) })
+        $taskNodeTests = @((Get-ChildItem -LiteralPath (Join-Path $taskRoot 'desktop/tests') -Filter '*.test.mjs' -File).FullName) + @(Join-Path $taskRoot 'prototype/tests/state.test.mjs')
         if ($taskNodeTests.Count -gt 0) {
             $taskNode = Get-Command node.exe -ErrorAction SilentlyContinue
             if (-not $taskNode) { throw 'Node.js is required to run frontend tests. Use -SkipTests only when intentionally skipping tests.' }

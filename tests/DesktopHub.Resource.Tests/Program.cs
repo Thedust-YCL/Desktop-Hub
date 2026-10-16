@@ -6,6 +6,144 @@ using DesktopHub.Core;
 var root = Path.Combine(AppContext.BaseDirectory, "m22-owned-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
 var results = new List<object>(); var passed = 0; var failed = 0;
+await Test("Native resource envelope budget accommodates 500 real GUID IDs per bounded list without expanding unrelated routes", async () =>
+{
+    bool Allowed(string type,int length)=>DesktopHub.Windows.ResourceRequestParser.EnvelopeAllowed(type,length);
+    var ids=Enumerable.Range(0,500).Select(_=>Guid.NewGuid().ToString("D")).ToArray();
+    var query=JsonSerializer.Serialize(new {version=1,id="ui-123",type="resources.query",payload=new{query=new string('课',200),extension=new string('课',260),tagIds=ids,selectedIds=ids,cleanupIds=ids,sort="modifiedDesc",page=100000,invalidOnly=true,favoritesOnly=true,status="SourceUnavailable"}});
+    True(query.Length>16384);True(query.Length<=65536);True(Allowed("resources.query",query.Length));
+    var batch=JsonSerializer.Serialize(new{version=1,id="ui-124",type="resources.batch",payload=new{resourceIds=ids,operation="addTags",values=ids}});True(Allowed("resources.batch",batch.Length));
+    var legacyIds=Enumerable.Range(0,500).Select(_=>"              "+Guid.NewGuid().ToString("X")+"              ").ToArray();Equal(96,legacyIds[0].Length);
+    var maximal=JsonSerializer.Serialize(new{version=1,id=new string('i',96),type="resources.query",payload=new{query=new string('课',200),extension=new string('课',260),tagIds=legacyIds,selectedIds=legacyIds,cleanupIds=legacyIds,page=100000,sort="modifiedDesc",favoritesOnly=true,invalidOnly=true,status="SourceUnavailable"}});
+    True(maximal.Length>65536);True(Allowed("resources.query",maximal.Length));using(var document=JsonDocument.Parse(maximal)){var parsed=DesktopHub.Windows.ResourceRequestParser.Query(document.RootElement.GetProperty("payload"));Equal(legacyIds[0],parsed.SelectedIds[0]);}
+    foreach(var type in new[]{"resources.query","resources.batch","resources.batchSuggestions","resources.filterSave"}){True(Allowed(type,256*1024));True(!Allowed(type,256*1024+1));}
+    True(!Allowed("resources.open",16385));True(Allowed("apps.update",1024*1024));True(!Allowed("apps.update",1024*1024+1));
+    await Task.CompletedTask;
+});
+await Test("A blocked legacy migration retains usable metadata and does not claim the resources were unloaded", async () =>
+{
+    var directory = NewDirectory("locked-migration"); var path = Path.Combine(directory,"resources.json");var folder=Fixture(0);
+    File.WriteAllText(path,JsonSerializer.Serialize(new ResourceLibrary { SchemaVersion=1, Resources=[new(){Id=Id(),CanonicalPath=Path.Combine(folder,"owned.txt"),ManualTarget=true}] },ResourceStore.Json));
+    var original=File.ReadAllText(path);
+    using(var locked=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read)) {
+        var store=new ResourceStore(directory);Equal(1,store.Snapshot().Resources.Count);Equal(2,store.Snapshot().SchemaVersion);True(store.RecoveryWarning is not null);True(!store.RecoveryWarning!.Contains("未载入"));
+        await ThrowsAsync(()=>Task.Run(()=>store.Update(_=>{})));Equal(original,File.ReadAllText(path));
+    }
+});
+await Test("Native resource request parsing strictly rejects malformed nested fields and operation values before mutation", async () =>
+{
+    object Parse(string method, string json) { using var doc = JsonDocument.Parse(json); return method switch {
+        "Batch" => DesktopHub.Windows.ResourceRequestParser.Batch(doc.RootElement), "Query" => DesktopHub.Windows.ResourceRequestParser.Query(doc.RootElement),
+        "FilterSave" => DesktopHub.Windows.ResourceRequestParser.FilterSave(doc.RootElement), "Suggestions" => DesktopHub.Windows.ResourceRequestParser.Suggestions(doc.RootElement),
+        "FilterDelete" => DesktopHub.Windows.ResourceRequestParser.FilterDelete(doc.RootElement), _ => throw new ArgumentException("Unknown diagnostic parser operation") }; }
+    var id = Id(); var tag = Id();
+    var parsed = JsonSerializer.SerializeToElement(Parse("Batch", $$$"""{"resourceIds":["{{{id}}}"],"operation":"favorite","values":[]}"""), ResourceStore.Json);
+    Equal("favorite", parsed.GetProperty("operation").GetString()); Equal(id, parsed.GetProperty("resourceIds")[0].GetString());
+    foreach (var json in new[] {
+        $$$"""{"resourceIds":["{{{id}}}"],"operation":"favorite","values":["{{{tag}}}"]}""",
+        $$$"""{"resourceIds":["{{{id}}}","{{{id}}}"],"operation":"favorite","values":[]}""",
+        $$$"""{"resourceIds":["{{{id}}}"],"operation":"delete","values":[]}""",
+        $$$"""{"resourceIds":["{{{id}}}"],"operation":"addTags","values":[]}""",
+        $$$"""{"resourceIds":["{{{id}}}"],"operation":"acceptSuggestions","values":[]}""",
+        $$$"""{"resourceIds":["{{{id}}}"],"operation":"favorite","operation":"unfavorite","values":[]}""",
+        "{\"resourceIds\":[\"not-guid\"],\"operation\":\"favorite\",\"values\":[]}",
+        $$$"""{"resourceIds":["{{{id}}}"],"operation":"favorite","values":[],"path":"C:/outside"}""",
+        $$$"""{"resourceIds":["\n{{{id}}}"],"operation":"favorite","values":[]}""",
+        JsonSerializer.Serialize(new { resourceIds = Enumerable.Range(0,501).Select(_ => Id()), operation = "favorite", values = Array.Empty<string>() }), "[]" })
+        await ThrowsAsync(() => Task.Run(() => Parse("Batch", json)));
+    foreach (var json in new[] { "{\"sort\":\"random\"}", "{\"page\":\"1\"}", "{\"favoritesOnly\":1}", "{\"query\":\"a\\u0000b\"}", $$$"""{"filterId":"{{{id}}}","query":""}""", $$$"""{"selectedIds":["{{{id}}}","{{{id}}}"]}""", "{\"unknown\":true}" })
+        await ThrowsAsync(() => Task.Run(() => Parse("Query", json)));
+    foreach (var json in new[] { $$$"""{"filter":{"id":"{{{id}}}","name":"Valid","name":"Other","tagIds":[]}}""", $$$"""{"filter":{"id":"{{{id}}}","name":"Valid","tagIds":[],"path":"C:/outside"}}""", $$$"""{"filter":{"id":"{{{id}}}","name":"Valid","tagIds":[],"favoritesOnly":null}}""" })
+        await ThrowsAsync(() => Task.Run(() => Parse("FilterSave", json)));
+    var filter = JsonSerializer.SerializeToElement(Parse("FilterSave", $$$"""{"filter":{"id":"{{{id}}}","name":"  Text only  ","query":"a","tagIds":[],"extension":null,"favoritesOnly":false,"sort":"name"}}"""), ResourceStore.Json);
+    Equal("Text only", filter.GetProperty("name").GetString()); Equal(0, filter.GetProperty("tagIds").GetArrayLength());
+    await ThrowsAsync(() => Task.Run(() => Parse("Suggestions", $$$"""{"resourceIds":["{{{id}}}"],"suggestionName":"Valid","suggestionType":"arbitrary"}""")));
+    await ThrowsAsync(() => Task.Run(() => Parse("FilterDelete", "{\"id\":\"00000000-0000-0000-0000-000000000000\"}")));
+});
+await Test("Selection metadata resolves off-page IDs, cleanup eligibility and bounded comparable pending suggestions", async () =>
+{
+    using var service = Service(); var folder = Fixture(0); var a = Id(); var b = Id(); var missing = Id(); var offline = Id();
+    service.Store.Update(data =>
+    {
+        data.Resources.AddRange([new() { Id = a, CanonicalPath = Path.Combine(folder, "a.txt"), ManualTarget = true }, new() { Id = b, CanonicalPath = Path.Combine(folder, "b.txt"), ManualTarget = true }, new() { Id = missing, CanonicalPath = Path.Combine(folder, "m.txt"), ManualTarget = true, Status = "Missing" }, new() { Id = offline, CanonicalPath = Path.Combine(folder, "o.txt"), ManualTarget = true, Status = "SourceUnavailable" }]);
+        data.Suggestions.AddRange([new() { ResourceId = a, SuggestedName = " Shared ", TagType = "theme" }, new() { ResourceId = b, SuggestedName = "shared", TagType = "theme" }, new() { ResourceId = a, SuggestedName = "Wrong type", TagType = "theme" }, new() { ResourceId = b, SuggestedName = "Wrong type", TagType = "period" }, new() { ResourceId = a, SuggestedName = "Handled", Status = "Rejected" }, new() { ResourceId = b, SuggestedName = "Handled", Status = "Accepted" }]);
+    });
+    ResourceSelectionMetadata Read(string[] selected, string[] cleanup) => service.SelectionMetadata(selected, cleanup);
+    var before = File.ReadAllText(service.Store.FilePath);
+    var json = JsonSerializer.SerializeToElement(Read([a, b, Id()], [missing, offline]), ResourceStore.Json);
+    Equal(2, json.GetProperty("selectedResources").GetArrayLength()); Equal(2, json.GetProperty("cleanupResources").GetArrayLength());
+    var groups = json.GetProperty("commonSuggestions"); Equal(1, groups.GetArrayLength()); Equal("theme", groups[0].GetProperty("type").GetString()); True(groups[0].GetProperty("name").GetString()!.Equals("shared", StringComparison.OrdinalIgnoreCase));
+    await ThrowsAsync(() => Task.Run(() => Read([a, a], []))); await ThrowsAsync(() => Task.Run(() => Read(Enumerable.Range(0, 501).Select(_ => Id()).ToArray(), [])));
+    Equal(before, File.ReadAllText(service.Store.FilePath));
+    service.Store.Update(data => { data.Resources.RemoveAll(r => r.Id == a); data.Suggestions.RemoveAll(s => s.ResourceId == a); data.Resources.Single(r => r.Id == b).Status = "Missing"; });
+    json = JsonSerializer.SerializeToElement(Read([a, b], []), ResourceStore.Json); Equal(1, json.GetProperty("selectedResources").GetArrayLength()); Equal("Missing", json.GetProperty("selectedResources")[0].GetProperty("status").GetString()); Equal(0, json.GetProperty("commonSuggestions").GetArrayLength());
+});
+await Test("Batch changes at most 500 active resources and rejects the whole invalid request without partial writes", async () =>
+{
+    using var service = Service(); var folder = Fixture(0);
+    service.Store.Update(data => data.Resources = Enumerable.Range(0, 501).Select(i => new Resource { Id = Id(), CanonicalPath = Path.Combine(folder, i + ".txt"), DisplayName = i + ".txt", ManualTarget = true }).ToList());
+    var ids = service.Store.Snapshot().Resources.Select(r => r.Id).ToArray();
+    await service.BatchAsync(ids.Take(500).ToArray(), "favorite", Array.Empty<string>());
+    Equal(500, service.Store.Snapshot().Resources.Count(r => r.Favorite)); var before = File.ReadAllText(service.Store.FilePath);
+    await ThrowsAsync(() => service.BatchAsync(ids, "unfavorite", Array.Empty<string>()));
+    await ThrowsAsync(() => service.BatchAsync(new[] { ids[0], Id() }, "unfavorite", Array.Empty<string>()));
+    await ThrowsAsync(() => service.BatchAsync(new[] { ids[0], ids[0] }, "unfavorite", Array.Empty<string>()));
+    await ThrowsAsync(() => service.BatchAsync(Array.Empty<string>(), "favorite", Array.Empty<string>()));
+    await ThrowsAsync(() => service.BatchAsync(new[] { ids[0] }, "delete", Array.Empty<string>()));
+    await ThrowsAsync(() => service.BatchAsync(new[] { ids[0] }, "favorite", new[] { Id() }));
+    Equal(before, File.ReadAllText(service.Store.FilePath)); Equal(500, service.Store.Snapshot().Resources.Count(r => r.Favorite));
+    service.Store.Update(data => data.Resources[1].Status = "Missing"); before = File.ReadAllText(service.Store.FilePath);
+    await ThrowsAsync(() => service.BatchAsync(ids.Take(2).ToArray(), "unfavorite", Array.Empty<string>())); Equal(before, File.ReadAllText(service.Store.FilePath));
+});
+await Test("Batch tags are incremental and a failed disk replacement leaves all relationships unchanged", async () =>
+{
+    using var service = Service(); var folder = Fixture(0); var id = Id(); var first = Id(); var second = Id();
+    service.Store.Update(data => { data.Resources.Add(new Resource { Id = id, CanonicalPath = Path.Combine(folder, "item.txt"), ManualTarget = true }); data.Tags.AddRange([new() { Id = first, Name = "Existing", CategoryId = "custom" }, new() { Id = second, Name = "Added", CategoryId = "custom" }]); data.ResourceTags.Add(new(id, first)); });
+    await service.BatchAsync(new[] { id }, "addTags", new[] { second });
+    Equal(2, service.Store.Snapshot().ResourceTags.Count); await service.BatchAsync(new[] { id }, "removeTags", new[] { second }); Equal(new List<ResourceTag> { new(id, first) }, service.Store.Snapshot().ResourceTags);
+    var before = File.ReadAllText(service.Store.FilePath);
+    await ThrowsAsync(() => service.BatchAsync(new[] { id }, "addTags", new[] { second, Id() })); Equal(before, File.ReadAllText(service.Store.FilePath));
+    using (var locked = new FileStream(service.Store.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read)) await ThrowsAsync(() => service.BatchAsync(new[] { id }, "addTags", new[] { second }));
+    Equal(before, File.ReadAllText(service.Store.FilePath)); Equal(1, service.Store.Snapshot().ResourceTags.Count);
+});
+await Test("Batch suggestion acceptance requires same name and type for every selected resource", async () =>
+{
+    using var service = Service(); var folder = Fixture(0); var first = Id(); var second = Id(); var s1 = Id(); var s2 = Id(); var wrong = Id();
+    service.Store.Update(data => { data.Resources.AddRange([new() { Id = first, CanonicalPath = Path.Combine(folder, "a.txt"), ManualTarget = true }, new() { Id = second, CanonicalPath = Path.Combine(folder, "b.txt"), ManualTarget = true }]);
+        data.Suggestions.AddRange([new() { Id = s1, ResourceId = first, SuggestedName = "Shared", TagType = "theme" }, new() { Id = s2, ResourceId = second, SuggestedName = "Shared", TagType = "theme" }, new() { Id = wrong, ResourceId = second, SuggestedName = "Shared", TagType = "period" }]); });
+    var before = File.ReadAllText(service.Store.FilePath);
+    await ThrowsAsync(() => service.BatchAsync(new[] { first, second }, "acceptSuggestions", new[] { s1, wrong })); Equal(before, File.ReadAllText(service.Store.FilePath));
+    await service.BatchAsync(new[] { first, second }, "acceptSuggestions", new[] { s1, s2 });
+    var after = service.Store.Snapshot(); Equal(1, after.Tags.Count); Equal(2, after.ResourceTags.Count); Equal(2, after.Suggestions.Count(s => s.Status == "Accepted")); Equal("Pending", after.Suggestions.Single(s => s.Id == wrong).Status);
+});
+await Test("Resource schema one migrates without losing relationships and saved filters survive restart with explicit missing-tag status", async () =>
+{
+    var directory = NewDirectory("filter-migration"); var folder = Fixture(0); var tagId = Id(); var resourceId = Id();
+    var legacy = new ResourceLibrary { SchemaVersion = 1, AutoTagByModificationTime = false, Resources = [new() { Id = resourceId, CanonicalPath = Path.Combine(folder, "a.txt"), DisplayName = "a.txt", Extension = ".txt", Favorite = true, ManualTarget = true }], Tags = [new() { Id = tagId, Name = "Old", CategoryId = "custom" }], ResourceTags = [new(resourceId, tagId)] };
+    File.WriteAllText(Path.Combine(directory, "resources.json"), JsonSerializer.Serialize(legacy, ResourceStore.Json)); var filterId = Id();
+    using (var service = new ResourceLibraryService(directory))
+    {
+        Equal(2, service.Store.Snapshot().SchemaVersion); Equal(legacy.ResourceTags, service.Store.Snapshot().ResourceTags); Equal(false, service.Store.Snapshot().AutoTagByModificationTime);
+        var filter = JsonSerializer.Deserialize<SavedResourceFilter>(JsonSerializer.Serialize(new { id = filterId, name = "My filter", query = "a", tagIds = new[] { tagId }, extension = ".txt", favoritesOnly = true, sort = "name" }), ResourceStore.Json)!;
+        await service.SaveFilterAsync(filter);
+        Equal(1, ((ResourcePage)service.QueryFilter(filterId, 0)!).Total);
+        var isolated = service.Store.Snapshot(); isolated.SavedFilters[0].TagIds.Clear();
+        Equal(1, ((ResourcePage)service.QueryFilter(filterId, 0)!).Total);
+        var emptyFilter = JsonSerializer.Deserialize<SavedResourceFilter>(JsonSerializer.Serialize(new { id = Id(), name = "Text only", query = "a", tagIds = Array.Empty<string>(), sort = "name" }), ResourceStore.Json)!;
+        await service.SaveFilterAsync(emptyFilter);
+        var emptyId = emptyFilter.Id;
+        True(JsonSerializer.SerializeToElement(service.ResolveFilter(emptyId), ResourceStore.Json).GetProperty("valid").GetBoolean());
+        var original = File.ReadAllText(service.Store.FilePath);
+        var badFilter = JsonSerializer.Deserialize<SavedResourceFilter>(JsonSerializer.Serialize(new { id = Id(), name = "Invalid", tagIds = new[] { Id() }, sort = "name" }), ResourceStore.Json)!;
+        await ThrowsAsync(() => service.SaveFilterAsync(badFilter)); Equal(original, File.ReadAllText(service.Store.FilePath));
+        await service.DeleteFilterAsync(emptyId); await service.DeleteTagAsync(tagId, true);
+    }
+    using var restart = new ResourceLibraryService(directory); var data = restart.Store.Snapshot();
+    using var json = JsonDocument.Parse(JsonSerializer.Serialize(data, ResourceStore.Json)); var saved = json.RootElement.GetProperty("savedFilters")[0]; Equal(tagId, saved.GetProperty("tagIds")[0].GetString());
+    var status = restart.ResolveFilter(filterId)!; var statusJson = JsonSerializer.SerializeToElement(status, ResourceStore.Json); True(!statusJson.GetProperty("valid").GetBoolean()); Equal(tagId, statusJson.GetProperty("missingTagIds")[0].GetString());
+    await ThrowsAsync(() => Task.Run(() => restart.QueryFilter(filterId, 0)));
+    await restart.DeleteFilterAsync(filterId); using var deleted = JsonDocument.Parse(JsonSerializer.Serialize(new ResourceStore(directory).Snapshot(), ResourceStore.Json)); Equal(0, deleted.RootElement.GetProperty("savedFilters").GetArrayLength());
+});
 await Test("Known-folder desktop discovery creates no index or watcher", async () =>
 {
     using var service = Service(); await service.StartAsync();
