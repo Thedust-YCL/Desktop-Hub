@@ -5,9 +5,12 @@ artifacts/
 *.user
 *.suo
 
+# Local product/design notes, handoff records, and review captures
+/docs/
+/PRD*.md
+/prototype/screenshots/
+
 # Generated test evidence and resource measurements (keep locally)
-/docs/*-evidence/
-/docs/resource-usage/
 /TestResults/
 **/TestResults/
 /coverage/
