@@ -98,17 +98,16 @@ internal static class Program
         foreach (var lossless in new[] { true, false })
         {
             var webp = Path.Combine(root, lossless ? "lossless.webp" : "lossy.webp");
-            RunTool("cwebp.exe", (lossless ? new[] { "-lossless", file, "-o", webp } : new[] { "-q", "95", file, "-o", webp }));
+            CopyFixture(Path.GetFullPath("tests/DesktopHub.Windows.Preview.Tests/Fixtures/" + Path.GetFileName(webp)), root, Path.GetFileName(webp));
             var output = await previews.RenderAsync(Register(library, webp).Id, false, default);
             Check(output.Width == 40 && output.Height == 20 && Pixel(output, 0, 0).B > 240, "native WebP " + lossless);
         }
-        var alphaPng = Path.Combine(root,"alpha.png"); WriteImage(alphaPng,new PngBitmapEncoder(),Color.FromArgb(128,255,0,0));
-        var alphaWebp = Path.Combine(root,"alpha.webp");RunTool("cwebp.exe","-lossless",alphaPng,"-o",alphaWebp);
+        var alphaWebp = CopyFixture(Path.GetFullPath("tests/DesktopHub.Windows.Preview.Tests/Fixtures/alpha.webp"),root,"alpha.webp");
         var alpha = await previews.RenderAsync(Register(library,alphaWebp).Id,false,default);Check(Pixel(alpha,1,1).A == 128 && Pixel(alpha,1,1).R == 255,"WebP alpha preserved");
         foreach(var blend in new[]{"+b","-b"})
         {
             var animation=Path.Combine(root,blend=="+b"?"blend.webp":"replace.webp");
-            RunTool("webpmux.exe","-frame",alphaWebp,"+100+10+4+0"+blend,"-frame",Path.Combine(root,"lossless.webp"),"+100+0+0+0+b","-bgcolor","255,0,255,0","-o",animation);
+            CopyFixture(Path.GetFullPath("tests/DesktopHub.Windows.Preview.Tests/Fixtures/" + Path.GetFileName(animation)),root,Path.GetFileName(animation));
             var frame=await previews.RenderAsync(Register(library,animation).Id,false,default);
             Check(frame.Width==50 && frame.Height==24,"animated WebP logical canvas/offset");Check(Pixel(frame,0,0)==Colors.Lime,"animated WebP background");
             var pixel=Pixel(frame,20,10);Check(blend=="+b"?pixel.A==255&&pixel.R is >=127 and <=129&&pixel.G is >=126 and <=128:pixel.A==128&&pixel.R==255&&pixel.G==0,"animated WebP alpha blend/no-blend first frame");
@@ -201,8 +200,6 @@ internal static class Program
     }
     private static void Throws<T>(Action action, string name) where T : Exception { try { action(); } catch(T) { Check(true,name); return; } throw new Exception("Expected rejection: " + name); }
     private static void Check(bool value, string name) { if (!value) throw new Exception("FAIL " + name); ++assertions; }
-    private static void RunTool(string tool, params string[] args)
-    { var start = new ProcessStartInfo(Path.GetFullPath(Path.Combine("artifacts/usability-development/task-7-research/libwebp-1.6.0-windows-x64/bin", tool))) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true }; foreach (var arg in args) start.ArgumentList.Add(arg); using var process = Process.Start(start)!; var error = process.StandardError.ReadToEnd(); process.WaitForExit(); if (process.ExitCode != 0) throw new Exception(error); }
     private static void WritePdf(string path)
     {
         var objects = new[] { "<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>", "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Contents 5 0 R >>", "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Contents 6 0 R >>", "<< /Length 26 >>\nstream\n1 0 0 rg 0 0 400 200 re f\nendstream", "<< /Length 26 >>\nstream\n0 0 1 rg 0 0 400 200 re f\nendstream" };
