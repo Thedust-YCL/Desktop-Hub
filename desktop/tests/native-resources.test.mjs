@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { randomUUID } from 'node:crypto';
 const source = fs.readFileSync(new URL('../resources.js', import.meta.url),'utf8');
-function setup(surface='workspace') {
+function setup(surface='workspace', language=null) {
   const sent=[], events=new Map(), toasts=[], nodes=new Map(), responses=new Map();
   const tag={id:'tag',name:'主题',tagType:'theme'};
   const data={items:[{resource:{id:'resource',canonicalPath:'C:\\Owned\\课程.txt',displayName:'课程.txt',resourceType:'file',extension:'.txt',status:'Active',favorite:false,creationTime:new Date().toISOString(),modificationTime:new Date().toISOString()},tags:[tag],suggestions:[{id:'suggestion',suggestedName:'2026年10月',suggestionBasis:'创建时间',status:'Pending'}]}],total:1,page:0,pageSize:60,sources:[],tags:[tag]};
@@ -14,7 +14,9 @@ function setup(surface='workspace') {
   const document={activeElement:null,documentElement:{dataset:{}},querySelector:selector=>nodes.get(selector)||null,querySelectorAll(){return [];},createElement(){return {innerHTML:'',className:''};},addEventListener(){}};
   const bridge={on(type,callback){events.set(type,callback);},async request(type,payload){sent.push({type,payload:structuredClone(payload)});if(responses.has(type))return responses.get(type)(payload);if(failure)throw new Error(failure);if(type==='resources.query')return structuredClone(data);if(type==='resources.preview')return {token:payload.operationId,path:'C:\\Owned',files:1,folders:0,recursive:payload.recursive,warnings:[],cloudPath:false};if(type==='resources.browse')return {token:'browse',path:'C:\\Owned\\sub',items:[],total:0,page:0,warnings:[]};return {saved:true};}};
   const window={Hub:H,crypto:{randomUUID},DesktopHubNative:{bridge},DesktopHubDesktop:{getState:()=>({surface})}};
-  const context=vm.createContext({window,document,setTimeout,clearTimeout,queueMicrotask,Date,console});vm.runInContext(source,context);
+  const context=vm.createContext({window,document,setTimeout,clearTimeout,queueMicrotask,Date,console});
+  if(language){for(const name of ['translations.js','i18n.js'])vm.runInContext(fs.readFileSync(new URL('../'+name,import.meta.url),'utf8'),context);context.DesktopHubTranslations=window.DesktopHubTranslations;window.DesktopHubI18n=context.DesktopHubI18n;window.DesktopHubI18n.setLanguage(language);}
+  vm.runInContext(source,context);
   return {H,sent,data,window,toasts,events,nodes,respond(type,handler){responses.set(type,handler);},load(name){vm.runInContext(fs.readFileSync(new URL('../'+name,import.meta.url),'utf8'),context);},fail(message){failure=message;}};
 }
 const click=id=>({dataset:{id}});
@@ -285,4 +287,16 @@ test('invalid saved filter remains explicit and hides resource results instead o
   const env=batchFixture();const id=randomUUID();env.data.savedFilters=[{filter:{id,name:'失效条件',query:'课程',tagIds:['gone'],favoritesOnly:false,sort:'type'},valid:false,missingTagIds:['gone']}];await env.window.DesktopHubResources.reload();
   env.H.actions['nr-filter-use'](click(id));env.data.filterInvalid=true;await env.window.DesktopHubResources.reload();assert.match(env.H.pages.library(),/筛选中的标签已失效/);assert.doesNotMatch(env.H.pages.library(),/data-resource-id/);
   assert.ok(env.sent.filter(x=>x.type==='resources.query'&&x.payload.filterId===id).every(x=>!('query' in x.payload)&&!('tagIds' in x.payload)));
+});
+
+test('English tag categories translate canonical built-ins and preserve user names',async()=>{
+  const env=setup('workspace','en-US');
+  env.data.tagCategories=[{id:'theme',name:'主题'},{id:'period',name:'时期'},{id:'custom',name:'自定义'},{id:'user-theme',name:'主题'},{id:'user-period',name:'时期'},{id:'user-custom',name:'自定义'}];
+  await env.window.DesktopHubResources.reload();
+  const html=env.H.pages.tags();
+  for(const [id,name] of [['theme','Theme'],['period','Period'],['custom','Custom'],['user-theme','主题'],['user-period','时期'],['user-custom','自定义']]){
+    assert.ok(html.includes(`data-category="${id}" aria-pressed="false">${name} <small>`),`${id} keeps its expected display name`);
+  }
+  env.window.DesktopHubI18n.setLanguage('zh-CN');
+  assert.match(env.H.pages.tags(),/data-category="theme" aria-pressed="false">主题 <small>/);
 });

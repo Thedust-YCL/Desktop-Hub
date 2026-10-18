@@ -1,0 +1,57 @@
+name: Windows release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate tag and initialize build tools
+        run: |
+          $taskVersion = $env:GITHUB_REF_NAME -replace '^v', ''
+          if ($taskVersion -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') { throw 'Expected vMAJOR.MINOR.PATCH tag.' }
+          "RELEASE_VERSION=$taskVersion" >> $env:GITHUB_ENV
+          ./scripts/bootstrap-release.ps1
+      - name: Download existing update baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $taskHeaders = @{ Authorization = "Bearer $env:GH_TOKEN"; 'X-GitHub-Api-Version' = '2022-11-28' }
+          # A failed API request is fatal. Only an empty compatible release list means first release.
+          for ($taskPage = 1; ; $taskPage++) {
+            $taskReleases = @(Invoke-RestMethod "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases?per_page=100&page=$taskPage" -Headers $taskHeaders)
+            $taskBaseline = $taskReleases | Where-Object { -not $_.draft -and -not $_.prerelease -and @($_.assets | Where-Object name -eq 'releases.win.json').Count -gt 0 } | Select-Object -First 1
+            if ($taskBaseline -or $taskReleases.Count -lt 100) { break }
+          }
+          if ($taskBaseline) {
+            $env:DOTNET_ROOT = Join-Path $PWD '.tools/dotnet'
+            & ./.tools/velopack-cli/vpk.exe download github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --token $env:GH_TOKEN --channel win --outputDir artifacts/update-baseline
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to download update baseline.' }
+            'RELEASE_BASELINE=artifacts/update-baseline' >> $env:GITHUB_ENV
+          }
+      - name: Test and package
+        run: |
+          $taskArguments = @{ Version = $env:RELEASE_VERSION; Offline = $true }
+          if ($env:RELEASE_BASELINE) { $taskArguments.BaselineDirectory = $env:RELEASE_BASELINE }
+          ./scripts/package-release.ps1 @taskArguments
+      - name: Upload draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $env:DOTNET_ROOT = Join-Path $PWD '.tools/dotnet'
+          & ./.tools/velopack-cli/vpk.exe upload github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --token $env:GH_TOKEN --channel win --outputDir "artifacts/releases/$env:RELEASE_VERSION" --tag $env:GITHUB_REF_NAME --releaseName "Desktop Hub $env:RELEASE_VERSION"
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release upload failed.' }

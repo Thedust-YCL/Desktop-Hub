@@ -42,6 +42,30 @@ function setup(responses = {}, surface = 'workspace') {
     section(id) { H.actions['settings-section']({ dataset: { section: id } }); return H.pages.settings(); } };
 }
 
+test('updates provide explicit download and restart confirmation, no automatic install', async () => {
+  const env = setup();
+  assert.match(env.section('system'), /检查更新/);
+  await env.H.actions['sys-update-check']();
+  assert.equal(env.sent.at(-1).type, 'update.check');
+  env.desktop.applyHostState({ updates: { currentVersion: '0.3.1', stage: 'ready', availableVersion: '0.3.2', progress: 100 } });
+  assert.match(env.section('system'), /重启更新/);
+  env.H.actions['sys-update-install']();
+  assert.match(env.H.ui.modal.body, /重启/);
+  assert.equal(env.sent.some(x => x.type === 'update.install'), false);
+  await env.H.actions['sys-update-confirm']();
+  assert.equal(env.sent.at(-1).type, 'update.install');
+});
+
+test('update controls disable duplicate actions and show actionable failure', () => {
+  const env = setup();
+  env.desktop.applyHostState({ updates: { currentVersion: '0.3.1', stage: 'downloading', progress: 42 } });
+  assert.match(env.section('system'), /42%/);
+  assert.match(env.H.pages.settings(), /role="progressbar"/);
+  env.desktop.applyHostState({ updates: { currentVersion: '0.3.1', stage: 'error', availableVersion: '0.3.2', error: '<network>' } });
+  assert.match(env.section('system'), /重试下载/);
+  assert.match(env.H.pages.settings(), /&lt;network&gt;/);
+});
+
 test('first hide requires explicit unselected policy; cancelling sends no system mutation', async () => {
   const env = setup();
   env.section('system');
@@ -75,6 +99,17 @@ test('performance mode choice saves the explicit preference and explains the hid
   await env.H.actions['sys-performance-mode']({ value: 'lightweight' });
   assert.deepEqual(env.sent.filter(x => x.type === 'settings.save').at(-1).payload, { settings: { performanceMode: 'lightweight' } });
   assert.equal(env.state().settings.performanceMode, 'lightweight');
+});
+
+test('language defaults to Chinese and saves only the selected language', async () => {
+  const env = setup();
+  assert.match(env.section('appearance'), /data-change="sys-language"/);
+  assert.match(env.H.pages.settings(), /value="zh-CN" selected/);
+  await env.H.actions['sys-language']({ value: 'en-US' });
+  assert.deepEqual(env.sent.filter(x => x.type === 'settings.save').at(-1).payload, { settings: { language: 'en-US' } });
+  assert.equal(env.state().settings.language, 'en-US');
+  await env.H.actions['sys-language']({ value: 'fr-FR' });
+  assert.equal(env.sent.filter(x => x.type === 'settings.save').length, 1);
 });
 
 test('Workspace brand displays the connected host version after every state update', () => {

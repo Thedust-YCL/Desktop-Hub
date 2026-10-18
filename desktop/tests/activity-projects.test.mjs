@@ -228,3 +228,22 @@ test('Task8 return-to-project draft remains busy outside its modal and snapshot 
   assert.equal(e.H.ui.modal,null);assert.ok(e.window.DesktopHubProjects.lifecycleBusyReasons().includes('project-draft'));
   assert.deepEqual(structuredClone(e.window.DesktopHubProjects.captureLifecycle()),{projectId:null});
 });
+
+test('language-only state changes refresh native localized activity and project details',async()=>{
+  const e=setup(), p=project('project-a','用户项目名'), name='用户场景名';
+  await open(e,p,[{...ref('scene','scene-a','Active',name),detail:'2 个动作'}]);
+  e.window.DesktopHubActivity.refresh();
+  await reply(e,'activity.query',{items:[{...recent('scene','scene-a'),name,detail:'2 个动作'}],warning:null});
+  assert.match(e.H.pages.project(),/2 个动作/);
+  assert.match(e.H.pages.activity(),/2 个动作/);
+  const count=e.sent.length;
+  e.settings.language='en-US';
+  e.event('state.changed',{settings:e.settings});
+  assert.deepEqual(e.sent.slice(count).map(r=>r.type),['activity.query','projects.query']);
+  await reply(e,'activity.query',{items:[{...recent('scene','scene-a'),name,detail:'2 actions'}],warning:null});
+  await reply(e,'projects.query',{projects:[summary(p)],project:p,items:[{...ref('scene','scene-a','Active',name),detail:'2 actions'}],warning:null});
+  for(const html of [e.H.pages.project(),e.H.pages.activity()]){
+    assert.match(html,/2 actions/);assert.doesNotMatch(html,/2 个动作/);assert.ok(html.includes(name));
+  }
+  assert.ok(e.H.pages.project().includes(p.name));
+});

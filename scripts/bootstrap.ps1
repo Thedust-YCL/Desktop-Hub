@@ -55,6 +55,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $taskSdkDirectory "sdk/$taskSdkVersi
 
 Receive-Artifact "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/$taskPackageVersion/microsoft.web.webview2.$taskPackageVersion.nupkg" $taskPackage $taskPackageHash
 Receive-Artifact "https://api.nuget.org/v3-flatcontainer/microsoft.windows.sdk.net.ref/$taskWindowsSdkVersion/microsoft.windows.sdk.net.ref.$taskWindowsSdkVersion.nupkg" $taskWindowsSdkPackage $taskWindowsSdkHash
+Receive-Artifact 'https://api.nuget.org/v3-flatcontainer/velopack/1.2.161/velopack.1.2.161.nupkg' (Join-Path $taskFeed 'velopack.1.2.161.nupkg') 'F0D030E3A34A045935AD4F3040AE332F587A222ED73BA5D81245B228EDA19867C15234379D488B716562E7F22A314A8072AC232A8D4525FD92650FEB96E95655'
+Receive-Artifact 'https://api.nuget.org/v3-flatcontainer/vpk/1.2.161/vpk.1.2.161.nupkg' (Join-Path $taskFeed 'vpk.1.2.161.nupkg') '359F48F056F0973E1B1CF971BD67862B1DD35C21147F801D3C78541E2769A6033708A56DD5B1801C7ADD0630A36344B5BA892997AD2F03CF3DC00CCEDBF8B19B'
 
 $env:DOTNET_CLI_HOME = Join-Path $taskTools 'dotnet-home'
 $env:DOTNET_ROOT = $taskSdkDirectory

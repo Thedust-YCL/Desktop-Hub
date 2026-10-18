@@ -1,6 +1,7 @@
 /* Non-authorizing in-memory navigation state; native owns the final release decision. */
 (function () {
   'use strict';
+  const t = window.DesktopHubI18n?.text || ((value, ...args) => Array.isArray(value) ? value.reduce((out, part, i) => out + part + (i < args.length ? args[i] : ''), '') : value);
   const H = window.Hub, desktop = window.DesktopHubDesktop, bridge = window.DesktopHubNative.bridge;
   let epoch = 0, restoring = false;
   const pages = new Set('home scenes editor library tags favorites search settings activity projects project folder missing sources suggestions cleanup'.split(' '));

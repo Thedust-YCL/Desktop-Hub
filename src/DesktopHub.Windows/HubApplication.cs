@@ -35,6 +35,7 @@ public sealed class HubApplication : IDisposable
     internal ApplicationIconCache Icons { get; }
     public string DataDirectory { get; }
     public bool Smoke { get; }
+    internal AppUpdateService Updates { get; }
     public bool IsExiting => exiting;
     internal bool AllowSmokeHover { get; set; }
     public HubWindow Mini { get; private set; } = null!;
@@ -164,6 +165,15 @@ public sealed class HubApplication : IDisposable
     public HubApplication(string dataDirectory, bool smoke, bool systemSmoke = false)
     {
         DataDirectory = dataDirectory; Smoke = smoke; this.systemSmoke = systemSmoke;
+        Updates = new AppUpdateService(smoke
+            ? new UnavailableUpdateBackend(typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "0.3.1")
+            : new VelopackUpdateBackend());
+        Updates.Changed += update => {
+            if (Application.Current.Dispatcher.HasShutdownStarted) return;
+            _ = Application.Current.Dispatcher.BeginInvoke(() => {
+                if (!exiting) foreach (var surface in Windows) surface.SendEvent("update.changed", update);
+            });
+        };
         Directory.CreateDirectory(dataDirectory);
         Store = new SettingsStore(dataDirectory);
         AppLibrary = new AppLibraryService(Store);
@@ -255,9 +265,12 @@ public sealed class HubApplication : IDisposable
         environment = await CoreWebView2Environment.CreateAsync(null, Path.Combine(DataDirectory, "WebView2"),
             new CoreWebView2EnvironmentOptions("--disable-background-networking --disable-component-update --disable-features=msEdgeSidebarV2"));
         Mini = new HubWindow(this, "mini");
+        // WebView2 needs a realized window; keep Mini invisible until ordinary launch opens Workspace.
+        if (StartupPresentationPolicy.ShouldOpenWorkspace(Smoke, loginStartup)) Mini.Opacity = 0;
         Mini.Show();
         await Mini.InitializeAsync(environment);
-        Mini.Opacity = Store.Current.Transparency ? Store.Current.MiniOpacity : 1;
+        if (!StartupPresentationPolicy.ShouldOpenWorkspace(Smoke, loginStartup))
+            Mini.Opacity = Store.Current.Transparency ? Store.Current.MiniOpacity : 1;
         SyncMiniVisibility();
         if (!Smoke || systemSmoke)
         {
@@ -266,7 +279,7 @@ public sealed class HubApplication : IDisposable
             HotkeyStatus = Hotkeys.Apply(settings.DockHotkey, settings.WorkspaceHotkey);
             tray = new TrayLifecycleService(() => _ = OpenFromSystemAsync("activation"),
                 () => Store.Current.MiniEnabled, ToggleMini,
-                () => _ = OpenFromSystemAsync("settings"), ShowDesktopIcons, Exit);
+                () => _ = OpenFromSystemAsync("settings"), ShowDesktopIcons, Exit, value => UiText.Translate(Store.Current.Language, value));
         }
         var recovery = DesktopIcons.ReconcileOnStartup();
         Log("DesktopIconReconcile", JsonSerializer.Serialize(recovery, Json));
@@ -277,9 +290,23 @@ public sealed class HubApplication : IDisposable
         timer.Start();
         Resources = await resourceInitialization;
         _ = ResumeResourcesAsync();
-        if (!Smoke && !loginStartup && !Store.Current.OnboardingCompleted)
+        if (StartupPresentationPolicy.ShouldOpenWorkspace(Smoke, loginStartup))
+        {
             await OpenWorkspaceAsync("home");
+            Mini.Opacity = Store.Current.Transparency ? Store.Current.MiniOpacity : 1;
+        }
+        if (!Smoke) _ = CheckUpdatesAfterStartupAsync();
     }
+
+    private async Task CheckUpdatesAfterStartupAsync()
+    {
+        try { await Task.Delay(TimeSpan.FromSeconds(8), lifetime.Token); await Updates.CheckAsync(); }
+        catch (OperationCanceledException) { }
+    }
+
+    internal bool IsBusyForUpdate(HubWindow requester) => exiting ||
+        Scenes.Snapshot().Any(execution => execution.FinishedAt is null) || activeLayoutTasks.Any(task => !task.IsCompleted) ||
+        Windows.Any(window => window.ActiveNativeRequests > (ReferenceEquals(window, requester) ? 1 : 0));
 
     private async Task ResumeResourcesAsync()
     {
@@ -300,7 +327,7 @@ public sealed class HubApplication : IDisposable
     public object State(HubWindow window)
     {
         var settings = Store.Current;
-        return new { version = "0.3.0", surface = window.Surface, settings, executions = Scenes.Snapshot(), layoutResults = layoutHistory.Snapshot(), appIcons = Icons.GetIcons(settings),
+        return new { version = typeof(Program).Assembly.GetName().Version?.ToString(3), updates = Updates.Snapshot(), surface = window.Surface, settings, executions = Scenes.Snapshot(), layoutResults = layoutHistory.Snapshot(), appIcons = Icons.GetIcons(settings),
             effectiveTheme = EffectiveTheme, settingsWarning = Store.RecoveryWarning,
             onboardingRequired = !Smoke && !settings.OnboardingCompleted,
             systemIntegration = new { desktopIcons = DesktopIcons.Query(), startup = Startup.Query(), hotkeys = HotkeyStatus },
@@ -411,6 +438,7 @@ public sealed class HubApplication : IDisposable
         tray?.RefreshMiniLabel();
         foreach (var window in Windows)
         {
+            window.ApplyLanguage();
             window.PerformanceModeChanged();
             window.ApplyNativeTheme();
             window.ApplyPositionIfChanged();
@@ -470,6 +498,7 @@ public sealed class HubApplication : IDisposable
     {
         if (exiting) return;
         exiting = true; timer.Stop(); lifetime.Cancel(); WindowLayouts.CancelOwner(autoLayoutOwner);
+        Updates.Dispose();
         Scenes.Dispose(); // Cancel pending scheduling; never terminate launched user applications.
         foreach (var window in Windows) SaveWindow(window);
         try { Log("DesktopIconExit", JsonSerializer.Serialize(DesktopIcons.RestoreForExit(), Json)); }
@@ -488,6 +517,7 @@ public sealed class HubApplication : IDisposable
     {
         if (disposed) return;
         disposed = true;
+        Updates.Dispose();
         exiting = true;
         lifetime.Cancel(); WindowLayouts.CancelOwner(autoLayoutOwner);
         // Parent cancellation remains valid until every scoped restore has reached its terminal path.
@@ -551,7 +581,7 @@ public sealed class HubApplication : IDisposable
     private void ShowDesktopIcons()
     {
         try { var result = DesktopIcons.SetVisible(true); Log("DesktopIconTray", JsonSerializer.Serialize(result, Json)); SettingsChanged();
-            if (!result.Success) MessageBox.Show(result.Message, "Desktop Hub · 桌面图标", MessageBoxButton.OK, MessageBoxImage.Information); }
+            if (!result.Success) MessageBox.Show(UiText.Translate(Store.Current.Language, result.Message), UiText.Translate(Store.Current.Language, "Desktop Hub · 桌面图标"), MessageBoxButton.OK, MessageBoxImage.Information); }
         catch (Exception ex) { Log("DesktopIconTray", ex.ToString()); }
     }
 

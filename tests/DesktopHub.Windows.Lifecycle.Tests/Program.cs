@@ -11,6 +11,13 @@ internal static class Program
     [STAThread]
     private static int Main()
     {
+        Run("ordinary launch opens workspace; login and diagnostic launches stay quiet", () =>
+        {
+            Check(StartupPresentationPolicy.ShouldOpenWorkspace(false, false), "ordinary launch, including returning users");
+            Check(!StartupPresentationPolicy.ShouldOpenWorkspace(false, true), "login startup");
+            Check(!StartupPresentationPolicy.ShouldOpenWorkspace(true, false), "diagnostic launch");
+            Check(!StartupPresentationPolicy.ShouldOpenWorkspace(true, true), "diagnostic login");
+        });
         Run("hotkey parse normalizes safe independent combos", () =>
         {
             Check(GlobalHotkeyService.TryParse("alt + ctrl + d", out var binding, out _) && binding!.DisplayName == "Ctrl+Alt+D", "letter normalization");

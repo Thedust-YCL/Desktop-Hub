@@ -1,8 +1,10 @@
 /* Versioned, request/response-only WebView2 bridge. No shell or path execution API. */
 (function (root) {
   'use strict';
+  const t = root.DesktopHubI18n?.text || ((value, ...args) => Array.isArray(value) ? value.reduce((out, part, i) => out + part + (i < args.length ? args[i] : ''), '') : value);
   const version = 1;
   const allowedTypes = new Set([
+    'update.getState', 'update.check', 'update.download', 'update.install',
     'app.getState', 'app.exit', 'settings.get', 'settings.save', 'search.query',
     'activity.query', 'activity.clear', 'projects.query', 'projects.save', 'projects.remove', 'projects.openWeb',
     'system.getState', 'system.setDesktopIcons', 'system.setIconExitPolicy', 'system.setStartup', 'system.setHotkeys',
@@ -65,22 +67,22 @@
     if (available) webview.addEventListener('message', receive);
 
     function request(type, payload = {}, requestOptions = {}) {
-      if (!allowedTypes.has(type)) return Promise.reject(new NativeBridgeError('UNKNOWN_MESSAGE', '此操作尚未受支持。'));
-      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return Promise.reject(new NativeBridgeError('INVALID_PAYLOAD', '请求参数格式不正确。'));
-      if (!available || disposed) return Promise.reject(new NativeBridgeError('HOST_UNAVAILABLE', '原生宿主尚未连接，请通过 Desktop Hub 应用打开界面。'));
+      if (!allowedTypes.has(type)) return Promise.reject(new NativeBridgeError('UNKNOWN_MESSAGE', t('此操作尚未受支持。')));
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return Promise.reject(new NativeBridgeError('INVALID_PAYLOAD', t('请求参数格式不正确。')));
+      if (!available || disposed) return Promise.reject(new NativeBridgeError('HOST_UNAVAILABLE', t('原生宿主尚未连接，请通过 Desktop Hub 应用打开界面。')));
       const id = `ui-${Date.now().toString(36)}-${++sequence}`;
       return new Promise((resolve, reject) => {
         const delay = requestOptions.timeoutMs ?? timeoutMs;
         const timer = setTimer(() => {
           pending.delete(id);
-          reject(new NativeBridgeError('TIMEOUT', '原生操作尚未返回结果，请重试。'));
+          reject(new NativeBridgeError('TIMEOUT', t('原生操作尚未返回结果，请重试。')));
         }, delay);
         pending.set(id, { resolve, reject, timer });
         try { webview.postMessage({ version, id, type, payload }); }
         catch {
           clearTimer(timer);
           pending.delete(id);
-          reject(new NativeBridgeError('SEND_FAILED', '无法将请求发送给原生宿主。'));
+          reject(new NativeBridgeError('SEND_FAILED', t('无法将请求发送给原生宿主。')));
         }
       });
     }
@@ -98,7 +100,7 @@
       if (available && typeof webview.removeEventListener === 'function') webview.removeEventListener('message', receive);
       for (const entry of pending.values()) {
         clearTimer(entry.timer);
-        entry.reject(new NativeBridgeError('HOST_UNAVAILABLE', '应用连接已关闭。'));
+        entry.reject(new NativeBridgeError('HOST_UNAVAILABLE', t('应用连接已关闭。')));
       }
       pending.clear();
       subscribers.clear();

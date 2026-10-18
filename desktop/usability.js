@@ -1,6 +1,7 @@
 /* Density and compact layout reuse existing actions, components and viewport restoration. */
 (function () {
   'use strict';
+  const t = window.DesktopHubI18n?.text || ((value, ...args) => Array.isArray(value) ? value.reduce((out, part, i) => out + part + (i < args.length ? args[i] : ''), '') : value);
   const H = window.Hub;
   if (window.DesktopHubDesktop.getState().surface !== 'workspace') return;
   const e = value => H.escape(String(value ?? ''));
@@ -11,9 +12,9 @@
   H.pages.settings = function () {
     let html = settingsPage();
     if (!html.includes('data-section="appearance" aria-current="page"')) return html;
-    const choices = [['compact','紧凑'],['comfortable','舒适']].map(([value,label]) => `<option value="${value}" ${density() === value ? 'selected' : ''}>${label}</option>`).join('');
-    const row = `<div class="setting-row"><div><strong>界面密度</strong><p>调整留白与行高，保持文字清楚。</p></div><div class="setting-control"><select aria-label="界面密度" data-change="setting-value" data-setting="uiDensity">${choices}</select></div></div>`;
-    return html.replace('<div class="setting-row"><div><strong>减少动画</strong>', row + '<div class="setting-row"><div><strong>减少动画</strong>');
+    const choices = [['compact',t('紧凑')],['comfortable',t('舒适')]].map(([value,label]) => `<option value="${value}" ${density() === value ? 'selected' : ''}>${label}</option>`).join('');
+    const row = t`<div class="setting-row"><div><strong>界面密度</strong><p>调整留白与行高，保持文字清楚。</p></div><div class="setting-control"><select aria-label="界面密度" data-change="setting-value" data-setting="uiDensity">${choices}</select></div></div>`;
+    return html.replace(t('<div class="setting-row"><div><strong>减少动画</strong>'), row + t('<div class="setting-row"><div><strong>减少动画</strong>'));
   };
   function foldControls() {
     const content = document.querySelector('.workspace-content');
@@ -24,7 +25,7 @@
       const toolbar = document.querySelector('.nr-toolbar');
       if (toolbar) {
         const details = document.createElement('details'); details.id = 'usability-filters'; details.className = 'usability-filters';
-        details.innerHTML = '<summary>筛选与视图</summary><div class="usability-filter-body"></div>';
+        details.innerHTML = t('<summary>筛选与视图</summary><div class="usability-filter-body"></div>');
         toolbar.after(details);
         const body = details.querySelector('.usability-filter-body');
         for (const selector of ['.nr-category-filter','.nr-filter-tags']) { const element = content.querySelector(selector); if (element) body.append(element); }
@@ -35,25 +36,25 @@
     const state = window.DesktopHubResources?.getState();
     if (!state || document.querySelector('.usability-conditions')) return;
     const chips = [];
-    if (state.query) chips.push(`<button class="button small" data-action="usability-clear-query">名称：${e(state.query)} ×</button>`);
-    if (state.extension) chips.push(`<button class="button small" data-action="usability-clear-extension">类型：${e(state.extension === '__folders' ? '文件夹' : state.extension === '__none' ? '无扩展名' : state.extension)} ×</button>`);
-    if (state.favoritesOnly && H.ui.page !== 'favorites') chips.push('<button class="button small" data-action="usability-clear-favorites">仅收藏 ×</button>');
-    if (state.status) chips.push(`<button class="button small" data-action="usability-clear-status">状态：${e({ Missing: '缺失', PendingRepair: '需修复', SourceUnavailable: '来源不可用' }[state.status] || state.status)} ×</button>`);
+    if (state.query) chips.push(t`<button class="button small" data-action="usability-clear-query">名称：${e(state.query)} ×</button>`);
+    if (state.extension) chips.push(t`<button class="button small" data-action="usability-clear-extension">类型：${e(state.extension === '__folders' ? t('文件夹') : state.extension === '__none' ? t('无扩展名') : state.extension)} ×</button>`);
+    if (state.favoritesOnly && H.ui.page !== 'favorites') chips.push(t('<button class="button small" data-action="usability-clear-favorites">仅收藏 ×</button>'));
+    if (state.status) chips.push(t`<button class="button small" data-action="usability-clear-status">状态：${e({ Missing: t('缺失'), PendingRepair: t('需修复'), SourceUnavailable: t('来源不可用') }[state.status] || state.status)} ×</button>`);
     if (chips.length || state.tagIds?.length) {
       const bar = document.createElement('div'); bar.className = 'usability-conditions';
-      bar.innerHTML = `<span>当前筛选${state.tagIds?.length ? ' · 同时满足所选标签' : ''}</span>${chips.join('')}<button class="text-button" data-action="nr-clear">清空条件</button>`;
+      bar.innerHTML = t`<span>当前筛选${state.tagIds?.length ? t(' · 同时满足所选标签') : ''}</span>${chips.join('')}<button class="text-button" data-action="nr-clear">清空条件</button>`;
       document.querySelector('.nr-toolbar')?.after(bar);
     }
   }
   function homeLayout() {
     if (H.ui.page !== 'home') return;
     const content = document.querySelector('.home-content'); if (!content) return;
-    const intro = content.querySelector('.home-intro .subtitle'); if (intro) intro.textContent = '打开常用工具，继续手头的工作。';
+    const intro = content.querySelector('.home-intro .subtitle'); if (intro) intro.textContent = t('打开常用工具，继续手头的工作。');
     const modules = content.querySelector('.launchpad-grid'), heading = content.querySelector('.launcher-modules-heading'), scenes = content.querySelector('.home-scenes');
     if (modules && scenes) { scenes.after(modules); if (heading) modules.before(heading); }
     if (!document.querySelector('.usability-home-nav')) {
       const header = document.querySelector('.workspace-header');
-      header?.insertAdjacentHTML('afterend', `<nav class="usability-home-nav" aria-label="工作空间模块">${pages.map(([page,label]) => `<button class="subnav-link" data-action="navigate" data-page="${page}">${label}</button>`).join('')}</nav>`);
+      header?.insertAdjacentHTML('afterend', t`<nav class="usability-home-nav" aria-label="工作空间模块">${pages.map(([page,label]) => `<button class="subnav-link" data-action="navigate" data-page="${page}">${t(label)}</button>`).join('')}</nav>`);
     }
   }
   function apply() {

@@ -1,6 +1,7 @@
 /* Authorized stable IDs in; bounded PNG content out. Never load file URLs. */
 (function () {
   'use strict';
+  const t = window.DesktopHubI18n?.text || ((value, ...args) => Array.isArray(value) ? value.reduce((out, part, i) => out + part + (i < args.length ? args[i] : ''), '') : value);
   const H = window.Hub, bridge = window.DesktopHubNative.bridge;
   if (window.DesktopHubDesktop.getState().surface !== 'workspace') return;
   const escape = value => H.escape(String(value ?? ''));
@@ -42,7 +43,7 @@
   function paint(body) {
     if (!dialog) return;
     const focused = dialog.contains?.(document.activeElement);
-    dialog.innerHTML = `<section class="rp-panel" role="dialog" aria-modal="true" aria-label="资源预览"><header><div><strong>${escape(selection.displayName)}</strong><small>内容预览 · <kbd>Esc</kbd> 返回</small></div><button class="icon-button" data-preview-close aria-label="关闭预览">×</button></header><div class="rp-content" aria-live="polite">${body}</div><footer><button class="button" data-preview-external>外部打开</button><button class="button quiet" data-preview-close>关闭</button></footer></section>`;
+    dialog.innerHTML = t`<section class="rp-panel" role="dialog" aria-modal="true" aria-label="资源预览"><header><div><strong>${escape(selection.displayName)}</strong><small>内容预览 · <kbd>Esc</kbd> 返回</small></div><button class="icon-button" data-preview-close aria-label="关闭预览">×</button></header><div class="rp-content" aria-live="polite">${body}</div><footer><button class="button" data-preview-external>外部打开</button><button class="button quiet" data-preview-close>关闭</button></footer></section>`;
     for (const button of dialog.querySelectorAll('[data-preview-close]')) button.addEventListener('click', () => close());
     dialog.querySelector('[data-preview-external]')?.addEventListener('click', () => { const id = selection.id; close(); void H.actions['nr-open']({ dataset: { id, mode: 'open' } }); });
     if (focused) dialog.querySelector('[data-preview-close]')?.focus();
@@ -53,13 +54,13 @@
     const revision = ++generation, id = window.crypto.randomUUID(); current = id;
     openedContext = contextKey();
     dialog = document.createElement('div'); dialog.className = 'rp-overlay'; document.body.appendChild(dialog);
-    paint('<p class="muted">正在生成预览…</p>'); dialog.querySelector('[data-preview-close]')?.focus();
+    paint(t('<p class="muted">正在生成预览…</p>')); dialog.querySelector('[data-preview-close]')?.focus();
     try {
       const response = await bridge.request('resources.previewContent', { resourceId: selection.id, thumbnail: false, requestId: id }, { timeoutMs: 120000 });
       if (revision !== generation || current !== id || !dialog || paused) return;
-      if (!controlledImage(response)) throw new Error('预览内容无效，可在外部应用打开。');
-      paint(`<img class="rp-image" src="data:image/png;base64,${response.png}" alt="${escape(selection.displayName)} 内容预览"><p class="rp-meta">${escape(response.detail)} · ${response.width} × ${response.height}</p>`);
-    } catch (error) { cancelTimedOut(error, id); if (revision === generation && current === id && dialog) paint(`<div class="rp-error" role="status"><strong>暂不能预览</strong><p>${escape(error.message)}</p><p class="muted">文件仍留在原处。可外部打开，或关闭后刷新 / 重新关联。</p></div>`); }
+      if (!controlledImage(response)) throw new Error(t('预览内容无效，可在外部应用打开。'));
+      paint(t`<img class="rp-image" src="data:image/png;base64,${response.png}" alt="${escape(selection.displayName)} 内容预览"><p class="rp-meta">${escape(response.detail)} · ${response.width} × ${response.height}</p>`);
+    } catch (error) { cancelTimedOut(error, id); if (revision === generation && current === id && dialog) paint(t`<div class="rp-error" role="status"><strong>暂不能预览</strong><p>${escape(error.message)}</p><p class="muted">文件仍留在原处。可外部打开，或关闭后刷新 / 重新关联。</p></div>`); }
     finally { if (current === id) current = null; }
   }
   function pump() {

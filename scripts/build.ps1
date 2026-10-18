@@ -41,6 +41,8 @@ try {
             Invoke-Dotnet -Arguments @('restore', $taskSystemTests, '--source', $taskFeed, '--packages', $taskPackages, '-p:NuGetAudit=false')
             Invoke-Dotnet -Arguments @('run', '--project', $taskSystemTests, '-c', 'Release', '--no-restore')
         }
+        Invoke-Dotnet -Arguments @('restore', 'tests/DesktopHub.Update.Tests', '--source', $taskFeed, '--packages', $taskPackages, '-p:NuGetAudit=false')
+        Invoke-Dotnet -Arguments @('run', '--project', 'tests/DesktopHub.Update.Tests', '-c', 'Release', '--no-restore')
         $taskNodeTests = @((Get-ChildItem -LiteralPath (Join-Path $taskRoot 'desktop/tests') -Filter '*.test.mjs' -File).FullName) + @(Join-Path $taskRoot 'prototype/tests/state.test.mjs')
         if ($taskNodeTests.Count -gt 0) {
             $taskNode = Get-Command node.exe -ErrorAction SilentlyContinue

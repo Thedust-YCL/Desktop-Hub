@@ -9,9 +9,11 @@ namespace DesktopHub.Windows;
 public sealed class TrayLifecycleService : IDisposable
 {
     private readonly Forms.NotifyIcon icon;
+    private readonly Icon trayIcon;
     private readonly Forms.ContextMenuStrip menu;
     private readonly Forms.ToolStripMenuItem miniItem;
     private readonly Func<bool> isMiniVisible;
+    private readonly Func<string, string> translate;
     private readonly HwndSource broadcastWindow;
     private readonly int taskbarCreated;
     private bool disposed;
@@ -20,9 +22,10 @@ public sealed class TrayLifecycleService : IDisposable
     internal int DiagnosticTaskbarCreatedMessage => taskbarCreated;
 
     public TrayLifecycleService(Action openWorkspace, Func<bool> isMiniVisible, Action toggleMini,
-        Action openSettings, Action showDesktopIcons, Action exit)
+        Action openSettings, Action showDesktopIcons, Action exit, Func<string, string>? translate = null)
     {
         this.isMiniVisible = isMiniVisible;
+        this.translate = translate ?? (value => value.Replace("Desktop Hub", "桌面工作台", StringComparison.Ordinal));
         menu = new Forms.ContextMenuStrip();
         menu.Items.Add("打开 Workspace", null, (_, _) => openWorkspace());
         miniItem = new Forms.ToolStripMenuItem("显示 Mini", null, (_, _) => { toggleMini(); RefreshMiniLabel(); });
@@ -32,7 +35,9 @@ public sealed class TrayLifecycleService : IDisposable
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("完整退出 Desktop Hub", null, (_, _) => exit());
         menu.Opening += (_, _) => RefreshMiniLabel();
-        icon = new Forms.NotifyIcon { Icon = SystemIcons.Application, Text = "Desktop Hub", ContextMenuStrip = menu };
+        using (var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Assets/desktop-hub.ico")).Stream)
+            trayIcon = new Icon(resource, System.Windows.Forms.SystemInformation.SmallIconSize);
+        icon = new Forms.NotifyIcon { Icon = trayIcon, Text = "Desktop Hub", ContextMenuStrip = menu };
         icon.DoubleClick += (_, _) => openWorkspace();
         taskbarCreated = RegisterWindowMessage("TaskbarCreated");
         // Broadcasts do not reach HWND_MESSAGE, so this receiver must be an invisible top-level tool window.
@@ -45,7 +50,14 @@ public sealed class TrayLifecycleService : IDisposable
 
     public void RefreshMiniLabel()
     {
-        if (!disposed) miniItem.Text = isMiniVisible() ? "隐藏 Mini" : "显示 Mini";
+        if (disposed) return;
+        string T(string value) => translate(value);
+        menu.Items[0].Text = T("打开 Workspace");
+        miniItem.Text = T(isMiniVisible() ? "隐藏 Mini" : "显示 Mini");
+        menu.Items[2].Text = T("打开设置");
+        menu.Items[3].Text = T("显示 / 恢复桌面图标");
+        menu.Items[5].Text = T("完整退出 Desktop Hub");
+        icon.Text = T("Desktop Hub");
     }
     private IntPtr WindowProc(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
@@ -64,6 +76,7 @@ public sealed class TrayLifecycleService : IDisposable
         disposed = true;
         icon.Visible = false;
         icon.Dispose();
+        trayIcon.Dispose();
         menu.Dispose();
         broadcastWindow.RemoveHook(WindowProc);
         broadcastWindow.Dispose();

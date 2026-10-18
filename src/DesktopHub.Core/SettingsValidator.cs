@@ -14,6 +14,7 @@ public static class SettingsValidator
         if (settings.SchemaVersion is not (1 or 2 or 3 or 4 or 5))
             throw new SettingsValidationException("不支持此配置版本。请保留配置文件后升级应用。");
         CheckChoice(settings.Theme, ["system", "dark", "light"], "theme");
+        CheckChoice(settings.Language, ["zh-CN", "en-US"], "language");
         CheckChoice(settings.UiDensity, ["compact", "comfortable"], "uiDensity");
         CheckChoice(settings.PerformanceMode, ["quick", "lightweight"], "performanceMode");
         CheckChoice(settings.MiniPosition, Positions, "miniPosition");

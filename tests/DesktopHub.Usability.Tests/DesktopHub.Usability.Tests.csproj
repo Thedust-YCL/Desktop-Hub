@@ -11,5 +11,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/DesktopHub.Windows/DesktopHub.Windows.csproj" />
+    <Resource Include="../../src/DesktopHub.Windows/Assets/desktop-hub.ico" Link="Assets/desktop-hub.ico" />
   </ItemGroup>
 </Project>

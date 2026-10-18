@@ -81,7 +81,7 @@ function setup(surface = 'workspace', responses = {}, withSearch = false, restor
     emitStorage(key, value) { storage.set(key, value); windowListeners.get('storage')?.({ key, newValue: value }); },
     async flushTimers() { const tasks = [...timers.values()]; timers.clear(); for (const fn of tasks) await fn(); },
     key(event) { for (const handler of domListeners.get('keydown') || []) handler(event); }
-    ,domEvent(type,event) { return domListeners.get(type)?.[0]?.(event); }
+    ,domEvent(type,event) { let result; for (const handler of domListeners.get(type) || []) result = handler(event) ?? result; return result; }
   };
 }
 
@@ -245,6 +245,91 @@ test('Task4 drag and arrow sorting share full app/group permutations and reject 
   drag('app','a','b');assert.equal(env.sent.filter(x=>x.type==='apps.reorder').length,1);
   await drag('group','g','h');assert.deepEqual(env.sent.find(x=>x.type==='apps.groupReorder').payload,{groupIds:['h','g']});
   env.H.actions['apps-search']({value:'a'});drag('group','h','g');assert.equal(env.sent.filter(x=>x.type==='apps.groupReorder').length,1);
+});
+
+function pointerSortFixture(env) {
+  const tiles = new Map();
+  const element = () => ({
+    dataset: {}, style: {}, isConnected: true,
+    classList: { values: new Set(), add(...names) { names.forEach(name => this.values.add(name)); }, remove(...names) { names.forEach(name => this.values.delete(name)); }, contains(name) { return this.values.has(name); } },
+    setAttribute() {}, remove() { this.isConnected = false; },
+    setPointerCapture() {}, releasePointerCapture() {},
+    getBoundingClientRect() { return { left: 0, top: 0, width: 120, height: 155 }; },
+    cloneNode() { const clone = element(); clone.querySelectorAll = () => []; return clone; }
+  });
+  env.document.body.append = () => {};
+  env.document.body.classList = element().classList;
+  let hit = null;
+  env.document.elementFromPoint = () => hit;
+  for (const id of ['a', 'b', 'c', 'd']) {
+    const tile = element(); tile.dataset = { sortKind: 'app', sortId: id };
+    tile.closest = selector => selector.includes('launcher-tile') || selector === '[data-sort-kind]' ? tile : null;
+    tiles.set(id, tile);
+  }
+  const event = (id, x = 10, extra = {}) => ({
+    target: tiles.get(id), button: 0, pointerId: 7, clientX: x, clientY: 20,
+    preventDefault() {}, stopImmediatePropagation() {}, ...extra
+  });
+  return { tiles, event, hover(id) { hit = tiles.get(id) || null; } };
+}
+
+test('pointer drag saves the chosen position once without changing other groups or launching an app', async () => {
+  const env = setup('workspace', { 'apps.reorder': async (p, state) => ({ settings: { ...state.settings, appEntries: p.appIds.map((id, i) => ({ ...state.settings.appEntries.find(a => a.id === id), displayOrder: i })) } }) });
+  env.state.settings.appEntries = [appEntry('a', 0), { ...appEntry('b', 1), groupId: 'other' }, appEntry('c', 2), appEntry('d', 3)];
+  await env.initialize(); env.H.actions['apps-manage']();
+  const f = pointerSortFixture(env);
+  env.domEvent('pointerdown', f.event('a'));
+  f.hover('d'); env.domEvent('pointermove', f.event('a', 110));
+  assert.equal(f.tiles.get('d').dataset.sortDrop, 'after', 'the destination shows the final insertion edge');
+  assert.equal(env.sent.filter(x => x.type === 'apps.reorder').length, 0, 'moving alone never saves');
+  await env.domEvent('pointerup', f.event('a', 110));
+  assert.deepEqual(env.sent.find(x => x.type === 'apps.reorder')?.payload, { appIds: ['c', 'b', 'd', 'a'] });
+  assert.equal(f.tiles.get('d').dataset.sortDrop, undefined);
+  let blocked = false;
+  env.domEvent('click', f.event('a', 110, { detail: 1, preventDefault() { blocked = true; } }));
+  assert.equal(blocked, true, 'the release click must not reach the launch action');
+  assert.equal(env.sent.some(x => x.type === 'apps.launch'), false);
+});
+
+test('pointer sorting cancels on Escape, pointer cancellation, invalid destinations and a new search', async () => {
+  for (const stop of ['escape', 'cancel', 'outside', 'cross-group', 'search']) {
+    const env = setup(); env.state.settings.appEntries = [appEntry('a'), appEntry('c', 1), { ...appEntry('b', 2), groupId: 'other' }];
+    await env.initialize(); env.H.actions['apps-manage'](); const f = pointerSortFixture(env);
+    env.domEvent('pointerdown', f.event('a')); f.hover('c'); env.domEvent('pointermove', f.event('a', 110));
+    if (stop === 'escape') env.key({ key: 'Escape', preventDefault() {}, stopImmediatePropagation() {} });
+    if (stop === 'cancel') env.domEvent('pointercancel', f.event('a'));
+    if (stop === 'search') env.H.actions['apps-search']({ value: 'c' });
+    if (stop === 'outside' || stop === 'cross-group') { f.hover(stop === 'outside' ? null : 'b'); env.domEvent('pointermove', f.event('a', 120)); }
+    await env.domEvent('pointerup', f.event('a', 120));
+    assert.equal(env.sent.some(x => x.type === 'apps.reorder'), false, stop);
+    assert.equal(f.tiles.get('c').dataset.sortDrop, undefined, stop + ' clears the insertion hint');
+    if (stop === 'escape') assert.equal(env.sent.some(x => x.type === 'window.closeWorkspace'), false, 'Escape cancels the drag first');
+  }
+});
+
+test('a click, a secondary pointer and dragging outside management never reorder', async () => {
+  const env = setup(); env.state.settings.appEntries = [appEntry('a'), appEntry('c', 1)]; await env.initialize();
+  const f = pointerSortFixture(env);
+  env.domEvent('pointerdown', f.event('a')); f.hover('c'); env.domEvent('pointermove', f.event('a', 110)); await env.domEvent('pointerup', f.event('a', 110));
+  env.H.actions['apps-manage']();
+  env.domEvent('pointerdown', f.event('a')); await env.domEvent('pointerup', f.event('a'));
+  let blocked = false; env.domEvent('click', f.event('a', 10, { detail: 1, preventDefault() { blocked = true; } }));
+  assert.equal(blocked, false);
+  env.domEvent('pointerdown', f.event('a')); f.hover('c'); env.domEvent('pointermove', f.event('a', 110, { pointerId: 8 })); await env.domEvent('pointerup', f.event('a', 110));
+  assert.equal(env.sent.some(x => x.type === 'apps.reorder'), false);
+});
+
+test('Escape during a held drag blocks the eventual release click even after timers run', async () => {
+  const env = setup(); env.state.settings.appEntries = [appEntry('a'), appEntry('c', 1)];
+  await env.initialize(); env.H.actions['apps-manage'](); const f = pointerSortFixture(env);
+  env.domEvent('pointerdown', f.event('a')); f.hover('c'); env.domEvent('pointermove', f.event('a', 110));
+  env.key({ key: 'Escape', preventDefault() {}, stopImmediatePropagation() {} });
+  await env.flushTimers();
+  await env.domEvent('pointerup', f.event('a'));
+  let blocked = false;
+  env.domEvent('click', f.event('a', 10, { detail: 1, preventDefault() { blocked = true; } }));
+  assert.equal(blocked, true);
+  assert.equal(env.sent.some(x => x.type === 'apps.reorder' || x.type === 'window.closeWorkspace'), false);
 });
 
 test('Task4 detached drops during system writes are ignored without touching an existing scan',async()=>{

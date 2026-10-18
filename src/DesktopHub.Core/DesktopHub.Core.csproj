@@ -8,4 +8,7 @@
     <InternalsVisibleTo Include="DesktopHub.Core.Tests" />
     <EmbeddedResource Include="ThirdParty\Pinyin\pinyin.txt" LogicalName="DesktopHub.PinyinData" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Translations.json" />
+  </ItemGroup>
 </Project>

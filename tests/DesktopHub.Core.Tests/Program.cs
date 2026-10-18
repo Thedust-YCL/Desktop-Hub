@@ -10,6 +10,27 @@ var failed = 0;
 var launcher = new NativeLaunchService();
 try
 {
+    Check("Native messages translate composed outcomes and preserve interpolated paths", () =>
+    {
+        Equal("Already running; skipped launch; Target window appeared", UiText.Translate("en-US", "已运行，跳过启动；目标窗口已出现"));
+        var path = @"E:\设置\中文.exe";
+        var translated = UiText.Translate("en-US", $"目录层级过深，已跳过：{path}");
+        True(translated.Contains(path)); True(!translated.Contains("目录层级过深"));
+        True(!UiText.Translate("en-US", "等待目标进程超时（3 秒）；部分进程路径无权读取").Contains("进程"));
+        var diagnostic = @"找不到程序：E:\Desktop Hub\中文.exe";
+        Equal(diagnostic, UiText.Translate("zh-CN", diagnostic));
+    });
+    Check("Language defaults and persistence remain compatible with existing settings", () =>
+    {
+        var store = Store("language");
+        Write(store, "{\"schemaVersion\":5}");
+        var original = store.Load();
+        Equal("zh-CN", JsonSerializer.SerializeToElement(original, SettingsStore.JsonOptions).GetProperty("language").GetString());
+        var english = JsonSerializer.Deserialize<AppSettings>("{\"language\":\"en-US\"}", SettingsStore.JsonOptions)!;
+        store.Save(english);
+        Equal("en-US", JsonSerializer.SerializeToElement(new SettingsStore(Path.GetDirectoryName(store.SettingsPath)!).Load(), SettingsStore.JsonOptions).GetProperty("language").GetString());
+        Throws<SettingsValidationException>(() => store.Save(JsonSerializer.Deserialize<AppSettings>("{\"language\":\"fr-FR\"}", SettingsStore.JsonOptions)!));
+    });
     UnifiedSearchChecks.Run(Check);
     AtomicFileReplacementChecks.Run(Check, testRoot);
     Task4Checks.Run(Check, testRoot);
