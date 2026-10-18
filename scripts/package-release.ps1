@@ -54,4 +54,3 @@ try {
     Write-Host "Release $Version ready: $taskOutput. .NET included; WebView2 bootstrapped; unsigned unless separately signed."
 }
 finally { Exit-ToolchainEnvironment $taskEnvironmentState }
-

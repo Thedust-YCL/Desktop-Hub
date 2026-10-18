@@ -1566,4 +1566,3 @@ window.DesktopHubTranslations = Object.freeze({
   "语言已保存。": "Language saved.",
   "中文": "中文"
 });
-
