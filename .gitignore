@@ -23,3 +23,8 @@ artifacts/
 *.log
 *.tmp
 *.bak
+
+# Local design source and historical QA notes; not build or release inputs
+/src/DesktopHub.Windows/Assets/desktop-hub.png
+/prototype/ACCEPTANCE.md
+/RELEASING.md
