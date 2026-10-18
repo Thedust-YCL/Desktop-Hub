@@ -49,7 +49,7 @@ Desktop Hub 是一款面向 Windows 的本地桌面工作台。把常用应用�
 
 当前版本：**0.3.1 · Windows x64**。技术栈：**.NET 8 / WPF / WebView2**。
 
-安装版包含 .NET，缺少 WebView2 时由安装程序检测并下载安装。普通启动直接显示 Workspace，开机自启保持后台常驻。安装版支持在“设置 → 系统与恢复 → 软件更新”中检查、下载并确认重启更新。构建和发布步骤见 [发布说明](RELEASING.md)。
+安装版包含 .NET，缺少 WebView2 时由安装程序检测并下载安装。普通启动直接显示 Workspace，开机自启保持后台常驻。安装版支持在“设置 → 系统与恢复 → 软件更新”中检查、下载并确认重启更新。安装包请从 [Releases](https://github.com/Thedust-YCL/Desktop-Hub/releases) 下载。
 
 本机已有便携版时，双击根目录的 `打开 Desktop Hub.lnk`，或运行：
 
