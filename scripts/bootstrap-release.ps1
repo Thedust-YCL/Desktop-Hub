@@ -13,7 +13,11 @@ try {
     }
     $taskCli = Join-Path $taskRoot '.tools/velopack-cli'
     if (-not (Test-Path (Join-Path $taskCli 'vpk.exe'))) {
-        & (Join-Path $taskRoot '.tools/dotnet/dotnet.exe') tool install vpk --version 1.2.161 --tool-path $taskCli --source (Join-Path $taskRoot '.tools/nuget-feed')
+        # Tool install accepts --add-source, not restore's --source. Clear machine
+        # sources so -Offline installs from the verified workspace feed only.
+        $taskToolConfig = Join-Path $taskRoot '.tools/nuget-tool.config'
+        '<configuration><packageSources><clear /></packageSources></configuration>' | Set-Content -LiteralPath $taskToolConfig -Encoding utf8
+        & (Join-Path $taskRoot '.tools/dotnet/dotnet.exe') tool install vpk --version 1.2.161 --tool-path $taskCli --configfile $taskToolConfig --add-source (Join-Path $taskRoot '.tools/nuget-feed')
         if ($LASTEXITCODE -ne 0) { throw 'Failed to install the pinned Velopack CLI.' }
     }
     $taskVersion = & (Join-Path $taskCli 'vpk.exe') -h
