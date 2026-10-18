@@ -9,6 +9,7 @@
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/DesktopHub.Windows/StartupPresentationPolicy.cs" Link="StartupPresentationPolicy.cs" />
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
     <Compile Include="../../src/DesktopHub.Windows/GlobalHotkeyService.cs" Link="GlobalHotkeyService.cs" />

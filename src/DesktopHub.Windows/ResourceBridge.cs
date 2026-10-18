@@ -51,7 +51,7 @@ internal sealed class ResourceBridge(HubApplication host, HubWindow window)
                     pickerOpen = true;
                     try
                     {
-                        var dialog = new OpenFolderDialog { Title = "选择要建立虚拟索引的目录", Multiselect = false };
+                        var dialog = new OpenFolderDialog { Title = UiText.Translate(host.Store.Current.Language, "选择要建立虚拟索引的目录"), Multiselect = false };
                         host.Log("ResourcePicker", "Opening");
                         if (await window.Dispatcher.InvokeAsync(() => dialog.ShowDialog(window)) != true) return new { cancelled = true };
                         path = dialog.FolderName;
@@ -76,13 +76,13 @@ internal sealed class ResourceBridge(HubApplication host, HubWindow window)
                     string chosen;
                     if (resource.ResourceType == "folder")
                     {
-                        var folder = new OpenFolderDialog { Title = "重新关联原资源（不移动文件）", Multiselect = false };
+                        var folder = new OpenFolderDialog { Title = UiText.Translate(host.Store.Current.Language, "重新关联原资源（不移动文件）"), Multiselect = false };
                         if (await window.Dispatcher.InvokeAsync(() => folder.ShowDialog(window)) != true) return new { cancelled = true };
                         chosen = folder.FolderName;
                     }
                     else
                     {
-                        var file = new OpenFileDialog { Title = "重新关联原资源（不移动文件）", CheckFileExists = true, DereferenceLinks = false, Multiselect = false, Filter = "所有文件 (*.*)|*.*" };
+                        var file = new OpenFileDialog { Title = UiText.Translate(host.Store.Current.Language, "重新关联原资源（不移动文件）"), CheckFileExists = true, DereferenceLinks = false, Multiselect = false, Filter = UiText.Translate(host.Store.Current.Language, "所有文件 (*.*)|*.*") };
                         if (await window.Dispatcher.InvokeAsync(() => file.ShowDialog(window)) != true) return new { cancelled = true };
                         chosen = file.FileName;
                     }

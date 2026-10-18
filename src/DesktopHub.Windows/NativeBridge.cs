@@ -13,13 +13,14 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
 {
     private readonly HashSet<string> pending = new();
     private static readonly HashSet<string> Editable = new(StringComparer.Ordinal)
-    { "theme", "reducedMotion", "uiDensity", "performanceMode", "autoCloseDock", "onboardingCompleted", "suppressDesktopLocationNotice", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
+    { "language", "theme", "reducedMotion", "uiDensity", "performanceMode", "autoCloseDock", "onboardingCompleted", "suppressDesktopLocationNotice", "transparency", "miniPosition", "miniSize", "miniMode", "miniEnabled", "miniOpacity", "workspaceOpacity", "dockPosition", "dockSize", "dockIconSize", "hoverEnabled", "hoverDelay", "allowForeground", "foregroundBlocklist" };
     private static readonly HashSet<string> Pages = new(StringComparer.Ordinal)
     { "home", "scenes", "library", "tags", "favorites", "search", "settings", "activity", "projects", "project" };
     private bool pickerOpen, launching;
     private readonly ResourceBridge resources = new(host, window);
     private readonly ActivityProjectBridge activityProjects = new(host, window);
     private readonly SystemBridge system = new(host, window);
+    private readonly UpdateBridge updates = new(host, window);
     private readonly ApplicationImportService imports = new(host.Store, host.Launcher, app => host.Icons.Extract(app));
 
     public async Task ReceiveAsync(CoreWebView2WebMessageReceivedEventArgs message)
@@ -66,6 +67,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
         if (host.IsExiting) throw new BridgeException("APP_EXITING", "Desktop Hub 正在退出，请稍后重新打开。");
         if (type.StartsWith("resources.", StringComparison.Ordinal)) return await resources.DispatchAsync(type, payload);
         if (type.StartsWith("system.", StringComparison.Ordinal)) return system.Dispatch(type, payload);
+        if (type.StartsWith("update.", StringComparison.Ordinal)) return updates.Dispatch(type, payload);
         switch (type)
         {
             case "activity.query":
@@ -85,16 +87,16 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
                     var entities = new List<SearchEntity>();
                     var appIds = searchSettings.AppEntries.Select(app => app.Id).ToHashSet(StringComparer.Ordinal);
                     entities.AddRange(searchSettings.AppEntries.Select(app => new SearchEntity("app", app.Id, app.Name, app.Target, "Active", app.Favorite)));
-                    entities.AddRange(searchSettings.Scenes.Select(scene => new SearchEntity("scene", scene.Id, scene.Name, $"{scene.Actions.Count} 个动作",
+                    entities.AddRange(searchSettings.Scenes.Select(scene => new SearchEntity("scene", scene.Id, scene.Name, UiText.Translate(searchSettings.Language, $"{scene.Actions.Count} 个动作"),
                         !scene.Enabled ? "Disabled" : scene.Actions.Any(action => action.Enabled && (action.ReferenceInvalid || action.AppEntryId is { Length: > 0 } reference && !appIds.Contains(reference))) ? "Invalid" : "Active", false)));
                     var tagsById = searchLibrary.Tags.ToDictionary(tag => tag.Id);
                     var boundTags = searchLibrary.ResourceTags.ToLookup(binding => binding.ResourceId);
                     entities.AddRange(searchLibrary.Resources.Select(resource => new SearchEntity(resource.ResourceType, resource.Id, resource.DisplayName,
                         resource.CanonicalPath + string.Concat(boundTags[resource.Id].Where(binding => tagsById.ContainsKey(binding.TagId)).Select(binding => " · " + tagsById[binding.TagId].Name)), resource.Status, resource.Favorite)));
                     entities.AddRange(searchLibrary.Tags.Select(tag => new SearchEntity("tag", tag.Id, tag.Name,
-                        searchLibrary.TagCategories.FirstOrDefault(category => category.Id == tag.CategoryId)?.Name ?? "标签", "Active", false)));
+                        searchLibrary.TagCategories.FirstOrDefault(category => category.Id == tag.CategoryId)?.Name ?? UiText.Translate(searchSettings.Language, "标签"), "Active", false)));
                     entities.AddRange(searchProjects.Select(project => new SearchEntity("project", project.Id, project.Name,
-                        project.Description + $" · {project.Items.Count} 个关联", "Active", false)));
+                        project.Description + UiText.Translate(searchSettings.Language, $" · {project.Items.Count} 个关联"), "Active", false)));
                     return searchRequest.Execute(entities);
                 });
             case "app.getState": Empty(payload); return host.State(window);
@@ -288,27 +290,37 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
         pickerOpen = true;
         try
         {
-            if (source == "current") return new { cancelled = false, scan = await Task.Run(() => imports.Rescan(scanId, recursive)) };
-            if (source == "drop") return new { cancelled = false, scan = imports.ActivateStaged(scanId) };
+            if (source == "current") return new { cancelled = false, scan = LocalizeScan(await Task.Run(() => imports.Rescan(scanId, recursive))) };
+            if (source == "drop") return new { cancelled = false, scan = LocalizeScan(imports.ActivateStaged(scanId)) };
             if (source == "files")
             {
-                var files = new OpenFileDialog { Title = "选择要添加的应用", Filter = "程序与快捷方式 (*.exe;*.lnk)|*.exe;*.lnk", CheckFileExists = true, Multiselect = true, DereferenceLinks = false };
+                var files = new OpenFileDialog { Title = UiText.Translate(host.Store.Current.Language, "选择要添加的应用"), Filter = UiText.Translate(host.Store.Current.Language, "程序与快捷方式 (*.exe;*.lnk)|*.exe;*.lnk"), CheckFileExists = true, Multiselect = true, DereferenceLinks = false };
                 if (await window.Dispatcher.InvokeAsync(() => files.ShowDialog(window)) != true) return new { cancelled = true };
-                return new { cancelled = false, scan = await Task.Run(() => imports.ScanFiles(files.FileNames, "手动选择")) };
+                return new { cancelled = false, scan = LocalizeScan(await Task.Run(() => imports.ScanFiles(files.FileNames, "手动选择"))) };
             }
             IReadOnlyList<ApplicationScanRoot> roots;
             if (source == "desktop") roots = ApplicationImportService.DesktopRoots();
             else if (source == "startMenu") roots = ApplicationImportService.StartMenuRoots();
             else if (source == "folder")
             {
-                var dialog = new OpenFolderDialog { Title = "选择文件夹，自动查找程序与快捷方式", Multiselect = false };
+                var dialog = new OpenFolderDialog { Title = UiText.Translate(host.Store.Current.Language, "选择文件夹，自动查找程序与快捷方式"), Multiselect = false };
                 if (await window.Dispatcher.InvokeAsync(() => dialog.ShowDialog(window)) != true) return new { cancelled = true };
                 roots = [new(NativeLaunchService.ValidateLocalPath(dialog.FolderName), "所选文件夹")];
             }
             else throw new BridgeException("INVALID_PARAMS", "请选择桌面或本地文件夹。");
-            return new { cancelled = false, scan = await Task.Run(() => imports.Scan(roots, recursive, source == "startMenu")) };
+            return new { cancelled = false, scan = LocalizeScan(await Task.Run(() => imports.Scan(roots, recursive, source == "startMenu"))) };
         }
         finally { pickerOpen = false; }
+    }
+
+    private ApplicationScan LocalizeScan(ApplicationScan scan)
+    {
+        var language = host.Store.Current.Language;
+        return scan with
+        {
+            Roots = scan.Roots.Select(root => root with { Name = UiText.Translate(language, root.Name) }).ToArray(),
+            Candidates = scan.Candidates.Select(candidate => candidate with { Source = UiText.Translate(language, candidate.Source) }).ToArray()
+        };
     }
 
     public bool CanStageDrop => window.Surface == "workspace" && !host.IsExiting && !pickerOpen && pending.Count == 0;
@@ -316,7 +328,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
     public void StageApplicationDrop(IReadOnlyList<string> nativeFiles)
     {
         if (!CanStageDrop) return;
-        try { window.SendEvent("apps.dropPreview", imports.StageFiles(nativeFiles, "拖入应用")); }
+        try { window.SendEvent("apps.dropPreview", LocalizeScan(imports.StageFiles(nativeFiles, "拖入应用"))); }
         catch (Exception ex) when (ex is TargetValidationException or ArgumentException or IOException or UnauthorizedAccessException)
         { host.Log("ApplicationDrop", ex.Message); }
     }
@@ -329,7 +341,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
         pickerOpen = true;
         try
         {
-            var dialog = new OpenFileDialog { Title = "选择本地程序", Filter = "程序与快捷方式 (*.exe;*.lnk)|*.exe;*.lnk|Windows 程序 (*.exe)|*.exe|Windows 快捷方式 (*.lnk)|*.lnk",
+            var dialog = new OpenFileDialog { Title = UiText.Translate(host.Store.Current.Language, "选择本地程序"), Filter = UiText.Translate(host.Store.Current.Language, "程序与快捷方式 (*.exe;*.lnk)|*.exe;*.lnk|Windows 程序 (*.exe)|*.exe|Windows 快捷方式 (*.lnk)|*.lnk"),
                 CheckFileExists = true, Multiselect = false, DereferenceLinks = false };
             host.Log("Picker", "Opening");
             // Leave the WebView message callback before opening the modal native picker.
@@ -353,13 +365,13 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
         {
             if (kind is "folder" or "workingDirectory")
             {
-                var folder = new OpenFolderDialog { Title = "选择本地文件夹", Multiselect = false };
+                var folder = new OpenFolderDialog { Title = UiText.Translate(host.Store.Current.Language, "选择本地文件夹"), Multiselect = false };
                 if (await window.Dispatcher.InvokeAsync(() => folder.ShowDialog(window)) != true) return new { cancelled = true };
                 return new { cancelled = false, target = NativeLaunchService.ValidateLocalPath(folder.FolderName) };
             }
             if (kind is not ("application" or "file" or "script" or "waitTarget")) throw new BridgeException("INVALID_PARAMS", "目标类型无效。");
-            var dialog = new OpenFileDialog { Title = "选择场景动作目标", CheckFileExists = true, Multiselect = false, DereferenceLinks = false,
-                Filter = kind == "script" ? "本地脚本 (*.bat;*.cmd;*.ps1)|*.bat;*.cmd;*.ps1" : kind is "application" or "waitTarget" ? "应用 (*.exe;*.lnk)|*.exe;*.lnk" : "所有文件 (*.*)|*.*" };
+            var dialog = new OpenFileDialog { Title = UiText.Translate(host.Store.Current.Language, "选择场景动作目标"), CheckFileExists = true, Multiselect = false, DereferenceLinks = false,
+                Filter = kind == "script" ? UiText.Translate(host.Store.Current.Language, "本地脚本 (*.bat;*.cmd;*.ps1)|*.bat;*.cmd;*.ps1") : kind is "application" or "waitTarget" ? UiText.Translate(host.Store.Current.Language, "应用 (*.exe;*.lnk)|*.exe;*.lnk") : UiText.Translate(host.Store.Current.Language, "所有文件 (*.*)|*.*") };
             if (await window.Dispatcher.InvokeAsync(() => dialog.ShowDialog(window)) != true) return new { cancelled = true };
             var target = NativeLaunchService.ValidateLocalPath(dialog.FileName);
             if (kind == "application") host.Launcher.RegisterApp(target);
@@ -405,7 +417,7 @@ internal sealed class NativeBridge(HubApplication host, HubWindow window)
     private void Reply(object response)
     {
         if (window.IsDisposed) return;
-        try { window.Browser.CoreWebView2?.PostWebMessageAsJson(JsonSerializer.Serialize(response, HubApplication.Json)); }
+        try { window.Browser.CoreWebView2?.PostWebMessageAsJson(UiLocalization.Serialize(response, host.Store.Current.Language)); }
         catch (ObjectDisposedException) { }
         catch (InvalidOperationException) { }
     }

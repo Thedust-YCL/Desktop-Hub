@@ -88,11 +88,11 @@ internal static class ActivityProjectMetadata
         {
             var invalid = scene.Actions.Any(action => action.Enabled && (action.ReferenceInvalid || action.AppEntryId is { Length: > 0 } appId && !settings.AppEntries.Any(app => app.Id == appId)));
             var status = !scene.Enabled ? "Disabled" : invalid ? "Invalid" : "Active";
-            return new(scene.Name, $"{scene.Actions.Count} 个动作", status, status == "Active");
+            return new(scene.Name, settings.Language == "en-US" ? $"{scene.Actions.Count} actions" : $"{scene.Actions.Count} 个动作", status, status == "Active");
         }
         if (type is "file" or "folder" && resources.Resources.FirstOrDefault(resource => resource.Id == id && resource.ResourceType == type) is { } file)
             return new(file.DisplayName, file.CanonicalPath, file.Status, file.Status == "Active");
-        return new("已移除", "关联失效，请移除或重新选择。", "Removed", false);
+        return new(UiText.Translate(settings.Language, "已移除"), UiText.Translate(settings.Language, "关联失效，请移除或重新选择。"), "Removed", false);
     }
     internal static ActivityResolvedItem Activity(ActivityRecord record, AppSettings settings, ResourceLibrary resources)
     {

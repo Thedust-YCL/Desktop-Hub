@@ -29,6 +29,7 @@ public sealed class HubWindow : Window, IDisposable
     private string? position;
     private bool disposing;
     private int activeNativeRequests;
+    internal int ActiveNativeRequests => activeNativeRequests;
     private readonly HiddenSurfaceLifecycle lifecycle = new();
     private CancellationTokenSource? visibilityWork;
     private long handshakeRevision;
@@ -39,7 +40,8 @@ public sealed class HubWindow : Window, IDisposable
     public HubWindow(HubApplication application, string surface)
     {
         host = application; Surface = surface;
-        Title = "Desktop Hub · " + surface;
+        ApplyLanguage();
+        Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/Assets/desktop-hub.ico"));
         WindowStyle = WindowStyle.None; ResizeMode = surface == "workspace" ? ResizeMode.CanResizeWithGrip : ResizeMode.NoResize;
         if (surface == "workspace")
         {
@@ -291,8 +293,10 @@ public sealed class HubWindow : Window, IDisposable
     public void SendEvent(string type, object payload)
     {
         if (Browser.CoreWebView2 is null || disposing || !IsVisible) return;
-        Browser.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { version = 1, type, payload }, HubApplication.Json));
+        Browser.CoreWebView2.PostWebMessageAsJson(UiLocalization.Serialize(new { version = 1, type, payload }, host.Store.Current.Language));
     }
+
+    internal void ApplyLanguage() => Title = UiText.Translate(host.Store.Current.Language, "Desktop Hub") + " · " + Surface;
 
     internal void ApplyNativeTheme()
     {

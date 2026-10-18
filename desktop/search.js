@@ -1,6 +1,7 @@
 /* Unified metadata search. Execution uses existing registered-ID actions only. */
 (function () {
   'use strict';
+  const t = window.DesktopHubI18n?.text || ((value, ...args) => Array.isArray(value) ? value.reduce((out, part, i) => out + part + (i < args.length ? args[i] : ''), '') : value);
   const H = window.Hub, desktop = window.DesktopHubDesktop, bridge = window.DesktopHubNative.bridge;
   if (desktop.getState().surface !== 'workspace') return;
   const e = value => H.escape(String(value ?? ''));
@@ -11,25 +12,26 @@
   const isOpen = () => !!H.ui.modal?.unifiedSearch;
   const node = id => document.querySelector('#' + id);
   const settings = () => desktop.getState().hostState?.settings;
-  const actionLabel = row => statuses[row.status] || ({ app: '启动', scene: '执行', file: '打开', folder: '浏览', tag: '筛选', project: '查看' }[row.type] || '查看');
+  const actionLabel = row => t(statuses[row.status]) || ({ app: t('启动'), scene: t('执行'), file: t('打开'), folder: t('浏览'), tag: t('筛选'), project: t('查看') }[row.type] || t('查看'));
   function paint() {
     if (!isOpen()) return;
     const feedback = node('unified-feedback'), results = node('unified-results'), input = node('unified-query');
-    if (feedback) feedback.textContent = loading ? '正在搜索…' : error || (rows.length ? `${rows.length} 项结果${rows.length === 50 ? ' · 最多显示 50 项，请缩小范围' : ''}` : '没有匹配结果，换一个关键词或类型。');
+    if (feedback) feedback.textContent = loading ? t('正在搜索…') : error || (rows.length ? t`${rows.length} 项结果${rows.length === 50 ? t(' · 最多显示 50 项，请缩小范围') : ''}` : t('没有匹配结果，换一个关键词或类型。'));
     if (results) {
       results.setAttribute('aria-busy', String(loading));
-      results.innerHTML = rows.map((row, index) => `<div class="unified-result ${active === index ? 'selected' : ''}" role="option" aria-selected="${active === index}" id="unified-option-${index}"><button class="unified-result-main" data-action="unified-execute" data-index="${index}" data-id="${e(row.id)}"><span class="unified-kind">${e(types[row.type])}</span><span class="unified-identity"><strong>${e(row.name)}</strong><small title="${e(row.detail)}">${e(row.detail)}</small></span><span class="unified-operation">${e(actionLabel(row))}</span></button>${row.type === 'folder' && row.status === 'Active' ? `<button class="icon-button" data-action="unified-reveal" data-index="${index}" aria-label="在资源管理器打开 ${e(row.name)}" title="资源管理器">${H.icon('external', 17)}</button>` : ''}</div>`).join('') + (error ? '<button class="button" data-action="unified-retry">重试</button>' : '');
+      results.innerHTML = rows.map((row, index) => `<div class="unified-result ${active === index ? 'selected' : ''}" role="option" aria-selected="${active === index}" id="unified-option-${index}"><button class="unified-result-main" data-action="unified-execute" data-index="${index}" data-id="${e(row.id)}"><span class="unified-kind">${e(t(types[row.type]))}</span><span class="unified-identity"><strong>${e(row.name)}</strong><small title="${e(row.detail)}">${e(row.detail)}</small></span><span class="unified-operation">${e(actionLabel(row))}</span></button>${row.type === 'folder' && row.status === 'Active' ? t`<button class="icon-button" data-action="unified-reveal" data-index="${index}" aria-label="在资源管理器打开 ${e(row.name)}" title="资源管理器">${H.icon('external', 17)}</button>` : ''}</div>`).join('') + (error ? t('<button class="button" data-action="unified-retry">重试</button>') : '');
     }
     if (input) { if (active >= 0) input.setAttribute('aria-activedescendant', `unified-option-${active}`); else input.removeAttribute('aria-activedescendant'); }
     const filters = node('unified-types');
     if (filters) {
       if (!filters.dataset.initialized) {
-        filters.innerHTML = Object.entries(types).map(([key, label]) => `<button class="button small" data-action="unified-type" data-type="${key}">${label}</button>`).join('');
+        filters.innerHTML = Object.entries(types).map(([key, label]) => `<button class="button small" data-action="unified-type" data-type="${key}">${t(label)}</button>`).join('');
         filters.dataset.initialized = 'true';
       }
       // Keep filter nodes connected so keyboard focus survives query/result updates.
       filters.querySelectorAll('[data-type]').forEach(button => {
         const selected = button.dataset.type === type;
+        button.textContent = t(types[button.dataset.type]);
         button.className = 'button small ' + (selected ? 'primary' : 'quiet');
         button.setAttribute('aria-pressed', String(selected));
       });
@@ -46,9 +48,9 @@
       try {
         const result = await bridge.request('search.query', { query: text, type: filter, favoritesOnly: onlyFavorites });
         if (order !== generation || !isOpen()) return;
-        if (!Array.isArray(result) || result.some(row => !types[row.type] || row.type === 'all' || typeof row.id !== 'string' || typeof row.name !== 'string' || typeof row.detail !== 'string' || typeof row.status !== 'string')) throw new Error('搜索结果无效，请重试。');
+        if (!Array.isArray(result) || result.some(row => !types[row.type] || row.type === 'all' || typeof row.id !== 'string' || typeof row.name !== 'string' || typeof row.detail !== 'string' || typeof row.status !== 'string')) throw new Error(t('搜索结果无效，请重试。'));
         rows = result.slice(0, 50); active = rows.findIndex(row => row.status === 'Active'); if (active < 0 && rows.length) active = 0;
-      } catch (failure) { if (order !== generation || !isOpen()) return; error = failure.message || '搜索失败，请重试。'; }
+      } catch (failure) { if (order !== generation || !isOpen()) return; error = failure.message || t('搜索失败，请重试。'); }
       finally { if (order === generation && isOpen()) { loading = false; paint(); } }
     }, 150);
   }
@@ -56,7 +58,7 @@
     if (H.ui.modal) return false;
     opener = document.activeElement ? { id: document.activeElement.id, data: { ...document.activeElement.dataset } } : null;
     query = ''; type = 'all'; favoritesOnly = false; composing = false;
-    H.showModal('搜索', `<div class="unified-search"><label class="unified-input">${H.icon('search', 20)}<input id="unified-query" type="search" maxlength="200" autofocus autocomplete="off" placeholder="名称、中文首字母、路径或标签" aria-label="搜索应用、场景、文件和标签" role="combobox" aria-controls="unified-results" aria-expanded="true" aria-autocomplete="list"></label><div id="unified-types" class="unified-types" aria-label="搜索类型"></div><label class="check-row"><input id="unified-favorites" type="checkbox" data-change="unified-favorites"><span>仅收藏的应用与文件</span></label><p id="unified-feedback" class="unified-feedback" role="status" aria-live="polite"></p><div id="unified-results" class="unified-results" role="listbox" aria-label="搜索结果"></div></div>`, '<span class="unified-hint">↑ ↓ 选择 · Enter 打开 · Esc 关闭</span>', { wide: true });
+    H.showModal(t('搜索'), t`<div class="unified-search"><label class="unified-input">${H.icon('search', 20)}<input id="unified-query" type="search" maxlength="200" autofocus autocomplete="off" placeholder="名称、中文首字母、路径或标签" aria-label="搜索应用、场景、文件和标签" role="combobox" aria-controls="unified-results" aria-expanded="true" aria-autocomplete="list"></label><div id="unified-types" class="unified-types" aria-label="搜索类型"></div><label class="check-row"><input id="unified-favorites" type="checkbox" data-change="unified-favorites"><span>仅收藏的应用与文件</span></label><p id="unified-feedback" class="unified-feedback" role="status" aria-live="polite"></p><div id="unified-results" class="unified-results" role="listbox" aria-label="搜索结果"></div></div>`, t('<span class="unified-hint">↑ ↓ 选择 · Enter 打开 · Esc 关闭</span>'), { wide: true });
     H.ui.modal.unifiedSearch = true; node('unified-query')?.focus({ preventScroll: true }); refresh(); return true;
   }
   const previousClose = H.closeModal;
@@ -74,7 +76,7 @@
     const row = rows[index]; if (!row) return;
     const current = settings();
     if (row.type === 'app' && !current?.appEntries?.some(app => app.id === row.id) || row.type === 'scene' && !current?.scenes?.some(scene => scene.id === row.id)) {
-      H.toast('此项已移除，请重新搜索。', 'warning'); refresh(); return;
+      H.toast(t('此项已移除，请重新搜索。'), 'warning'); refresh(); return;
     }
     H.closeModal();
     try {
@@ -88,12 +90,12 @@
       } else if (row.type === 'tag') await window.DesktopHubResources.filterTag(row.id);
       else if (row.type === 'file' || row.type === 'folder') {
         if (row.status === 'Missing' || row.status === 'PendingRepair') await window.DesktopHubResources.repair(row.id);
-        else if (row.status !== 'Active') { H.toast('来源暂不可用，请检查磁盘或权限，再刷新资源库。', 'warning'); H.navigate('library'); }
+        else if (row.status !== 'Active') { H.toast(t('来源暂不可用，请检查磁盘或权限，再刷新资源库。'), 'warning'); H.navigate('library'); }
         else if (row.type === 'folder' && !reveal) await window.DesktopHubResources.browse(row.id);
         else await H.actions['nr-open']({ dataset: { id: row.id, mode: 'open' } });
       } else if (row.type === 'project' && window.DesktopHubProjects?.open) window.DesktopHubProjects.open(row.id);
-      else H.toast('此项暂不可用，请刷新后重试。', 'warning');
-    } catch (failure) { H.toast(failure.message || '无法打开，请重试。', 'error'); }
+      else H.toast(t('此项暂不可用，请刷新后重试。'), 'warning');
+    } catch (failure) { H.toast(failure.message || t('无法打开，请重试。'), 'error'); }
   }
   Object.assign(H.actions, {
     'search-open': open, 'unified-retry': refresh,
@@ -105,7 +107,7 @@
   H.navigate = function (page) { if (page === 'search') { open(); return; } return navigate(page); };
   function bindEntry() {
     const top = document.querySelector('.global-search');
-    if (top) { top.dataset.action = 'search-open'; top.removeAttribute('data-page'); top.setAttribute('aria-label', '搜索应用、场景、文件和标签'); const label = top.querySelector('span'); if (label) label.textContent = '搜索应用、场景、文件'; }
+    if (top) { top.dataset.action = 'search-open'; top.removeAttribute('data-page'); top.setAttribute('aria-label', t('搜索应用、场景、文件和标签')); const label = top.querySelector('span'); if (label) label.textContent = t('搜索应用、场景、文件'); }
   }
   const render = H.render; H.render = function () { render(); bindEntry(); };
   document.addEventListener('input', event => {

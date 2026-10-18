@@ -8,6 +8,7 @@ public sealed record AppSettings
     public string PerformanceMode { get; set; } = "quick";
     public bool AutoCloseDock { get; set; }
     public string Theme { get; set; } = "system";
+    public string Language { get; set; } = "zh-CN";
     public bool ReducedMotion { get; set; }
     public bool OnboardingCompleted { get; set; }
     public bool SuppressDesktopLocationNotice { get; set; }

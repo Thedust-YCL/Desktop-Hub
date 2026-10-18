@@ -257,6 +257,19 @@ html[data-desktop-host] .workspace-header { user-select: none; }
 .app-group-heading .button { min-height: 32px; font-size: 13px; }
 [data-sort-kind][draggable=true] { cursor: grab; }
 [data-sort-kind][draggable=true]:active { cursor: grabbing; }
+.launcher-tile[data-sort-enabled=true] { position: relative; user-select: none; touch-action: none; }
+.launcher-tile[data-sort-enabled=true] .launcher-app,
+.launcher-tile[data-sort-enabled=true] .launcher-drag-handle { cursor: grab; }
+.launcher-tile[data-sort-enabled=true] img { -webkit-user-drag: none; }
+.launcher-drag-handle { position: absolute; top: 3px; left: 7px; color: var(--muted); font-size: 20px; line-height: 24px; }
+.launcher-tile[data-sort-enabled=false] .launcher-drag-handle { opacity: .35; }
+.launcher-tile.is-sorting { opacity: .35; }
+.launcher-tile[data-sort-drop] { position: relative; outline: 1px solid var(--accent); outline-offset: 2px; }
+.launcher-tile[data-sort-drop]::after { content: ''; position: absolute; top: 0; bottom: 0; width: 3px; border-radius: 3px; background: var(--accent); pointer-events: none; }
+.launcher-tile[data-sort-drop=before]::after { left: -8px; }
+.launcher-tile[data-sort-drop=after]::after { right: -8px; }
+.launcher-sort-ghost { position: fixed !important; top: 0; left: 0; margin: 0; z-index: 120; pointer-events: none; opacity: .92; background: var(--panel); box-shadow: var(--shadow); outline: 1px solid var(--accent); }
+.sorting-apps, .sorting-apps * { cursor: grabbing !important; user-select: none !important; }
 .favorite-applications { margin: 12px 0 20px; min-width: 0; }
 .favorite-applications h2 { font-size: 16px; margin-bottom: 10px; }
 .favorite-applications .muted, .app-group > .muted { font-size: 13px; line-height: 1.6; }

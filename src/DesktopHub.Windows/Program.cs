@@ -1,4 +1,5 @@
 using System.IO;
+using DesktopHub.Core;
 using System.Windows;
 using System.Windows.Threading;
 
@@ -9,6 +10,7 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        Velopack.VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
         var importSmoke = args.Contains("--application-import-smoke") || args.Contains("--application-import-smoke-restart");
         var smokeRestart = args.Contains("--smoke-test-restart") || args.Contains("--application-import-smoke-restart");
         var smoke = args.Contains("--smoke-test") || smokeRestart || importSmoke;
@@ -25,7 +27,7 @@ public static class Program
         if (!instance.IsPrimaryInstance)
         {
             var activated = instance.NotifyExistingInstanceAsync().GetAwaiter().GetResult();
-            if (!activated && !diagnostic) MessageBox.Show("Desktop Hub 已在运行，暂时无法传递唤出请求。请使用系统托盘打开。", "Desktop Hub");
+            if (!activated && !diagnostic) MessageBox.Show(UiText.Translate("zh-CN", "Desktop Hub 已在运行，暂时无法传递唤出请求。请使用系统托盘打开。"), UiText.Translate("zh-CN", "Desktop Hub"));
             return activated ? 0 : 1;
         }
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -33,7 +35,7 @@ public static class Program
         app.DispatcherUnhandledException += (_, e) =>
         {
             host?.Log("Unhandled", e.Exception.ToString());
-            if (!diagnostic) MessageBox.Show("操作未完成：" + e.Exception.Message, "Desktop Hub", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (!diagnostic) MessageBox.Show(UiText.Translate(host?.Store.Current.Language, "操作未完成：") + UiText.Translate(host?.Store.Current.Language, e.Exception.Message), UiText.Translate(host?.Store.Current.Language, "Desktop Hub"), MessageBoxButton.OK, MessageBoxImage.Error);
             e.Handled = true;
         };
         app.Startup += async (_, _) =>
@@ -60,7 +62,7 @@ public static class Program
             catch (Exception e)
             {
                 host?.Log("Startup", e.ToString());
-                if (!diagnostic) MessageBox.Show("Desktop Hub 无法启动。请确认 .NET Desktop Runtime 8 和 WebView2 Runtime 已安装。\n" + e.Message, "Desktop Hub");
+                if (!diagnostic) MessageBox.Show(UiText.Translate(host?.Store.Current.Language, "Desktop Hub 无法启动。请确认 .NET Desktop Runtime 8 和 WebView2 Runtime 已安装。\n") + UiText.Translate(host?.Store.Current.Language, e.Message), UiText.Translate(host?.Store.Current.Language, "Desktop Hub"));
                 else File.WriteAllText(Path.Combine(AppContext.BaseDirectory, systemSmoke ? "m23-smoke-error.txt" : indexSmoke ? "m22-smoke-error.txt" : sceneSmoke ? "m21-smoke-error.txt" : resourceTest ? "resource-error.txt" : "m15-smoke-error.txt"), e.ToString());
                 app.Shutdown(1);
             }

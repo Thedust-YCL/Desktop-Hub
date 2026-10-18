@@ -1,6 +1,7 @@
 /* Shared settings controls, window resize edges and workspace navigation history. */
 (function () {
   'use strict';
+  const t = window.DesktopHubI18n?.text || ((value, ...args) => Array.isArray(value) ? value.reduce((out, part, i) => out + part + (i < args.length ? args[i] : ''), '') : value);
   const H = window.Hub, bridge = window.DesktopHubNative.bridge;
   if (window.DesktopHubDesktop.getState().surface !== 'workspace') return;
   const e = value => H.escape(String(value ?? ''));
@@ -29,7 +30,7 @@
     if (!target || H.ui.modal?.locked) return;
     if (H.ui.page === 'editor' && H.ui.sceneDraftDirty && target.page !== 'editor') {
       deferredIndex = targetIndex;
-      H.showModal('离开场景编辑器？', '<p>本次草稿尚未保存。可以继续编辑，或放弃修改后离开。</p>', '<button class="button" data-action="close-modal">继续编辑</button><button class="button primary" data-action="history-discard">放弃修改并离开</button>');
+      H.showModal(t('离开场景编辑器？'), t('<p>本次草稿尚未保存。可以继续编辑，或放弃修改后离开。</p>'), t('<button class="button" data-action="close-modal">继续编辑</button><button class="button primary" data-action="history-discard">放弃修改并离开</button>'));
       return;
     }
     if (H.ui.modal) { H.closeModal(); return; }
@@ -84,8 +85,8 @@
     const focusChoice = active?.dataset?.choiceKey ? { key: active.dataset.choiceKey, value: active.dataset.choiceValue } : null;
     previousRender(); syncHistory(); enhanceSettings();
     const header = document.querySelector('.workspace-header .brand');
-    header?.insertAdjacentHTML('afterend', `<div class="workspace-history" aria-label="浏览历史"><button class="icon-button small" data-action="history-back" aria-label="上一步" title="上一步（鼠标后退侧键 / Alt+←）" ${index <= 0 ? 'disabled' : ''}>${H.icon('arrow-left', 18)}</button><button class="icon-button small" data-action="history-forward" aria-label="下一步" title="下一步（鼠标前进侧键 / Alt+→）" ${index + 1 >= entries.length ? 'disabled' : ''}>${H.icon('arrow-right', 18)}</button></div>`);
-    document.querySelector('.workspace')?.insertAdjacentHTML('beforeend', ['left','right','top','bottom','top-left','top-right','bottom-left','bottom-right'].map(edge => `<div class="workspace-resize resize-${edge}" data-resize-edge="${edge}" aria-hidden="true" title="拖动调整窗口大小"></div>`).join(''));
+    header?.insertAdjacentHTML('afterend', t`<div class="workspace-history" aria-label="浏览历史"><button class="icon-button small" data-action="history-back" aria-label="上一步" title="上一步（鼠标后退侧键 / Alt+←）" ${index <= 0 ? 'disabled' : ''}>${H.icon('arrow-left', 18)}</button><button class="icon-button small" data-action="history-forward" aria-label="下一步" title="下一步（鼠标前进侧键 / Alt+→）" ${index + 1 >= entries.length ? 'disabled' : ''}>${H.icon('arrow-right', 18)}</button></div>`);
+    document.querySelector('.workspace')?.insertAdjacentHTML('beforeend', ['left','right','top','bottom','top-left','top-right','bottom-left','bottom-right'].map(edge => t`<div class="workspace-resize resize-${edge}" data-resize-edge="${edge}" aria-hidden="true" title="拖动调整窗口大小"></div>`).join(''));
     if (focusChoice) [...document.querySelectorAll('[data-action="setting-choice"]')].find(button => button.dataset.choiceKey === focusChoice.key && button.dataset.choiceValue === focusChoice.value)?.focus({ preventScroll: true });
   };
   document.addEventListener('pointerdown', event => {

@@ -148,7 +148,7 @@ internal static class Program
         Check("Rebuild restores navigation without replaying launches or writes", !ReferenceEquals(rebuilt, window) && host.Scenes.Snapshot().Count == executionCount && host.Activity.Snapshot().Count == before);
         var historyAfter = (await RequestOk(rebuilt, "app.getState", new { })).GetProperty("layoutResults").EnumerateArray().Where(item => item.GetProperty("kind").GetString() == "manual").Select(item => item.GetProperty("resultId").GetString()).ToArray();
         Check("Manual layout results keep stable identity across actual release and rebuilding", historyBefore.Length > 0 && historyBefore.SequenceEqual(historyAfter));
-        Check("Host and assembly versions agree", (await RequestOk(rebuilt, "app.getState", new { })).GetProperty("version").GetString() == "0.3.0" && typeof(HubApplication).Assembly.GetName().Version?.Major == 0 && typeof(HubApplication).Assembly.GetName().Version?.Minor == 3);
+        Check("Host and assembly versions agree", (await RequestOk(rebuilt, "app.getState", new { })).GetProperty("version").GetString() == typeof(HubApplication).Assembly.GetName().Version?.ToString(3));
         await Matrix(rebuilt, "rebuilt-library");
     }
     private static IEnumerable<string> EvidenceFiles()
